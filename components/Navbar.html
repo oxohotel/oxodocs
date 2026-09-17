@@ -1,0 +1,48 @@
+<header class="home-navbar">
+  <div class="navbar-search" id="navbarSearchWrapper">
+    <span class="search-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+    </span>
+    <input type="search" id="navbarSearchInput" name="q_search_portal" placeholder="Buscar hoteles, carpetas..." autocomplete="one-time-code" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true" data-form-type="other" role="searchbox">
+
+    <div class="navbar-dropdown navbar-search-resultados" id="navbarSearchResultados">
+      <p class="dropdown-empty-hint">Escribe al menos 2 letras para buscar.</p>
+    </div>
+  </div>
+
+  <div class="navbar-actions">
+    <div class="navbar-dropdown-wrapper">
+      <button type="button" class="icon-btn" id="btnNotificaciones" aria-label="Notificaciones">
+        <span class="icon-btn-dot"></span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 10-12 0c0 3-1 5-2 6h16c-1-1-2-3-2-6z"/><path d="M10 21a2 2 0 004 0"/></svg>
+      </button>
+      <div class="navbar-dropdown" id="notifDropdown">
+        <p class="dropdown-title">Notificaciones</p>
+        <div class="notif-item">
+          Políticas Corporativas 2026 pasó a "En revisión"
+          <span class="notif-time">Hace 2 horas</span>
+        </div>
+        <div class="notif-item">
+          Informe Trimestral de Gestión Q2 fue aprobado
+          <span class="notif-time">Ayer</span>
+        </div>
+        <p class="dropdown-empty-hint">Próximamente verás aquí tus alertas reales.</p>
+      </div>
+    </div>
+
+    <button type="button" class="icon-btn" id="btnTema" aria-label="Cambiar tema">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+    </button>
+
+    <div class="navbar-dropdown-wrapper">
+      <button type="button" class="avatar-btn" id="btnPerfil" aria-label="Perfil">
+        <span id="avatarInicial">U</span>
+      </button>
+      <div class="navbar-dropdown navbar-dropdown-perfil" id="perfilDropdown">
+        <p class="dropdown-user-name" id="navbarUserName">Usuario</p>
+        <button type="button" class="dropdown-item" id="btnVerPerfil">Ver perfil</button>
+        <button type="button" class="dropdown-item dropdown-item-danger" id="btnAbrirLogout">Cerrar sesión</button>
+      </div>
+    </div>
+  </div>
+</header>

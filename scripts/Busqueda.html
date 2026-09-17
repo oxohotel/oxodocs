@@ -1,0 +1,122 @@
+<script>
+  var ICONO_RESULTADO_HOTEL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="3" width="16" height="18" rx="1"/><path d="M9 21v-4h6v4M9 7h1M14 7h1M9 11h1M14 11h1M9 15h1M14 15h1"/></svg>';
+  var ICONO_RESULTADO_CARPETA = '<svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M3 6a1 1 0 011-1h5l2 2h9a1 1 0 011 1v10a1 1 0 01-1 1H4a1 1 0 01-1-1V6z"/></svg>';
+
+  var temporizadorBusquedaGlobal = null;
+
+  function inicializarBusquedaGlobal() {
+    const input = document.getElementById("navbarSearchInput");
+    const wrapper = document.getElementById("navbarSearchWrapper");
+    const resultados = document.getElementById("navbarSearchResultados");
+    if (!input || !wrapper || !resultados) return;
+
+    // Limpiar cualquier autocompletado espurio del navegador al inicio
+    input.value = '';
+    resultados.classList.remove('abierto');
+    setTimeout(function() {
+      if (document.activeElement !== input) {
+        input.value = '';
+        resultados.classList.remove('abierto');
+      }
+    }, 250);
+
+    // Evita que el click-fuera-cierra-dropdowns global cierre esto al escribir/hacer clic adentro.
+    wrapper.addEventListener("click", function (e) { e.stopPropagation(); });
+
+    input.addEventListener("input", function () {
+      // Si el campo no fue enfocado activamente por el usuario (ej. Chrome Autofill silencioso), limpiar y salir
+      if (document.activeElement !== input) {
+        input.value = '';
+        resultados.classList.remove('abierto');
+        return;
+      }
+
+      const termino = input.value.trim();
+      clearTimeout(temporizadorBusquedaGlobal);
+
+      if (termino.length < 2) {
+        resultados.classList.remove("abierto");
+        return;
+      }
+
+      temporizadorBusquedaGlobal = setTimeout(function () {
+        ejecutarBusquedaGlobal(termino);
+      }, 300);
+    });
+
+    input.addEventListener("focus", function () {
+      if (input.value.trim().length >= 2) resultados.classList.add("abierto");
+    });
+  }
+
+  function ejecutarBusquedaGlobal(termino) {
+    google.script.run
+      .withSuccessHandler(function (data) { renderizarResultadosBusqueda(data, termino); })
+      .withFailureHandler(function (error) {
+        console.error("Error en la búsqueda global:", error);
+      })
+      .buscarGlobal(termino);
+  }
+
+  function renderizarResultadosBusqueda(data, termino) {
+    const resultados = document.getElementById("navbarSearchResultados");
+    if (!resultados) return;
+
+    const hoteles = (data && data.hoteles) || [];
+    const carpetas = (data && data.carpetas) || [];
+
+    if (!hoteles.length && !carpetas.length) {
+      resultados.innerHTML = '<p class="dropdown-empty-hint">Sin resultados para "' + escaparHtml(termino) + '"</p>';
+      resultados.classList.add("abierto");
+      return;
+    }
+
+    let html = "";
+
+    if (hoteles.length) {
+      html += '<p class="busqueda-grupo-titulo">Hoteles</p>';
+      html += hoteles.map(function (h) {
+        return '<button type="button" class="busqueda-resultado" data-id-hotel="' + h.idHotel + '" data-nombre-hotel="' + escaparHtml(h.nombre) + '">' +
+          '<span class="busqueda-resultado-icon">' + ICONO_RESULTADO_HOTEL + '</span>' +
+          '<span class="busqueda-resultado-textos"><span class="busqueda-resultado-nombre">' + escaparHtml(h.nombre) + '</span></span>' +
+        '</button>';
+      }).join("");
+    }
+
+    if (carpetas.length) {
+      html += '<p class="busqueda-grupo-titulo">Carpetas</p>';
+      html += carpetas.map(function (c) {
+        return '<button type="button" class="busqueda-resultado" data-id-hotel="' + c.idHotel + '" data-nombre-hotel="' + escaparHtml(c.nombreHotel) + '" data-id-carpeta="' + (c.idCarpeta || '') + '">' +
+          '<span class="busqueda-resultado-icon">' + ICONO_RESULTADO_CARPETA + '</span>' +
+          '<span class="busqueda-resultado-textos">' +
+            '<span class="busqueda-resultado-nombre">' + escaparHtml(c.nombre) + '</span>' +
+            '<span class="busqueda-resultado-meta">' + escaparHtml(c.nombreHotel) + '</span>' +
+          '</span>' +
+        '</button>';
+      }).join("");
+    }
+
+    resultados.innerHTML = html;
+    resultados.classList.add("abierto");
+
+    resultados.querySelectorAll(".busqueda-resultado").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        irAHotelDesdeBusqueda(btn.dataset.idHotel, btn.dataset.nombreHotel, btn.dataset.idCarpeta);
+        resultados.classList.remove("abierto");
+        const input = document.getElementById("navbarSearchInput");
+        if (input) input.value = "";
+      });
+    });
+  }
+
+  /** Abre las carpetas del hotel encontrado y sincroniza el resaltado de la sidebar con él. */
+  function irAHotelDesdeBusqueda(idHotel, nombreHotel, idCarpeta) {
+    const botonSidebar = document.querySelector('.btn-hotel-carpetas[data-hotel-id="' + idHotel + '"]');
+    if (botonSidebar) {
+      if (typeof seleccionarItemSidebar === "function") seleccionarItemSidebar(botonSidebar);
+      const grupo = botonSidebar.closest(".sidebar-group");
+      if (grupo) grupo.classList.add("abierto");
+    }
+    mostrarVistaCarpetasHotel(idHotel, nombreHotel, idCarpeta);
+  }
+</script>

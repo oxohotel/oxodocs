@@ -6200,7 +6200,7 @@ button, input, select, textarea {
     <span class="search-icon">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
     </span>
-    <input type="text" id="navbarSearchInput" placeholder="Buscar hoteles, carpetas..." autocomplete="off">
+    <input type="search" id="navbarSearchInput" name="q_search_portal" placeholder="Buscar hoteles, carpetas..." autocomplete="one-time-code" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true" data-form-type="other" role="searchbox">
 
     <div class="navbar-dropdown navbar-search-resultados" id="navbarSearchResultados">
       <p class="dropdown-empty-hint">Escribe al menos 2 letras para buscar.</p>
@@ -8878,10 +8878,27 @@ button, input, select, textarea {
     const resultados = document.getElementById("navbarSearchResultados");
     if (!input || !wrapper || !resultados) return;
 
+    // Limpiar cualquier autocompletado espurio del navegador al inicio
+    input.value = '';
+    resultados.classList.remove('abierto');
+    setTimeout(function() {
+      if (document.activeElement !== input) {
+        input.value = '';
+        resultados.classList.remove('abierto');
+      }
+    }, 250);
+
     // Evita que el click-fuera-cierra-dropdowns global cierre esto al escribir/hacer clic adentro.
     wrapper.addEventListener("click", function (e) { e.stopPropagation(); });
 
     input.addEventListener("input", function () {
+      // Si el campo no fue enfocado activamente por el usuario (ej. Chrome Autofill silencioso), limpiar y salir
+      if (document.activeElement !== input) {
+        input.value = '';
+        resultados.classList.remove('abierto');
+        return;
+      }
+
       const termino = input.value.trim();
       clearTimeout(temporizadorBusquedaGlobal);
 
