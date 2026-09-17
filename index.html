@@ -13177,70 +13177,65 @@ const GOOGLE_PICKER_CONFIG = {
       cerrarPanelSubirArchivo();
     }
 
-    // Obtener ID de la carpeta actual en el frontend
-    const idCarpetaActual = window.idCarpetaActual || null;
-    const sesion = (typeof obtenerSesionUsuario === 'function') ? obtenerSesionUsuario() : null;
-    const idUsuario = sesion ? sesion.ID_Usuario : null;
+    // 2. Obtener el ID de la carpeta actual activa en OxoHotel
+    const idCarpetaActual = (typeof estadoArchivosCarpeta !== 'undefined' && estadoArchivosCarpeta.ruta && estadoArchivosCarpeta.ruta.length)
+      ? estadoArchivosCarpeta.ruta[estadoArchivosCarpeta.ruta.length - 1].id
+      : (window.idCarpetaActual || null);
 
-    mostrarFeedbackUI(true, 'Guardando en el repositorio...', 'Procesando ' + total + ' archivo(s)...');
+    if (!idCarpetaActual) {
+      if (typeof showNotification === 'function') {
+        showNotification('⚠️ No se detectó la carpeta actual. Ingresa a una carpeta antes de subir archivos.', 'warning', 4500);
+      }
+      return;
+    }
 
-    let exitosos = 0;
-    let fallidos = 0;
+    const token = (typeof getCurrentUserToken === 'function') ? getCurrentUserToken() : null;
+    const user = (typeof getCurrentUserSession === 'function') ? getCurrentUserSession() : null;
+    const idUsuarioOToken = token || (user ? user.ID_Usuario : null);
+
+    const lista = docs.map(function(doc) {
+      return {
+        id: doc[google.picker.Document.ID],
+        nombre: doc[google.picker.Document.NAME] || 'Archivo_Drive',
+        mimeType: doc[google.picker.Document.MIME_TYPE] || 'application/octet-stream'
+      };
+    });
+
+    mostrarFeedbackUI(true, 'Guardando en la carpeta...', 'Copiando ' + total + ' archivo(s) al repositorio...');
 
     try {
-      for (let i = 0; i < total; i++) {
-        const doc = docs[i];
-        const fileId = doc[google.picker.Document.ID];
-        let fileName = doc[google.picker.Document.NAME] || 'Archivo_Drive';
-        let mimeType = doc[google.picker.Document.MIME_TYPE] || 'application/octet-stream';
+      const res = await new Promise(function(resolve, reject) {
+        google.script.run
+          .withSuccessHandler(function(data) { resolve(data); })
+          .withFailureHandler(function(err) { reject(err); })
+          .guardarArchivosMultiplesDesdeDrive(idCarpetaActual, lista, idUsuarioOToken);
+      });
 
-        const numero = i + 1;
-        actualizarProgresoFeedbackUI('Importando (' + numero + ' de ' + total + '): ' + fileName);
-
-        try {
-          // Enviar fileId directamente al backend vía google.script.run
-          await new Promise((resolve, reject) => {
-            google.script.run
-              .withSuccessHandler(function(res) {
-                if (res && res.success) {
-                  exitosos++;
-                  resolve(res);
-                } else {
-                  reject(new Error(res ? res.message : 'Error al guardar en el servidor'));
-                }
-              })
-              .withFailureHandler(function(err) {
-                reject(err);
-              })
-              .guardarDocumentoDrive(fileId, fileName, mimeType, idCarpetaActual, idUsuario, tokenAccesoActual);
-          });
-        } catch (errArchivo) {
-          console.error('Error procesando archivo ' + fileName + ':', errArchivo);
-          fallidos++;
+      if (res && res.success) {
+        if (typeof showNotification === 'function') {
+          showNotification('✅ ' + (res.message || (total + ' archivo(s) guardado(s) correctamente')), 'success', 4000);
         }
+
+        if (user && typeof registrarActividadSilenciosa === 'function') {
+          registrarActividadSilenciosa(user.ID_Usuario, 'Carpeta', idCarpetaActual, 'Importó ' + total + ' archivo(s) desde Google Drive');
+        }
+
+        // Recargar inmediatamente la carpeta activa para mostrar los nuevos archivos
+        if (typeof cargarContenidoCarpeta === 'function') {
+          cargarContenidoCarpeta(idCarpetaActual);
+        }
+      } else {
+        if (typeof showNotification === 'function') {
+          showNotification('❌ ' + ((res && res.message) || 'Error al guardar los archivos en la carpeta'), 'error', 5000);
+        }
+      }
+    } catch (err) {
+      console.error('Error en guardarArchivosMultiplesDesdeDrive:', err);
+      if (typeof showNotification === 'function') {
+        showNotification('❌ Error de comunicación con el servidor al guardar', 'error', 5000);
       }
     } finally {
       mostrarFeedbackUI(false);
-    }
-
-    // Notificaciones y actualización visual
-    if (exitosos > 0) {
-      if (typeof showNotification === 'function') {
-        showNotification(
-          '✅ ' + exitosos + ' documento(s) importado(s) correctamente a OxoHotel' + (fallidos > 0 ? ' (' + fallidos + ' con error)' : '.'),
-          'success',
-          4000
-        );
-      }
-
-      // Recargar archivos de la carpeta actual si estamos en una
-      if (window.idCarpetaActual && typeof cargarArchivosDeCarpeta === 'function') {
-        cargarArchivosDeCarpeta(window.idCarpetaActual);
-      }
-    } else {
-      if (typeof showNotification === 'function') {
-        showNotification('❌ No se pudo transferir el documento seleccionado. Revisa la consola o permisos.', 'error', 4000);
-      }
     }
   }
 
