@@ -37,6 +37,7 @@
               try {
                 var response = await fetch(APPS_SCRIPT_API_URL, {
                   method: 'POST',
+                  redirect: 'follow',
                   headers: {
                     'Content-Type': 'text/plain;charset=utf-8'
                   },
@@ -12995,7 +12996,7 @@ const GOOGLE_PICKER_CONFIG = {
    */
   function abrirGoogleDrivePicker() {
     // Validar marcadores de credenciales
-    if (GOOGLE_PICKER_CONFIG.CLIENT_ID === '429905601134-i5jr48glphgqqb14gmuet6ie5b8d65v7.apps.googleusercontent.com' || GOOGLE_PICKER_CONFIG.API_KEY === 'AIzaSyCpqkrykbFNtMacTKvpXfGmqCmAHoSIt4g') {
+    if (!GOOGLE_PICKER_CONFIG.CLIENT_ID || !GOOGLE_PICKER_CONFIG.API_KEY || GOOGLE_PICKER_CONFIG.CLIENT_ID.includes('TU_CLIENT') || GOOGLE_PICKER_CONFIG.API_KEY.includes('TU_API')) {
       const msg = '⚠️ Debes configurar TU_CLIENT_ID y TU_API_KEY en scripts/GooglePicker.html con tus credenciales de Google Cloud Console.';
       console.warn(msg);
       if (typeof showNotification === 'function') {
