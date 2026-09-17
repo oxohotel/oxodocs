@@ -16,7 +16,7 @@
 
 const DRIVE_CONFIG = {
   SPREADSHEET_ID: '1XmIWSanOTBZspA3Zblq6zzmfjnfmDCJRFj4rdJn0Lcc', // mismo Sheet ID que BaseDatos.js
-  ROOT_FOLDER_ID: '1witDS7Rl9So3knwTRXkAZ4_P2DgyS4DL', // carpeta raíz ya existente, provista por el usuario
+  ROOT_FOLDER_ID: '1H2bhM3SEaDLkJvGPWf3bso1nliWAXV9E', // carpeta raíz ya existente, provista por el usuario
   PROP_PROGRESO_INDICE: 'DRIVE_PROGRESO_INDICE_HOTEL',
   PROP_TRIGGER_ID: 'DRIVE_TRIGGER_CONTINUACION_ID',
   MAX_MS_EJECUCION: 5 * 60 * 1000,
@@ -452,7 +452,7 @@ function obtenerArchivosRecientesDrive() {
 // ==============================================================================
 
 // Reemplaza con el ID de una carpeta específica de Drive si no se desea usar la carpeta raíz del repositorio:
-const ID_CARPETA_REPOSITORIO = '1witDS7Rl9So3knwTRXkAZ4_P2DgyS4DL';
+const ID_CARPETA_REPOSITORIO = '1H2bhM3SEaDLkJvGPWf3bso1nliWAXV9E';
 
 /**
  * Retorna el token de OAuth interno del script para inicializar Google Picker.
