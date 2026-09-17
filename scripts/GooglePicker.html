@@ -1,0 +1,370 @@
+<script>
+/**
+ * ==============================================================================
+ * INTEGRACIÓN NATIVA CON GOOGLE PICKER API (CLIENT-SIDE)
+ * ==============================================================================
+ * Permite a los usuarios explorar y seleccionar sus propios archivos de Google Drive
+ * mediante OAuth 2.0 (Google Identity Services) y Google Picker API.
+ * 
+ * Flujo:
+ * 1. El usuario hace clic en "Abrir Explorador de Drive".
+ * 2. Se solicita token OAuth 2.0 (drive.readonly).
+ * 3. Se abre el selector nativo de Google Picker.
+ * 4. El archivo seleccionado se descarga en memoria como Blob (vía fetch).
+ * 5. Se convierte a Base64 con FileReader y se envía al backend vía google.script.run.
+ */
+
+// ==============================================================================
+// MARCADORES DE CONFIGURACIÓN DE GOOGLE CLOUD CONSOLE
+// Reemplaza estos valores con tus credenciales de Google Cloud Console:
+// ==============================================================================
+const GOOGLE_PICKER_CONFIG = {
+  CLIENT_ID: '429905601134-i5jr48glphgqqb14gmuet6ie5b8d65v7.apps.googleusercontent.com', // Ej: '1234567890-abcdef.apps.googleusercontent.com'
+  API_KEY: 'AIzaSyCpqkrykbFNtMacTKvpXfGmqCmAHoSIt4g',     // Ej: 'AIzaSyD-...' (API Key con Google Picker API habilitada)
+  APP_ID: '429905601134',                // (Opcional) Project Number de Google Cloud Console
+  SCOPE: 'https://www.googleapis.com/auth/drive.readonly'
+};
+
+(function() {
+  var pickerApiCargada = false;
+  var tokenClient = null;
+  var tokenAccesoActual = null;
+  var inicializandoGapi = false;
+
+  /**
+   * Carga la API de Google Picker (gapi) y el cliente OAuth 2.0 (gis).
+   */
+  function inicializarLibreriasGoogle() {
+    if (pickerApiCargada && tokenClient) return;
+
+    // 1. Cargar Picker en gapi
+    if (typeof gapi !== 'undefined' && !pickerApiCargada && !inicializandoGapi) {
+      inicializandoGapi = true;
+      gapi.load('picker', {
+        callback: function() {
+          pickerApiCargada = true;
+          inicializandoGapi = false;
+          console.log('✅ Google Picker API cargada correctamente.');
+        },
+        onerror: function() {
+          inicializandoGapi = false;
+          console.error('❌ Error cargando Google Picker API.');
+        }
+      });
+    }
+
+    // 2. Inicializar Google Identity Services (GIS) Token Client
+    if (typeof google !== 'undefined' && google.accounts && google.accounts.oauth2 && !tokenClient) {
+      if (GOOGLE_PICKER_CONFIG.CLIENT_ID && GOOGLE_PICKER_CONFIG.CLIENT_ID !== '429905601134-i5jr48glphgqqb14gmuet6ie5b8d65v7.apps.googleusercontent.com') {
+        try {
+          tokenClient = google.accounts.oauth2.initTokenClient({
+            client_id: GOOGLE_PICKER_CONFIG.CLIENT_ID,
+            scope: GOOGLE_PICKER_CONFIG.SCOPE,
+            callback: '' // Se asigna dinámicamente al solicitar token
+          });
+          console.log('✅ Google OAuth2 Token Client inicializado.');
+        } catch (e) {
+          console.error('❌ Error inicializando OAuth2 Token Client:', e);
+        }
+      }
+    }
+  }
+
+  // Intentar inicialización temprana y al cargar la ventana
+  if (document.readyState === 'complete') {
+    setTimeout(inicializarLibreriasGoogle, 400);
+  } else {
+    window.addEventListener('load', function() {
+      setTimeout(inicializarLibreriasGoogle, 400);
+    });
+  }
+
+  /**
+   * Abre el selector nativo de Google Picker tras verificar/solicitar el token OAuth 2.0.
+   */
+  function abrirGoogleDrivePicker() {
+    // Validar marcadores de credenciales
+    if (!GOOGLE_PICKER_CONFIG.CLIENT_ID || !GOOGLE_PICKER_CONFIG.API_KEY || GOOGLE_PICKER_CONFIG.CLIENT_ID.includes('TU_CLIENT') || GOOGLE_PICKER_CONFIG.API_KEY.includes('TU_API')) {
+      const msg = '⚠️ Debes configurar TU_CLIENT_ID y TU_API_KEY en scripts/GooglePicker.html con tus credenciales de Google Cloud Console.';
+      console.warn(msg);
+      if (typeof showNotification === 'function') {
+        showNotification(msg, 'warning', 7000);
+      } else {
+        alert(msg);
+      }
+      return;
+    }
+
+    // Verificar si las librerías externas ya cargaron
+    if (typeof gapi === 'undefined' || typeof google === 'undefined' || !google.accounts) {
+      if (typeof showNotification === 'function') {
+        showNotification('Cargando servicios de Google Drive, por favor espera...', 'info', 2500);
+      }
+      inicializarLibreriasGoogle();
+      setTimeout(abrirGoogleDrivePicker, 1200);
+      return;
+    }
+
+    // Asegurar inicialización
+    inicializarLibreriasGoogle();
+
+    if (!pickerApiCargada) {
+      gapi.load('picker', {
+        callback: function() {
+          pickerApiCargada = true;
+          solicitarTokenYAbrirPicker();
+        }
+      });
+      return;
+    }
+
+    solicitarTokenYAbrirPicker();
+  }
+
+  /**
+   * Solicita el token de acceso OAuth 2.0 mediante ventana modal de Google.
+   */
+  function solicitarTokenYAbrirPicker() {
+    if (!tokenClient) {
+      try {
+        tokenClient = google.accounts.oauth2.initTokenClient({
+          client_id: GOOGLE_PICKER_CONFIG.CLIENT_ID,
+          scope: GOOGLE_PICKER_CONFIG.SCOPE,
+          callback: ''
+        });
+      } catch (err) {
+        console.error('Error creando TokenClient:', err);
+        if (typeof showNotification === 'function') {
+          showNotification('Error inicializando autenticación con Google: ' + err.message, 'error', 4000);
+        }
+        return;
+      }
+    }
+
+    // Callback para cuando el usuario concede el acceso
+    tokenClient.callback = function(response) {
+      if (response.error !== undefined) {
+        console.error('Error de autenticación Google:', response);
+        if (typeof showNotification === 'function') {
+          showNotification('Autenticación cancelada o denegada.', 'info', 3000);
+        }
+        return;
+      }
+
+      tokenAccesoActual = response.access_token;
+      crearYMostrarPicker(tokenAccesoActual);
+    };
+
+    // Si ya tenemos token de acceso en memoria, probar si sigue válido o solicitar nuevo
+    if (tokenAccesoActual) {
+      crearYMostrarPicker(tokenAccesoActual);
+    } else {
+      // Abre el popup de inicio de sesión de Google con su cuenta personal/corporativa
+      tokenClient.requestAccessToken({ prompt: '' });
+    }
+  }
+
+  /**
+   * Construye y despliega el modal nativo de Google Picker.
+   */
+  function crearYMostrarPicker(token) {
+    try {
+      // Vistas disponibles en el Picker
+      const docsView = new google.picker.DocsView(google.picker.ViewId.DOCS)
+        .setIncludeFolders(true)
+        .setSelectFolderEnabled(false);
+
+      const spreadsheetsView = new google.picker.DocsView(google.picker.ViewId.SPREADSHEETS);
+      const presentationsView = new google.picker.DocsView(google.picker.ViewId.PRESENTATIONS);
+      const pdfsView = new google.picker.DocsView(google.picker.ViewId.PDFS);
+
+      const builder = new google.picker.PickerBuilder()
+        .enableFeature(google.picker.Feature.NAV_HIDDEN)
+        .setOAuthToken(token)
+        .addView(docsView)
+        .addView(spreadsheetsView)
+        .addView(presentationsView)
+        .addView(pdfsView)
+        .setDeveloperKey(GOOGLE_PICKER_CONFIG.API_KEY)
+        .setCallback(manejadorSeleccionPicker)
+        .setTitle('Selecciona un archivo de tu Google Drive')
+        .setLocale('es');
+
+      if (GOOGLE_PICKER_CONFIG.APP_ID) {
+        builder.setAppId(GOOGLE_PICKER_CONFIG.APP_ID);
+      }
+
+      const picker = builder.build();
+      picker.setVisible(true);
+    } catch (e) {
+      console.error('Error creando Google Picker:', e);
+      // Si el token expiró, reiniciar token y reintentar solicitándolo de nuevo
+      tokenAccesoActual = null;
+      if (tokenClient) {
+        tokenClient.requestAccessToken({ prompt: '' });
+      }
+    }
+  }
+
+  /**
+   * Callback ejecutado al interactuar con el Picker (seleccionar o cancelar).
+   */
+  function manejadorSeleccionPicker(data) {
+    const action = data[google.picker.Response.ACTION];
+
+    if (action === google.picker.Action.PICKED) {
+      const documentos = data[google.picker.Response.DOCUMENTS];
+      if (documentos && documentos.length > 0) {
+        procesarDocumentosSeleccionados(documentos);
+      }
+    } else if (action === google.picker.Action.CANCEL) {
+      console.log('El usuario canceló la selección de Google Picker.');
+    }
+  }
+
+  /**
+   * Procesa la lista de archivos seleccionados en Google Picker:
+   * Envía los File IDs directamente a Apps Script para su clonación nativa
+   * ultrarrápida sin consumir ancho de banda del navegador ni generar problemas de CORS.
+   */
+  async function procesarDocumentosSeleccionados(docs) {
+    const total = docs.length;
+
+    // 1. Cerrar inmediatamente el panel lateral para evitar solapamientos visuales
+    if (typeof cerrarPanelLateral === 'function') {
+      cerrarPanelLateral();
+    } else if (typeof cerrarPanelSubirArchivo === 'function') {
+      cerrarPanelSubirArchivo();
+    }
+
+    // Obtener ID de la carpeta actual en el frontend
+    const idCarpetaActual = window.idCarpetaActual || null;
+    const sesion = (typeof obtenerSesionUsuario === 'function') ? obtenerSesionUsuario() : null;
+    const idUsuario = sesion ? sesion.ID_Usuario : null;
+
+    mostrarFeedbackUI(true, 'Guardando en el repositorio...', 'Procesando ' + total + ' archivo(s)...');
+
+    let exitosos = 0;
+    let fallidos = 0;
+
+    try {
+      for (let i = 0; i < total; i++) {
+        const doc = docs[i];
+        const fileId = doc[google.picker.Document.ID];
+        let fileName = doc[google.picker.Document.NAME] || 'Archivo_Drive';
+        let mimeType = doc[google.picker.Document.MIME_TYPE] || 'application/octet-stream';
+
+        const numero = i + 1;
+        actualizarProgresoFeedbackUI('Importando (' + numero + ' de ' + total + '): ' + fileName);
+
+        try {
+          // Enviar fileId directamente al backend vía google.script.run
+          await new Promise((resolve, reject) => {
+            google.script.run
+              .withSuccessHandler(function(res) {
+                if (res && res.success) {
+                  exitosos++;
+                  resolve(res);
+                } else {
+                  reject(new Error(res ? res.message : 'Error al guardar en el servidor'));
+                }
+              })
+              .withFailureHandler(function(err) {
+                reject(err);
+              })
+              .guardarDocumentoDrive(fileId, fileName, mimeType, idCarpetaActual, idUsuario, tokenAccesoActual);
+          });
+        } catch (errArchivo) {
+          console.error('Error procesando archivo ' + fileName + ':', errArchivo);
+          fallidos++;
+        }
+      }
+    } finally {
+      mostrarFeedbackUI(false);
+    }
+
+    // Notificaciones y actualización visual
+    if (exitosos > 0) {
+      if (typeof showNotification === 'function') {
+        showNotification(
+          '✅ ' + exitosos + ' documento(s) importado(s) correctamente a OxoHotel' + (fallidos > 0 ? ' (' + fallidos + ' con error)' : '.'),
+          'success',
+          4000
+        );
+      }
+
+      // Recargar archivos de la carpeta actual si estamos en una
+      if (window.idCarpetaActual && typeof cargarArchivosDeCarpeta === 'function') {
+        cargarArchivosDeCarpeta(window.idCarpetaActual);
+      }
+    } else {
+      if (typeof showNotification === 'function') {
+        showNotification('❌ No se pudo transferir el documento seleccionado. Revisa la consola o permisos.', 'error', 4000);
+      }
+    }
+  }
+
+  /**
+   * Convierte un objeto Blob a cadena Base64 pura (sin prefijo data:...).
+   */
+  function blobABase64(blob) {
+    return new Promise(function(resolve, reject) {
+      const reader = new FileReader();
+      reader.onloadend = function() {
+        if (reader.result) {
+          const base64 = reader.result.split(',')[1];
+          resolve(base64);
+        } else {
+          reject(new Error('Fallo al leer el Blob'));
+        }
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  }
+
+  /**
+   * Muestra feedback visual (loader / estado) en la UI principal.
+   */
+  function mostrarFeedbackUI(mostrar, titulo, subtitulo) {
+    const feedbackBox = document.getElementById('drivePickerFeedback');
+    const statusMsg = document.getElementById('drivePickerStatusMsg');
+    const fileMsg = document.getElementById('drivePickerFileMsg');
+
+    if (feedbackBox) {
+      feedbackBox.style.display = mostrar ? 'block' : 'none';
+      if (statusMsg && titulo) statusMsg.textContent = titulo;
+      if (fileMsg && subtitulo) fileMsg.textContent = subtitulo;
+    }
+
+    // Modal de loading global si está disponible
+    const loadingModal = document.getElementById('loadingModal');
+    if (loadingModal) {
+      const p = loadingModal.querySelector('p');
+      if (p && titulo) p.textContent = titulo;
+      if (mostrar) {
+        loadingModal.classList.add('active');
+      } else {
+        loadingModal.classList.remove('active');
+      }
+    }
+  }
+
+  function actualizarProgresoFeedbackUI(mensaje) {
+    const fileMsg = document.getElementById('drivePickerFileMsg');
+    if (fileMsg) fileMsg.textContent = mensaje;
+
+    const loadingModal = document.getElementById('loadingModal');
+    if (loadingModal) {
+      const p = loadingModal.querySelector('p');
+      if (p) p.textContent = mensaje;
+    }
+  }
+
+  // Exportar funciones globalmente
+  window.abrirGoogleDrivePicker = abrirGoogleDrivePicker;
+  // Compatibilidad con botones existentes
+  window.abrirSelectorVentanaDrive = abrirGoogleDrivePicker;
+
+})();
+</script>

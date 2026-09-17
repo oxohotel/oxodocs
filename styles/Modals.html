@@ -1,0 +1,165 @@
+<style>
+.modal-overlay {
+  display: flex;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.22s ease, visibility 0.22s ease;
+}
+
+.modal-overlay.active {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+.modal-content {
+  background: var(--home-card-bg);
+  border: 1px solid var(--home-border);
+  border-radius: 20px;
+  padding: 36px 32px;
+  text-align: center;
+  box-shadow: var(--home-shadow-lg);
+  max-width: 400px;
+  width: 90%;
+  transform: scale(0.92) translateY(14px);
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.modal-overlay.active .modal-content {
+  transform: scale(1) translateY(0);
+}
+
+.modal-content p {
+  margin-top: 14px;
+  color: var(--home-text);
+  font-weight: 500;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.confirmacion-titulo {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--home-text);
+  margin-top: 0;
+  letter-spacing: -0.3px;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  margin-top: 24px;
+}
+
+.spinner {
+  border: 3px solid var(--home-border);
+  border-top-color: var(--home-accent-gold);
+  border-radius: 50%;
+  width: 44px;
+  height: 44px;
+  animation: spin 0.8s linear infinite;
+  margin: 0 auto;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Botones del modal */
+.modal-actions button {
+  padding: 12px 22px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  min-width: 120px;
+}
+
+.btn-home-ghost {
+  background: var(--home-card-bg);
+  color: var(--home-text);
+  border: 1px solid var(--home-border);
+}
+
+.btn-home-ghost:hover {
+  background: var(--home-bg);
+  border-color: var(--home-text-muted);
+}
+
+.btn-home-primary {
+  background: linear-gradient(135deg, var(--home-accent-gold) 0%, var(--home-accent-gold-hover) 100%);
+  color: #FFFFFF;
+  border: none;
+  box-shadow: 0 4px 14px var(--home-accent-gold-light);
+}
+
+.btn-home-primary:hover {
+  box-shadow: 0 6px 18px var(--home-accent-gold-glow);
+  transform: translateY(-2px);
+}
+
+.btn-home-primary:active {
+  transform: scale(0.96);
+}
+
+/* ==================== GOOGLE PICKER MODAL Z-INDEX & CLOSE FIX ==================== */
+.picker-dialog-bg {
+  z-index: 200000 !important;
+  cursor: pointer !important;
+}
+
+.picker-dialog {
+  z-index: 200001 !important;
+  position: fixed !important;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45) !important;
+  border-radius: 12px !important;
+  overflow: visible !important;
+}
+
+/* Botón flotante de cerrar para el diálogo de Google Picker */
+.picker-dialog-close-btn {
+  position: absolute !important;
+  top: -15px !important;
+  right: -15px !important;
+  width: 34px !important;
+  height: 34px !important;
+  background: #ffffff !important;
+  color: #1a1a1a !important;
+  border: 2px solid #C4972B !important;
+  border-radius: 50% !important;
+  font-size: 20px !important;
+  font-weight: bold !important;
+  line-height: 1 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer !important;
+  z-index: 200010 !important;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3) !important;
+  transition: all 0.2s ease !important;
+  user-select: none !important;
+}
+
+.picker-dialog-close-btn:hover {
+  background: #d32f2f !important;
+  color: #ffffff !important;
+  border-color: #b71c1c !important;
+  transform: scale(1.1) !important;
+}
+</style>

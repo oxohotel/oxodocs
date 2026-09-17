@@ -4248,7 +4248,7 @@ button, input, select, textarea {
   -webkit-backdrop-filter: blur(8px);
   align-items: center;
   justify-content: center;
-  z-index: 1000;
+  z-index: 2000;
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
@@ -13135,95 +13135,65 @@ const GOOGLE_PICKER_CONFIG = {
   }
 
   /**
-   * Procesa la lista de archivos seleccionados: descarga vía fetch,
-   * convierte a Base64 y envía a Apps Script.
+   * Procesa la lista de archivos seleccionados en Google Picker:
+   * Envía los File IDs directamente a Apps Script para su clonación nativa
+   * ultrarrápida sin consumir ancho de banda del navegador ni generar problemas de CORS.
    */
   async function procesarDocumentosSeleccionados(docs) {
     const total = docs.length;
 
-    // Obtener ID de la carpeta actual en el frontend (si está navegando en una carpeta)
+    // 1. Cerrar inmediatamente el panel lateral para evitar solapamientos visuales
+    if (typeof cerrarPanelLateral === 'function') {
+      cerrarPanelLateral();
+    } else if (typeof cerrarPanelSubirArchivo === 'function') {
+      cerrarPanelSubirArchivo();
+    }
+
+    // Obtener ID de la carpeta actual en el frontend
     const idCarpetaActual = window.idCarpetaActual || null;
     const sesion = (typeof obtenerSesionUsuario === 'function') ? obtenerSesionUsuario() : null;
     const idUsuario = sesion ? sesion.ID_Usuario : null;
 
-    mostrarFeedbackUI(true, 'Iniciando descarga desde tu Google Drive...', 'Procesando ' + total + ' archivo(s)...');
+    mostrarFeedbackUI(true, 'Guardando en el repositorio...', 'Procesando ' + total + ' archivo(s)...');
 
     let exitosos = 0;
     let fallidos = 0;
 
-    for (let i = 0; i < total; i++) {
-      const doc = docs[i];
-      const fileId = doc[google.picker.Document.ID];
-      let fileName = doc[google.picker.Document.NAME] || 'Archivo_Drive';
-      let mimeType = doc[google.picker.Document.MIME_TYPE] || 'application/octet-stream';
+    try {
+      for (let i = 0; i < total; i++) {
+        const doc = docs[i];
+        const fileId = doc[google.picker.Document.ID];
+        let fileName = doc[google.picker.Document.NAME] || 'Archivo_Drive';
+        let mimeType = doc[google.picker.Document.MIME_TYPE] || 'application/octet-stream';
 
-      const numero = i + 1;
-      actualizarProgresoFeedbackUI('Descargando (' + numero + ' de ' + total + '): ' + fileName);
+        const numero = i + 1;
+        actualizarProgresoFeedbackUI('Importando (' + numero + ' de ' + total + '): ' + fileName);
 
-      try {
-        // Determinar URL de descarga adecuada
-        // Google Docs nativos (Docs, Sheets, Slides) no se pueden descargar con alt=media, deben exportarse
-        let downloadUrl = '';
-        let exportMime = mimeType;
-
-        if (mimeType === 'application/vnd.google-apps.document') {
-          exportMime = 'application/pdf';
-          if (!fileName.toLowerCase().endsWith('.pdf')) fileName += '.pdf';
-          downloadUrl = 'https://www.googleapis.com/drive/v3/files/' + fileId + '/export?mimeType=application/pdf';
-        } else if (mimeType === 'application/vnd.google-apps.spreadsheet') {
-          exportMime = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
-          if (!fileName.toLowerCase().endsWith('.xlsx')) fileName += '.xlsx';
-          downloadUrl = 'https://www.googleapis.com/drive/v3/files/' + fileId + '/export?mimeType=application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
-        } else if (mimeType === 'application/vnd.google-apps.presentation') {
-          exportMime = 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
-          if (!fileName.toLowerCase().endsWith('.pptx')) fileName += '.pptx';
-          downloadUrl = 'https://www.googleapis.com/drive/v3/files/' + fileId + '/export?mimeType=application/vnd.openxmlformats-officedocument.presentationml.presentation';
-        } else {
-          // Archivos binarios estándar (PDF, imágenes, Word, Excel, ZIP, etc.)
-          downloadUrl = 'https://www.googleapis.com/drive/v3/files/' + fileId + '?alt=media';
+        try {
+          // Enviar fileId directamente al backend vía google.script.run
+          await new Promise((resolve, reject) => {
+            google.script.run
+              .withSuccessHandler(function(res) {
+                if (res && res.success) {
+                  exitosos++;
+                  resolve(res);
+                } else {
+                  reject(new Error(res ? res.message : 'Error al guardar en el servidor'));
+                }
+              })
+              .withFailureHandler(function(err) {
+                reject(err);
+              })
+              .guardarDocumentoDrive(fileId, fileName, mimeType, idCarpetaActual, idUsuario, tokenAccesoActual);
+          });
+        } catch (errArchivo) {
+          console.error('Error procesando archivo ' + fileName + ':', errArchivo);
+          fallidos++;
         }
-
-        // 1. Descargar a memoria del navegador como Blob
-        const response = await fetch(downloadUrl, {
-          headers: {
-            'Authorization': 'Bearer ' + tokenAccesoActual
-          }
-        });
-
-        if (!response.ok) {
-          throw new Error('HTTP ' + response.status + ': ' + response.statusText);
-        }
-
-        const blob = await response.blob();
-
-        // 2. Convertir Blob a Base64 mediante FileReader
-        actualizarProgresoFeedbackUI('Guardando en el repositorio (' + numero + ' de ' + total + ')...');
-        const base64Data = await blobABase64(blob);
-
-        // 3. Enviar al backend vía google.script.run
-        await new Promise((resolve, reject) => {
-          google.script.run
-            .withSuccessHandler(function(res) {
-              if (res && res.success) {
-                exitosos++;
-                resolve(res);
-              } else {
-                reject(new Error(res ? res.message : 'Error desconocido al guardar en el servidor'));
-              }
-            })
-            .withFailureHandler(function(err) {
-              reject(err);
-            })
-            .guardarDocumentoDrive(base64Data, fileName, exportMime, idCarpetaActual, idUsuario);
-        });
-
-      } catch (errArchivo) {
-        console.error('Error procesando archivo ' + fileName + ':', errArchivo);
-        fallidos++;
       }
+    } finally {
+      mostrarFeedbackUI(false);
     }
-
-    mostrarFeedbackUI(false);
 
     // Notificaciones y actualización visual
     if (exitosos > 0) {
@@ -13233,11 +13203,6 @@ const GOOGLE_PICKER_CONFIG = {
           'success',
           4000
         );
-      }
-
-      // Cerrar panel o modal de subida si está abierto
-      if (typeof cerrarPanelSubirArchivo === 'function') {
-        cerrarPanelSubirArchivo();
       }
 
       // Recargar archivos de la carpeta actual si estamos en una
