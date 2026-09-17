@@ -4364,8 +4364,8 @@ button, input, select, textarea {
 .picker-dialog {
   z-index: 200001 !important;
   position: fixed !important;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45) !important;
-  border-radius: 12px !important;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.45) !important;
+  border-radius: 16px !important;
   overflow: visible !important;
 }
 
@@ -13081,25 +13081,36 @@ const GOOGLE_PICKER_CONFIG = {
    */
   function crearYMostrarPicker(token) {
     try {
-      // Vistas disponibles en el Picker
-      const docsView = new google.picker.DocsView(google.picker.ViewId.DOCS)
+      // 1. Vista principal de Mi Unidad (admite todos los formatos y carpetas)
+      const allFilesView = new google.picker.DocsView()
         .setIncludeFolders(true)
-        .setSelectFolderEnabled(false);
+        .setSelectFolderEnabled(false)
+        .setEnableDrives(true);
 
-      const spreadsheetsView = new google.picker.DocsView(google.picker.ViewId.SPREADSHEETS);
-      const presentationsView = new google.picker.DocsView(google.picker.ViewId.PRESENTATIONS);
-      const pdfsView = new google.picker.DocsView(google.picker.ViewId.PDFS);
+      // 2. Vista de Compartidos conmigo
+      const sharedWithMeView = new google.picker.DocsView()
+        .setOwnedByMe(false)
+        .setIncludeFolders(true)
+        .setEnableDrives(true);
+
+      // 3. Vista de Archivos Recientes
+      const recentView = new google.picker.DocsView(google.picker.ViewId.RECENTLY_PICKED);
+
+      // Dimensiones adaptativas amplias para experiencia moderna de pantalla completa
+      const ancho = Math.round(Math.min(Math.max(window.innerWidth * 0.85, 850), 1180));
+      const alto = Math.round(Math.min(Math.max(window.innerHeight * 0.85, 560), 740));
 
       const builder = new google.picker.PickerBuilder()
-        .enableFeature(google.picker.Feature.NAV_HIDDEN)
         .setOAuthToken(token)
-        .addView(docsView)
-        .addView(spreadsheetsView)
-        .addView(presentationsView)
-        .addView(pdfsView)
+        .addView(allFilesView)
+        .addView(sharedWithMeView)
+        .addView(recentView)
+        .enableFeature(google.picker.Feature.SUPPORT_DRIVES)
+        .enableFeature(google.picker.Feature.MULTISELECT_ENABLED)
+        .setSize(ancho, alto)
         .setDeveloperKey(GOOGLE_PICKER_CONFIG.API_KEY)
         .setCallback(manejadorSeleccionPicker)
-        .setTitle('Selecciona un archivo de tu Google Drive')
+        .setTitle('Explorador de Google Drive - OxoHotel')
         .setLocale('es');
 
       if (GOOGLE_PICKER_CONFIG.APP_ID) {
