@@ -1,0 +1,253 @@
+<script>
+  function inicializarSidebar() {
+    document.querySelectorAll("[data-toggle-submenu]").forEach(function (boton) {
+      boton.addEventListener("click", function (e) {
+        e.preventDefault();
+        const grupo = boton.closest(".sidebar-group");
+        if (!grupo) return;
+
+        // Módulos con un solo "hotel" (ej. Corporativo, una sola sede) no tienen nada que
+        // desplegar: ir directo a sus áreas en vez de abrir un submenú de un solo elemento.
+        if (grupo.dataset.hotelUnicoId) {
+          seleccionarItemSidebar(boton);
+          mostrarVistaCarpetasHotel(grupo.dataset.hotelUnicoId, grupo.dataset.hotelUnicoNombre);
+          const user = getCurrentUserSession();
+          if (user) registrarActividadSilenciosa(user.ID_Usuario, 'Hotel', grupo.dataset.hotelUnicoId, 'Abrió');
+          return;
+        }
+
+        grupo.classList.toggle("abierto");
+      });
+    });
+
+    document.querySelectorAll(".sidebar-nav a.sidebar-item").forEach(function (link) {
+      link.addEventListener("click", function (e) {
+        const destino = link.getAttribute("href");
+        if (!destino || destino.charAt(0) !== "#") return;
+        e.preventDefault();
+        if (destino.length <= 1) return;
+        const objetivo = document.querySelector(destino);
+        if (objetivo) objetivo.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    });
+
+    inicializarBuscadorSidebar();
+    inicializarExpandirColapsarTodo();
+    inicializarNavInicio();
+    inicializarNavFavoritosYRecientes();
+    inicializarNavUsuarios();
+    inicializarNavLogs();
+    revelarNavsDeAdministracionSiCorresponde();
+  }
+
+  /** "Inicio" es la sección donde siempre se puede volver: si estabas viendo las
+   *  carpetas de un hotel, las oculta y recupera el dashboard, y marca Inicio
+   *  como la opción seleccionada (quitándosela a cualquier hotel elegido antes). */
+  function inicializarNavInicio() {
+    const nav = document.getElementById("navInicio");
+    if (!nav) return;
+
+    nav.addEventListener("click", function (e) {
+      e.preventDefault();
+      seleccionarItemSidebar(nav);
+      if (typeof ocultarVistaCarpetasHotel === "function") ocultarVistaCarpetasHotel();
+      if (typeof ocultarVistaPerfil === "function") ocultarVistaPerfil();
+      if (typeof ocultarVistaFavoritos === "function") ocultarVistaFavoritos();
+      if (typeof ocultarVistaRecientes === "function") ocultarVistaRecientes();
+      if (typeof ocultarVistaUsuarios === "function") ocultarVistaUsuarios();
+      if (typeof ocultarVistaLogs === "function") ocultarVistaLogs();
+    });
+  }
+
+  /** "Favoritos" y "Recientes" son apartados reales (no anclas de scroll): cada uno clona su
+   *  plantilla oculta dentro de .home-content la primera vez, igual que Perfil/HotelCarpetas. */
+  function inicializarNavFavoritosYRecientes() {
+    const navFavoritos = document.getElementById("navFavoritos");
+    if (navFavoritos) {
+      navFavoritos.addEventListener("click", function (e) {
+        e.preventDefault();
+        seleccionarItemSidebar(navFavoritos);
+        mostrarVistaFavoritos();
+      });
+    }
+
+    const navRecientes = document.getElementById("navRecientes");
+    if (navRecientes) {
+      navRecientes.addEventListener("click", function (e) {
+        e.preventDefault();
+        seleccionarItemSidebar(navRecientes);
+        mostrarVistaRecientes();
+      });
+    }
+  }
+
+  /** "Usuarios" — mismo patrón de plantilla-clonada, pero el item en sí solo aparece si el rol
+   *  de la sesión activa lo permite (ver revelarNavsDeAdministracionSiCorresponde). */
+  function inicializarNavUsuarios() {
+    const navUsuarios = document.getElementById("navUsuarios");
+    if (!navUsuarios) return;
+
+    navUsuarios.addEventListener("click", function (e) {
+      e.preventDefault();
+      seleccionarItemSidebar(navUsuarios);
+      mostrarVistaUsuarios();
+    });
+  }
+
+  /** "Logs" — mismo patrón de plantilla-clonada y mismo gate que "Usuarios". */
+  function inicializarNavLogs() {
+    const navLogs = document.getElementById("navLogs");
+    if (!navLogs) return;
+
+    navLogs.addEventListener("click", function (e) {
+      e.preventDefault();
+      seleccionarItemSidebar(navLogs);
+      mostrarVistaLogs();
+    });
+  }
+
+  /** Gate solo de UI (comodidad, para no mostrar enlaces que no van a poder usar) — la
+   *  verificación real de permisos vive en el backend (backend/Roles.js), que nunca confía en
+   *  esto. "Usuarios" y "Logs" comparten el mismo criterio de acceso. */
+  function revelarNavsDeAdministracionSiCorresponde() {
+    const sesion = typeof getCurrentUserSession === "function" ? getCurrentUserSession() : null;
+    if (!sesion) return;
+    const rol = String(sesion.Rol || sesion.ID_Rol || sesion.Rol_ID || "");
+    const tieneAcceso = (
+      rol === "3" || rol === "2" ||
+      rol === "Superadministrador" || rol === "Administrador"
+    );
+
+    const navUsuarios = document.getElementById("navUsuarios");
+    if (navUsuarios) navUsuarios.classList.toggle("oculto", !tieneAcceso);
+
+    const navLogs = document.getElementById("navLogs");
+    if (navLogs) navLogs.classList.toggle("oculto", !tieneAcceso);
+  }
+
+  /** Marca "elemento" como la opción activa de la sidebar y le quita esa marca a
+   *  cualquier otra (Inicio o cualquier hotel elegido previamente). */
+  function seleccionarItemSidebar(elemento) {
+    document.querySelectorAll(".sidebar-item.active, .sidebar-subitem.active").forEach(function (el) {
+      el.classList.remove("active");
+    });
+    if (elemento) elemento.classList.add("active");
+  }
+
+  /** Filtra los hoteles de todos los módulos a medida que se escribe. */
+  function inicializarBuscadorSidebar() {
+    const input = document.getElementById("sidebarBuscador");
+    if (!input) return;
+
+    input.value = '';
+    setTimeout(function() {
+      if (document.activeElement !== input) {
+        input.value = '';
+      }
+    }, 250);
+
+    input.addEventListener("input", function () {
+      if (document.activeElement !== input) {
+        input.value = '';
+        return;
+      }
+      const termino = input.value.trim().toLowerCase();
+
+      document.querySelectorAll(".sidebar-group[data-orden]").forEach(function (grupo) {
+        let hayCoincidencia = false;
+        grupo.querySelectorAll(".sidebar-subitem").forEach(function (item) {
+          const coincide = !termino || item.textContent.toLowerCase().indexOf(termino) !== -1;
+          item.classList.toggle("oculto-filtro", !coincide);
+          if (coincide) hayCoincidencia = true;
+        });
+
+        if (termino) grupo.classList.toggle("abierto", hayCoincidencia);
+      });
+    });
+  }
+
+  var ICONO_EXPANDIR_TODO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 5l5 4 5-4"/><path d="M7 10l5 4 5-4"/></svg>';
+  var ICONO_COLAPSAR_TODO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 14l5-4 5 4"/><path d="M7 19l5-4 5 4"/></svg>';
+
+  /** Un solo botón para abrir o cerrar los 3 módulos de hoteles a la vez. Usa un ícono de
+   *  doble chevrón (distinto del triangulito de cada módulo) que cambia según la acción. */
+  function inicializarExpandirColapsarTodo() {
+    const boton = document.getElementById("btnExpandirColapsarTodo");
+    if (!boton) return;
+
+    boton.innerHTML = ICONO_EXPANDIR_TODO;
+
+    boton.addEventListener("click", function () {
+      const grupos = document.querySelectorAll(".sidebar-group[data-orden]");
+      const hayAlgunoAbierto = Array.prototype.some.call(grupos, function (g) {
+        return g.classList.contains("abierto");
+      });
+
+      grupos.forEach(function (g) { g.classList.toggle("abierto", !hayAlgunoAbierto); });
+      boton.innerHTML = hayAlgunoAbierto ? ICONO_EXPANDIR_TODO : ICONO_COLAPSAR_TODO;
+    });
+  }
+
+  /** Carga los hoteles reales (hojas Modulos/Hoteles) y llena los submenús de la sidebar. */
+  function cargarHotelesSidebar() {
+    const sesion = typeof getCurrentUserSession === 'function' ? getCurrentUserSession() : null;
+    const token = typeof getCurrentUserToken === 'function' ? getCurrentUserToken() : null;
+    const idUsuario = sesion && (sesion.ID_Usuario || sesion.idUsuario) ? (sesion.ID_Usuario || sesion.idUsuario) : null;
+    google.script.run
+      .withSuccessHandler(renderizarHotelesSidebar)
+      .withFailureHandler(function (error) {
+        console.error("No se pudieron cargar los hoteles de la sidebar:", error);
+      })
+      .obtenerModulosConHoteles(token, idUsuario);
+  }
+
+  function renderizarHotelesSidebar(modulos) {
+    if (!Array.isArray(modulos)) return;
+
+    modulos.forEach(function (modulo) {
+      const grupo = document.querySelector('.sidebar-group[data-orden="' + modulo.orden + '"]');
+      const submenu = grupo ? grupo.querySelector(".sidebar-submenu") : null;
+      if (!submenu) return;
+
+      if (!modulo.hoteles || !modulo.hoteles.length) {
+        submenu.innerHTML = '<span class="sidebar-subitem sidebar-subitem-vacio">Sin hoteles registrados</span>';
+        return;
+      }
+
+      // Un módulo con un único "hotel" (ej. Corporativo) no necesita submenú: el botón del
+      // módulo mismo navega directo a sus áreas (ver el listener de data-toggle-submenu).
+      if (modulo.hoteles.length === 1) {
+        grupo.classList.add('sidebar-group-unico');
+        grupo.dataset.hotelUnicoId = modulo.hoteles[0].idHotel;
+        grupo.dataset.hotelUnicoNombre = modulo.hoteles[0].nombre;
+        submenu.innerHTML = '';
+        return;
+      }
+
+      submenu.innerHTML = modulo.hoteles.map(function (hotel) {
+        const nombreSeguro = escaparHtml(hotel.nombre);
+        return '<button class="sidebar-subitem btn-hotel-carpetas" data-hotel-id="' + hotel.idHotel + '" data-hotel-nombre="' + nombreSeguro + '">' + nombreSeguro + '</button>';
+      }).join("");
+
+      // Agregar event listeners a los botones de hoteles
+      submenu.querySelectorAll('.btn-hotel-carpetas').forEach(function (btn) {
+        btn.addEventListener('click', function (e) {
+          e.preventDefault();
+          const idHotel = btn.dataset.hotelId;
+          const nombreHotel = btn.dataset.hotelNombre;
+          seleccionarItemSidebar(btn);
+          mostrarVistaCarpetasHotel(idHotel, nombreHotel);
+
+          const user = getCurrentUserSession();
+          if (user) registrarActividadSilenciosa(user.ID_Usuario, 'Hotel', idHotel, 'Abrió');
+        });
+      });
+    });
+  }
+
+  function escaparHtml(texto) {
+    const contenedor = document.createElement("div");
+    contenedor.textContent = texto == null ? "" : String(texto);
+    return contenedor.innerHTML;
+  }
+</script>

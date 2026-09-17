@@ -6091,7 +6091,7 @@ button, input, select, textarea {
     <div class="sidebar-divider"></div>
 
     <div class="sidebar-toolbar">
-      <input type="text" id="sidebarBuscador" class="sidebar-buscador" placeholder="Buscar hotel...">
+      <input type="search" id="sidebarBuscador" name="q_sidebar_hotel" class="sidebar-buscador" placeholder="Buscar hotel..." autocomplete="one-time-code" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true" data-form-type="other" role="searchbox">
       <button type="button" id="btnExpandirColapsarTodo" class="sidebar-toolbar-btn" title="Expandir/colapsar todo">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 5l5 4 5-4"/><path d="M7 10l5 4 5-4"/></svg>
       </button>
@@ -6399,10 +6399,19 @@ button, input, select, textarea {
           <path d="m21 21-4.35-4.35"></path>
         </svg>
         <input
-          type="text"
+          type="search"
           id="inputBuscadorCarpetas"
+          name="q_carpetas"
           class="input-buscar-carpetas"
           placeholder="Buscar carpetas..."
+          autocomplete="one-time-code"
+          autocorrect="off"
+          autocapitalize="off"
+          spellcheck="false"
+          data-lpignore="true"
+          data-1p-ignore="true"
+          data-form-type="other"
+          role="searchbox"
         >
       </div>
 
@@ -6485,10 +6494,19 @@ button, input, select, textarea {
         <path d="m21 21-4.35-4.35"></path>
       </svg>
       <input
-        type="text"
+        type="search"
         id="inputBuscadorArchivos"
+        name="q_archivos"
         class="input-buscar-archivos"
         placeholder="Buscar archivos..."
+        autocomplete="one-time-code"
+        autocorrect="off"
+        autocapitalize="off"
+        spellcheck="false"
+        data-lpignore="true"
+        data-1p-ignore="true"
+        data-form-type="other"
+        role="searchbox"
       >
     </div>
 
@@ -6953,7 +6971,7 @@ button, input, select, textarea {
         <circle cx="11" cy="11" r="8"></circle>
         <path d="m21 21-4.35-4.35"></path>
       </svg>
-      <input type="text" id="inputBuscadorFavoritos" placeholder="Buscar en tus favoritos...">
+      <input type="search" id="inputBuscadorFavoritos" name="q_favs" placeholder="Buscar en tus favoritos..." autocomplete="one-time-code" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true" data-form-type="other" role="searchbox">
     </div>
   </div>
 
@@ -6979,7 +6997,7 @@ button, input, select, textarea {
         <circle cx="11" cy="11" r="8"></circle>
         <path d="m21 21-4.35-4.35"></path>
       </svg>
-      <input type="text" id="inputBuscadorRecientes" placeholder="Buscar en tu actividad...">
+      <input type="search" id="inputBuscadorRecientes" name="q_recientes" placeholder="Buscar en tu actividad..." autocomplete="one-time-code" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true" data-form-type="other" role="searchbox">
     </div>
   </div>
 
@@ -7006,7 +7024,7 @@ button, input, select, textarea {
           <circle cx="11" cy="11" r="8"></circle>
           <path d="m21 21-4.35-4.35"></path>
         </svg>
-        <input type="text" id="inputBuscadorUsuarios" placeholder="Buscar por nombre o correo...">
+        <input type="search" id="inputBuscadorUsuarios" name="q_usuarios" placeholder="Buscar por nombre o correo..." autocomplete="one-time-code" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true" data-form-type="other" role="searchbox">
       </div>
 
       <button type="button" class="btn-nuevo-usuario-header" id="btnCrearUsuarioModal" title="Crear nuevo usuario">
@@ -7052,7 +7070,7 @@ button, input, select, textarea {
         <circle cx="11" cy="11" r="8"></circle>
         <path d="m21 21-4.35-4.35"></path>
       </svg>
-      <input type="text" id="inputBuscadorLogs" placeholder="Buscar por usuario, acción o descripción...">
+      <input type="search" id="inputBuscadorLogs" name="q_logs" placeholder="Buscar por usuario, acción o descripción..." autocomplete="one-time-code" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true" data-form-type="other" role="searchbox">
     </div>
   </div>
 
@@ -8703,7 +8721,18 @@ button, input, select, textarea {
     const input = document.getElementById("sidebarBuscador");
     if (!input) return;
 
+    input.value = '';
+    setTimeout(function() {
+      if (document.activeElement !== input) {
+        input.value = '';
+      }
+    }, 250);
+
     input.addEventListener("input", function () {
+      if (document.activeElement !== input) {
+        input.value = '';
+        return;
+      }
       const termino = input.value.trim().toLowerCase();
 
       document.querySelectorAll(".sidebar-group[data-orden]").forEach(function (grupo) {

@@ -1,0 +1,121 @@
+<aside class="home-sidebar" id="homeSidebar">
+  <div class="sidebar-brand">
+    <img id="sidebarLogoCerrado" class="brand-logo brand-logo-cerrado" src="https://acabrales-oxohotel.github.io/repo-imagenes/logo-oxodocs.png" alt="OXO Docs">
+    <img id="sidebarLogoAbierto" class="brand-logo brand-logo-abierto" src="https://acabrales-oxohotel.github.io/repo-imagenes/logo-oxodocs-slogan.png" alt="OXO Docs - Repositorio de Proyectos">
+  </div>
+
+  <nav class="sidebar-nav">
+    <!-- Única sección real de la app por ahora: aquí caes por defecto al abrir. Cuando
+         exista una vista para ver los módulos sin salir a Drive, esa vista tomará este
+         mismo patrón (clase .active) para marcarse como la sección actual. -->
+    <a href="#" class="sidebar-item active" id="navInicio">
+      <span class="sidebar-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/><path d="M9 20v-6h6v6"/></svg>
+      </span>
+      <span class="sidebar-label">Inicio</span>
+    </a>
+
+    <div class="sidebar-divider"></div>
+
+    <div class="sidebar-toolbar">
+      <input type="search" id="sidebarBuscador" name="q_sidebar_hotel" class="sidebar-buscador" placeholder="Buscar hotel..." autocomplete="one-time-code" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true" data-form-type="other" role="searchbox">
+      <button type="button" id="btnExpandirColapsarTodo" class="sidebar-toolbar-btn" title="Expandir/colapsar todo">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 5l5 4 5-4"/><path d="M7 10l5 4 5-4"/></svg>
+      </button>
+    </div>
+
+    <div class="sidebar-group" data-grupo="operacion" data-orden="1">
+      <button type="button" class="sidebar-item sidebar-item-modulo" data-toggle-submenu>
+        <span class="sidebar-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="3" width="16" height="18" rx="1"/><path d="M9 21v-4h6v4M9 7h1M14 7h1M9 11h1M14 11h1M9 15h1M14 15h1"/></svg>
+        </span>
+        <span class="sidebar-label">Hoteles en operación</span>
+        <span class="sidebar-chevron">&#9662;</span>
+      </button>
+      <div class="sidebar-submenu">
+        <span class="sidebar-subitem sidebar-subitem-vacio">Cargando...</span>
+      </div>
+    </div>
+
+    <div class="sidebar-group" data-grupo="preapertura" data-orden="2">
+      <button type="button" class="sidebar-item sidebar-item-modulo" data-toggle-submenu>
+        <span class="sidebar-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="3" width="16" height="18" rx="1"/><path d="M9 21v-4h6v4M9 7h1M14 7h1M9 11h1M14 11h1M9 15h1M14 15h1"/></svg>
+        </span>
+        <span class="sidebar-label">Hoteles en pre-apertura</span>
+        <span class="sidebar-chevron">&#9662;</span>
+      </button>
+      <div class="sidebar-submenu">
+        <span class="sidebar-subitem sidebar-subitem-vacio">Cargando...</span>
+      </div>
+    </div>
+
+    <div class="sidebar-group" data-grupo="desarrollo" data-orden="3">
+      <button type="button" class="sidebar-item sidebar-item-modulo" data-toggle-submenu>
+        <span class="sidebar-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="3" width="16" height="18" rx="1"/><path d="M9 21v-4h6v4M9 7h1M14 7h1M9 11h1M14 11h1M9 15h1M14 15h1"/></svg>
+        </span>
+        <span class="sidebar-label">Hoteles en desarrollo</span>
+        <span class="sidebar-chevron">&#9662;</span>
+      </button>
+      <div class="sidebar-submenu">
+        <span class="sidebar-subitem sidebar-subitem-vacio">Cargando...</span>
+      </div>
+    </div>
+
+    <div class="sidebar-group" data-grupo="corporativo" data-orden="4">
+      <button type="button" class="sidebar-item sidebar-item-modulo" data-toggle-submenu>
+        <span class="sidebar-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18"/><path d="M6 21V9l6-4 6 4v12"/><path d="M10 21v-6h4v6"/><path d="M9 12h.01M15 12h.01M9 9h.01M15 9h.01"/></svg>
+        </span>
+        <span class="sidebar-label">Corporativo</span>
+        <span class="sidebar-chevron">&#9662;</span>
+      </button>
+      <div class="sidebar-submenu">
+        <span class="sidebar-subitem sidebar-subitem-vacio">Cargando...</span>
+      </div>
+    </div>
+
+    <div class="sidebar-divider"></div>
+
+    <a href="#" class="sidebar-item" id="navFavoritos">
+      <span class="sidebar-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.86L12 17.77l-6.18 3.23L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+      </span>
+      <span class="sidebar-label">Favoritos</span>
+    </a>
+    <a href="#" class="sidebar-item" id="navRecientes">
+      <span class="sidebar-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+      </span>
+      <span class="sidebar-label">Recientes</span>
+    </a>
+
+    <!-- Solo se muestra a Administrador/Superadministrador — ver revelarNavsDeAdministracionSiCorresponde
+         en scripts/Sidebar.html, que le quita esta clase según el rol de la sesión activa. -->
+    <a href="#" class="sidebar-item oculto" id="navUsuarios">
+      <span class="sidebar-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+      </span>
+      <span class="sidebar-label">Usuarios</span>
+    </a>
+
+    <!-- Mismo gate que Usuarios — ver revelarNavsDeAdministracionSiCorresponde en scripts/Sidebar.html. -->
+    <a href="#" class="sidebar-item oculto" id="navLogs">
+      <span class="sidebar-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="15" y2="17"/></svg>
+      </span>
+      <span class="sidebar-label">Logs</span>
+    </a>
+  </nav>
+
+  <div class="sidebar-soporte">
+    <span class="sidebar-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 015 .5c0 1.5-2 1.8-2.3 3.3M12 17h.01"/></svg>
+    </span>
+    <div class="sidebar-soporte-texto">
+      <p class="soporte-title">Soporte</p>
+      <p class="soporte-subtitle">¿Necesitas ayuda?</p>
+    </div>
+  </div>
+</aside>
