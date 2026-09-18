@@ -263,20 +263,28 @@ function obtenerListaHoteles_(ss) {
 }
 
 function programarContinuacion_() {
-  limpiarTriggerContinuacion_();
-  const t = ScriptApp.newTrigger('crearEstructuraDriveCompleta').timeBased().after(60 * 1000).create();
-  PropertiesService.getScriptProperties().setProperty(DRIVE_CONFIG.PROP_TRIGGER_ID, t.getUniqueId());
+  try {
+    limpiarTriggerContinuacion_();
+    const t = ScriptApp.newTrigger('crearEstructuraDriveCompleta').timeBased().after(60 * 1000).create();
+    PropertiesService.getScriptProperties().setProperty(DRIVE_CONFIG.PROP_TRIGGER_ID, t.getUniqueId());
+  } catch (e) {
+    Logger.log('⚠️ No se pudo programar el trigger automático (' + e.message + '). Puedes continuar manualmente ejecutando crearEstructuraDriveCompleta.');
+  }
 }
 
 function limpiarTriggerContinuacion_() {
-  const props = PropertiesService.getScriptProperties();
-  const idGuardado = props.getProperty(DRIVE_CONFIG.PROP_TRIGGER_ID);
-  ScriptApp.getProjectTriggers().forEach(function (t) {
-    if (t.getHandlerFunction() === 'crearEstructuraDriveCompleta' && (!idGuardado || t.getUniqueId() === idGuardado)) {
-      ScriptApp.deleteTrigger(t);
-    }
-  });
-  props.deleteProperty(DRIVE_CONFIG.PROP_TRIGGER_ID);
+  try {
+    const props = PropertiesService.getScriptProperties();
+    const idGuardado = props.getProperty(DRIVE_CONFIG.PROP_TRIGGER_ID);
+    ScriptApp.getProjectTriggers().forEach(function (t) {
+      if (t.getHandlerFunction() === 'crearEstructuraDriveCompleta' && (!idGuardado || t.getUniqueId() === idGuardado)) {
+        ScriptApp.deleteTrigger(t);
+      }
+    });
+    props.deleteProperty(DRIVE_CONFIG.PROP_TRIGGER_ID);
+  } catch (e) {
+    Logger.log('⚠️ No se pudieron limpiar los triggers: ' + e.message);
+  }
 }
 
 /** Utilidad de administración: reinicia solo el puntero de progreso (no borra nada de Drive ni de la hoja). */
