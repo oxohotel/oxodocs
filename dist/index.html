@@ -10636,285 +10636,634 @@ button, input, select, textarea {
   <script>
 /**
  * Gestión de permisos de acceso a archivos
- * Permite seleccionar usuarios que NO pueden ver un archivo
+ * Interfaz estilo WhatsApp (Todos, Nadie, Excepciones, Grupos)
  */
 
-let estadoSeleccionPermisos_ = {
+let estadoPermisos_ = {
   usuariosDisponibles: [],
-  usuariosRestringidos: [],
-  filtroActual: ''
+  misGrupos: [],
+  opcionSeleccionada: 'todos', // todos, nadie, excepto, grupo
+  usuariosExcluidos: [], // Para la opción "excepto"
+  grupoSeleccionado: null, // Para la opción "grupo"
+  filtroActual: '',
+  vistaActual: 'principal', // principal, excluidos, grupos, crear_grupo
+  nuevoGrupo: { nombre: '', integrantes: [] }
 };
 
 /**
  * Abre el panel de gestión de permisos durante la subida de archivos
  */
 function abrirSelectorPermisosArchivo() {
-  showNotification('Cargando lista de usuarios...', 'info', 2000);
+  showNotification('Cargando lista de usuarios y grupos...', 'info', 2000);
 
-  google.script.run
-    .withSuccessHandler(function(result) {
-      if (result.success && result.usuarios) {
-        estadoSeleccionPermisos_.usuariosDisponibles = result.usuarios;
-        // NO reiniciar usuariosRestringidos - preservar selección anterior
-        // Solo reiniciar si es la primera vez (si el array está vacío y no hay permisos guardados)
-        if (estadoSeleccionPermisos_.usuariosRestringidos.length === 0 && (!window.permisosArchivoSeleccionados || window.permisosArchivoSeleccionados.length === 0)) {
-          estadoSeleccionPermisos_.usuariosRestringidos = [];
-        }
-        mostrarModalSelectorPermisos_();
-      } else {
-        showNotification('Error al cargar usuarios', 'error', 3000);
+  const idUsuarioActual = getCurrentUserSession()?.ID_Usuario;
+
+  Promise.all([
+    new Promise((resolve, reject) => {
+      google.script.run
+        .withSuccessHandler(resolve)
+        .withFailureHandler(reject)
+        .obtenerListaUsuariosParaPermisos();
+    }),
+    new Promise((resolve, reject) => {
+      google.script.run
+        .withSuccessHandler(resolve)
+        .withFailureHandler(reject)
+        .obtenerGruposUsuario(idUsuarioActual);
+    })
+  ]).then(([resUsuarios, resGrupos]) => {
+    if (resUsuarios.success && resUsuarios.usuarios) {
+      estadoPermisos_.usuariosDisponibles = resUsuarios.usuarios;
+      
+      // No reiniciar si ya hay permisos en memoria local
+      if (!window.permisosArchivoSeleccionados) {
+        window.permisosArchivoSeleccionados = { tipo: 'todos', excluidos: [], grupoId: null };
       }
-    })
-    .withFailureHandler(function(err) {
-      console.error('Error:', err);
-      showNotification('Error al conectar', 'error', 3000);
-    })
-    .obtenerListaUsuariosParaPermisos();
-}
-
-/**
- * Muestra el modal de selección de permisos
- */
-function mostrarModalSelectorPermisos_() {
-  const overlay = document.createElement('div');
-  overlay.id = 'overlayPermisosArchivo';
-  overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:10001;';
-
-  const modal = document.createElement('div');
-  modal.style.cssText = 'background:white;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,0.2);padding:20px;max-width:600px;width:90%;max-height:calc(100vh - 60px);display:flex;flex-direction:column;overflow:hidden;';
-
-  modal.innerHTML = `
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-shrink:0;">
-      <h3 style="margin:0;color:#333;font-size:17px;font-weight:600;">Restringir Acceso al Archivo</h3>
-      <button id="btnCerrarPermisosModal" style="background:none;border:none;font-size:22px;cursor:pointer;color:#999;flex-shrink:0;">✕</button>
-    </div>
-
-    <p style="color:#666;font-size:12px;margin:0 0 12px 0;flex-shrink:0;">Selecciona los usuarios que <strong>NO</strong> podrán ver este archivo.</p>
-
-    <div style="margin-bottom:10px;flex-shrink:0;">
-      <input type="text" id="buscadorPermisosUsuarios" placeholder="🔍 Buscar usuarios..." style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;font-size:12px;box-sizing:border-box;">
-    </div>
-
-    <div style="display:flex;gap:6px;margin-bottom:10px;flex-shrink:0;">
-      <button type="button" id="btnSeleccionarTodosPermisos" style="flex:1;padding:7px 12px;background:rgba(193, 149, 43, 1);border:1px solid rgba(193,149,43,0.25);border-radius:6px;cursor:pointer;font-weight:600;color:#5a4a1a;font-size:12px;transition:all 0.2s ease;">✓ Todos</button>
-      <button type="button" id="btnDeseleccionarTodosPermisos" style="flex:1;padding:7px 12px;background:#f5f5f5;border:1px solid #ddd;border-radius:6px;cursor:pointer;font-weight:600;color:#666;font-size:12px;transition:all 0.2s ease;">✕ Ninguno</button>
-    </div>
-
-    <div id="listaPermisosUsuarios" style="flex:1;overflow-y:auto;border:1px solid #e0e0e0;border-radius:6px;padding:8px;margin-bottom:10px;background:#fafafa;min-height:120px;max-height:200px;">
-      <!-- Se llena dinámicamente -->
-    </div>
-
-    <div style="background:#f5f5f5;padding:10px;border-radius:6px;margin-bottom:10px;font-size:11px;color:#666;display:flex;flex-direction:column;flex-shrink:0;max-height:80px;">
-      <strong style="margin-bottom:6px;font-size:11px;">Usuarios seleccionados:</strong>
-      <div id="resumenPermisosSeleccionados" style="max-height:60px;overflow-y:auto;padding-right:4px;">
-        <span style="color:#999;">Ninguno</span>
-      </div>
-    </div>
-
-    <div style="display:flex;gap:8px;justify-content:flex-end;flex-shrink:0;margin-top:10px;border-top:1px solid #e0e0e0;padding-top:10px;">
-      <button id="btnCancelarPermisos" style="padding:9px 18px;background:#f0f0f0;border:none;border-radius:6px;cursor:pointer;font-weight:600;color:#333;flex-shrink:0;font-size:13px;">Cancelar</button>
-      <button id="btnGuardarPermisos" style="padding:9px 18px;background:#C1952B;color:white;border:none;border-radius:6px;cursor:pointer;font-weight:600;flex-shrink:0;font-size:13px;">Guardar</button>
-    </div>
-  `;
-
-  overlay.appendChild(modal);
-  document.body.appendChild(overlay);
-
-  // Event listeners
-  document.getElementById('btnCerrarPermisosModal').addEventListener('click', cerrarModalPermisos_);
-  document.getElementById('btnCancelarPermisos').addEventListener('click', cerrarModalPermisos_);
-  document.getElementById('btnGuardarPermisos').addEventListener('click', confirmarPermisosArchivo_);
-  document.getElementById('buscadorPermisosUsuarios').addEventListener('keyup', filtrarUsuariosPermisos_);
-  document.getElementById('btnSeleccionarTodosPermisos').addEventListener('click', seleccionarTodosUsuariosPermisos_);
-  document.getElementById('btnDeseleccionarTodosPermisos').addEventListener('click', deseleccionarTodosUsuariosPermisos_);
-
-  renderizarListaUsuariosPermisos_();
-
-  // Actualizar resumen de usuarios seleccionados
-  actualizarResumenPermisosSeleccionados_();
-}
-
-/**
- * Renderiza la lista de usuarios con checkboxes
- */
-function renderizarListaUsuariosPermisos_() {
-  const contenedor = document.getElementById('listaPermisosUsuarios');
-  const filtro = estadoSeleccionPermisos_.filtroActual.toLowerCase();
-
-  const usuariosFiltrados = estadoSeleccionPermisos_.usuariosDisponibles.filter(u =>
-    u.nombre.toLowerCase().includes(filtro) ||
-    u.email.toLowerCase().includes(filtro)
-  );
-
-  if (usuariosFiltrados.length === 0) {
-    contenedor.innerHTML = '<div style="padding:20px;text-align:center;color:#999;">No hay usuarios</div>';
-    return;
-  }
-
-  contenedor.innerHTML = usuariosFiltrados.map((usuario, idx) => {
-    const estaSeleccionado = estadoSeleccionPermisos_.usuariosRestringidos.some(u => u.id === usuario.id);
-    return `
-      <div style="display:flex;align-items:center;padding:8px;border-radius:4px;cursor:pointer;transition:background 0.2s;hover-bg:#e8e8e8;" onmouseover="this.style.background='#f0f0f0';" onmouseout="this.style.background='';">
-        <input type="checkbox" class="checkbox-usuario-permiso" data-usuario-id="${usuario.id}" data-usuario-nombre="${usuario.nombre}" ${estaSeleccionado ? 'checked' : ''} style="margin-right:10px;cursor:pointer;width:18px;height:18px;">
-        <div style="flex:1;">
-          <div style="font-weight:500;color:#333;font-size:13px;">${usuario.nombre}</div>
-          <div style="font-size:11px;color:#999;">${usuario.email}</div>
-        </div>
-      </div>
-    `;
-  }).join('');
-
-  // Agregar event listeners a checkboxes
-  document.querySelectorAll('.checkbox-usuario-permiso').forEach(checkbox => {
-    checkbox.addEventListener('change', manejarCambioCheckboxPermiso_);
+      
+      // Sincronizar estado con la selección actual en memoria
+      const p = window.permisosArchivoSeleccionados;
+      if (Array.isArray(p)) {
+        // Compatibilidad hacia atrás (si p es un array de IDs excluidos)
+        if (p.length === 0) {
+          estadoPermisos_.opcionSeleccionada = 'todos';
+        } else {
+          estadoPermisos_.opcionSeleccionada = 'excepto';
+          estadoPermisos_.usuariosExcluidos = p;
+        }
+      } else if (p && p.tipo) {
+        estadoPermisos_.opcionSeleccionada = p.tipo;
+        estadoPermisos_.usuariosExcluidos = p.excluidos || [];
+        estadoPermisos_.grupoSeleccionado = p.grupoId || null;
+      }
+      
+      estadoPermisos_.vistaActual = 'principal';
+      estadoPermisos_.misGrupos = (resGrupos && resGrupos.success && resGrupos.grupos) ? resGrupos.grupos : [];
+      
+      renderizarModalPermisos_();
+    } else {
+      showNotification('Error al cargar usuarios', 'error', 3000);
+    }
+  }).catch(err => {
+    console.error('Error cargando datos de permisos:', err);
+    showNotification('Error de conexión', 'error', 3000);
   });
 }
 
 /**
- * Maneja cambios en los checkboxes
+ * Renderiza o actualiza el modal base
  */
-function manejarCambioCheckboxPermiso_(e) {
-  const usuarioId = e.target.dataset.usuarioId;
-  const usuarioNombre = e.target.dataset.usuarioNombre;
-
-  if (e.target.checked) {
-    if (!estadoSeleccionPermisos_.usuariosRestringidos.some(u => u.id === usuarioId)) {
-      estadoSeleccionPermisos_.usuariosRestringidos.push({ id: usuarioId, nombre: usuarioNombre });
-    }
-  } else {
-    estadoSeleccionPermisos_.usuariosRestringidos = estadoSeleccionPermisos_.usuariosRestringidos.filter(u => u.id !== usuarioId);
+function renderizarModalPermisos_() {
+  let overlay = document.getElementById('overlayPermisosArchivo');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'overlayPermisosArchivo';
+    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:10001;backdrop-filter:blur(2px);';
+    
+    const modal = document.createElement('div');
+    modal.id = 'modalPermisosContent';
+    modal.style.cssText = 'background:white;border-radius:16px;box-shadow:0 12px 48px rgba(0,0,0,0.3);width:90%;max-width:500px;min-height:300px;max-height:85vh;display:flex;flex-direction:column;overflow:hidden;position:relative;transition:all 0.3s ease;';
+    
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
   }
 
-  actualizarResumenPermisosSeleccionados_();
-}
-
-/**
- * Filtra usuarios según el texto de búsqueda
- */
-function filtrarUsuariosPermisos_(e) {
-  estadoSeleccionPermisos_.filtroActual = e.target.value;
-  renderizarListaUsuariosPermisos_();
-}
-
-/**
- * Selecciona todos los usuarios
- */
-function seleccionarTodosUsuariosPermisos_() {
-  estadoSeleccionPermisos_.usuariosRestringidos = [...estadoSeleccionPermisos_.usuariosDisponibles];
-  renderizarListaUsuariosPermisos_();
-  actualizarResumenPermisosSeleccionados_();
-}
-
-/**
- * Deselecciona todos los usuarios
- */
-function deseleccionarTodosUsuariosPermisos_() {
-  estadoSeleccionPermisos_.usuariosRestringidos = [];
-  renderizarListaUsuariosPermisos_();
-  actualizarResumenPermisosSeleccionados_();
-}
-
-/**
- * Actualiza el resumen de usuarios seleccionados
- */
-function actualizarResumenPermisosSeleccionados_() {
-  const resumen = document.getElementById('resumenPermisosSeleccionados');
-  const seleccionados = estadoSeleccionPermisos_.usuariosRestringidos;
-
-  if (seleccionados.length === 0) {
-    resumen.innerHTML = '<span style="color:#999;">Ninguno</span>';
-  } else {
-    resumen.innerHTML = seleccionados.map(u => `<div style="padding:4px;background:#fff3cd;border-radius:4px;margin:4px 0;font-size:12px;">✓ ${u.nombre}</div>`).join('');
-  }
-}
-
-/**
- * Confirma los permisos seleccionados
- */
-function confirmarPermisosArchivo_() {
-  const permisos = estadoSeleccionPermisos_.usuariosRestringidos.map(u => u.id);
-  window.permisosArchivoSeleccionados = permisos;
-
-  // Buscar elementos en el panel lateral (que es donde está el formulario)
-  const panelLateral = document.getElementById('panelLateral');
-  const textoResumen = panelLateral ? panelLateral.querySelector('#textoResumenPermisos') : document.getElementById('textoResumenPermisos');
-  const listaBloqueadosContainer = panelLateral ? panelLateral.querySelector('#listaBloqueadosContainer') : document.getElementById('listaBloqueadosContainer');
-  const listaBloqueados = panelLateral ? panelLateral.querySelector('#listaBloqueados') : document.getElementById('listaBloqueados');
-
-  if (permisos.length === 0) {
-    // Sin restricciones
-    if (textoResumen) {
-      textoResumen.innerHTML = '<span style="font-weight: 500;">Sin restricciones - Todos pueden ver</span>';
-    }
-    if (listaBloqueadosContainer) {
-      listaBloqueadosContainer.style.display = 'none';
-    }
-  } else {
-    // Con restricciones
-    if (textoResumen) {
-      textoResumen.innerHTML = `<span style="font-weight: 600; color: #C1952B;">⚠️ ${permisos.length} usuario(s) bloqueado(s)</span>`;
-    }
-    if (listaBloqueadosContainer && listaBloqueados) {
-      listaBloqueadosContainer.style.display = 'block';
-      listaBloqueados.innerHTML = estadoSeleccionPermisos_.usuariosRestringidos.map(u =>
-        `<div style="display: flex; align-items: center; gap: 6px; background: rgba(193, 149, 43, 0.1); border: 1px solid rgba(193, 149, 43, 0.3); padding: 5px 10px; border-radius: 16px; font-size: 11px; font-weight: 500; color: #5a4a1a; white-space: nowrap;">
-          <span>${escaparHtml(u.nombre)}</span>
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="opacity: 0.6;">
-            <polyline points="20 6 9 17 4 12"></polyline>
-          </svg>
-        </div>`
-      ).join('');
-    }
+  const modal = document.getElementById('modalPermisosContent');
+  
+  if (estadoPermisos_.vistaActual === 'principal') {
+    modal.innerHTML = generarVistaPrincipal_();
+  } else if (estadoPermisos_.vistaActual === 'excluidos') {
+    modal.innerHTML = generarVistaExcluidos_();
+    renderizarListaExcluidos_();
+  } else if (estadoPermisos_.vistaActual === 'grupos') {
+    modal.innerHTML = generarVistaGrupos_();
+  } else if (estadoPermisos_.vistaActual === 'crear_grupo') {
+    modal.innerHTML = generarVistaCrearGrupo_();
+    renderizarListaCrearGrupo_();
   }
 
-  // Cerrar modal
-  cerrarModalPermisos_();
+  agregarEventListnersVista_();
+}
 
-  showNotification(
-    `${permisos.length === 0 ? 'Sin restricciones' : permisos.length + ' usuario(s) bloqueado(s)'}`,
-    'success',
-    2000
+// ====================== VISTAS ======================
+
+function generarVistaPrincipal_() {
+  const o = estadoPermisos_.opcionSeleccionada;
+  
+  // Nombres descriptivos para la UI
+  let textoExcepto = '0 excluidos';
+  if (estadoPermisos_.usuariosExcluidos.length > 0) {
+    textoExcepto = `${estadoPermisos_.usuariosExcluidos.length} excluido(s)`;
+  }
+  
+  let textoGrupo = 'Seleccionar...';
+  if (estadoPermisos_.grupoSeleccionado) {
+    const g = estadoPermisos_.misGrupos.find(g => g.id === estadoPermisos_.grupoSeleccionado);
+    if (g) textoGrupo = g.nombre;
+  }
+
+  return `
+    <div style="padding:20px 24px;border-bottom:1px solid #f0f0f0;display:flex;align-items:center;justify-content:space-between;background:#f8f9fa;">
+      <h3 style="margin:0;color:#202124;font-size:18px;font-weight:600;display:flex;align-items:center;gap:8px;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:#C1952B"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+        Privacidad del archivo
+      </h3>
+      <button class="btn-cerrar-modal" style="background:none;border:none;font-size:24px;cursor:pointer;color:#5f6368;line-height:1;">✕</button>
+    </div>
+    
+    <div style="padding:24px;flex:1;overflow-y:auto;">
+      <p style="color:#5f6368;font-size:14px;margin:0 0 20px 0;">¿Quién puede ver este archivo?</p>
+
+      <!-- Opcion: Todos -->
+      <label class="opcion-privacidad ${o === 'todos' ? 'activa' : ''}" style="display:flex;align-items:center;padding:16px;border:2px solid ${o === 'todos' ? '#C1952B' : '#e0e0e0'};border-radius:12px;margin-bottom:12px;cursor:pointer;transition:all 0.2s;">
+        <input type="radio" name="privacidad" value="todos" ${o === 'todos' ? 'checked' : ''} style="width:20px;height:20px;margin-right:16px;accent-color:#C1952B;">
+        <div style="flex:1;">
+          <div style="font-weight:600;color:#202124;font-size:15px;margin-bottom:4px;">Todos en la empresa</div>
+          <div style="font-size:13px;color:#5f6368;">Cualquier usuario con acceso al sistema.</div>
+        </div>
+      </label>
+
+      <!-- Opcion: Nadie -->
+      <label class="opcion-privacidad ${o === 'nadie' ? 'activa' : ''}" style="display:flex;align-items:center;padding:16px;border:2px solid ${o === 'nadie' ? '#C1952B' : '#e0e0e0'};border-radius:12px;margin-bottom:12px;cursor:pointer;transition:all 0.2s;">
+        <input type="radio" name="privacidad" value="nadie" ${o === 'nadie' ? 'checked' : ''} style="width:20px;height:20px;margin-right:16px;accent-color:#C1952B;">
+        <div style="flex:1;">
+          <div style="font-weight:600;color:#202124;font-size:15px;margin-bottom:4px;">Solo yo</div>
+          <div style="font-size:13px;color:#5f6368;">Ningún otro usuario podrá ver este archivo.</div>
+        </div>
+      </label>
+
+      <!-- Opcion: Excepto -->
+      <label class="opcion-privacidad ${o === 'excepto' ? 'activa' : ''}" style="display:flex;align-items:center;padding:16px;border:2px solid ${o === 'excepto' ? '#C1952B' : '#e0e0e0'};border-radius:12px;margin-bottom:12px;cursor:pointer;transition:all 0.2s;">
+        <input type="radio" name="privacidad" value="excepto" ${o === 'excepto' ? 'checked' : ''} style="width:20px;height:20px;margin-right:16px;accent-color:#C1952B;">
+        <div style="flex:1;">
+          <div style="font-weight:600;color:#202124;font-size:15px;margin-bottom:4px;">Todos, excepto...</div>
+          <div style="font-size:13px;color:${o === 'excepto' ? '#C1952B' : '#5f6368'};font-weight:500;">
+            ${textoExcepto} <span style="text-decoration:underline;cursor:pointer;margin-left:4px;" class="btn-editar-excluidos">Editar</span>
+          </div>
+        </div>
+      </label>
+
+      <!-- Opcion: Grupos -->
+      <label class="opcion-privacidad ${o === 'grupo' ? 'activa' : ''}" style="display:flex;align-items:center;padding:16px;border:2px solid ${o === 'grupo' ? '#C1952B' : '#e0e0e0'};border-radius:12px;margin-bottom:12px;cursor:pointer;transition:all 0.2s;">
+        <input type="radio" name="privacidad" value="grupo" ${o === 'grupo' ? 'checked' : ''} style="width:20px;height:20px;margin-right:16px;accent-color:#C1952B;">
+        <div style="flex:1;">
+          <div style="font-weight:600;color:#202124;font-size:15px;margin-bottom:4px;">Seleccionar grupo...</div>
+          <div style="font-size:13px;color:${o === 'grupo' ? '#C1952B' : '#5f6368'};font-weight:500;">
+            ${textoGrupo} <span style="text-decoration:underline;cursor:pointer;margin-left:4px;" class="btn-editar-grupos">Cambiar</span>
+          </div>
+        </div>
+      </label>
+
+    </div>
+
+    <div style="padding:16px 24px;border-top:1px solid #f0f0f0;display:flex;justify-content:flex-end;gap:12px;background:#f8f9fa;">
+      <button class="btn-cancelar-modal" style="padding:10px 20px;background:none;border:1px solid #dadce0;border-radius:8px;cursor:pointer;font-weight:600;color:#5f6368;">Cancelar</button>
+      <button class="btn-guardar-principal" style="padding:10px 24px;background:#C1952B;color:white;border:none;border-radius:8px;cursor:pointer;font-weight:600;box-shadow:0 2px 6px rgba(193,149,43,0.3);">Aplicar</button>
+    </div>
+  `;
+}
+
+function generarVistaExcluidos_() {
+  return `
+    <div style="padding:20px 24px;border-bottom:1px solid #f0f0f0;display:flex;align-items:center;gap:16px;background:#f8f9fa;">
+      <button class="btn-volver" style="background:none;border:none;cursor:pointer;color:#5f6368;display:flex;align-items:center;padding:4px;border-radius:50%;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg></button>
+      <div>
+        <h3 style="margin:0;color:#202124;font-size:18px;font-weight:600;">Excluir usuarios</h3>
+        <p style="margin:2px 0 0 0;font-size:12px;color:#5f6368;">Selecciona quiénes NO podrán ver el archivo.</p>
+      </div>
+    </div>
+    <div style="padding:16px 24px 0 24px;">
+      <input type="text" class="input-buscador" placeholder="🔍 Buscar usuarios..." style="width:100%;padding:10px 14px;border:1px solid #dadce0;border-radius:8px;font-size:14px;box-sizing:border-box;outline:none;">
+    </div>
+    <div class="contenedor-lista" style="padding:16px 24px;flex:1;overflow-y:auto;min-height:200px;max-height:40vh;">
+      <!-- Llenado dinámico -->
+    </div>
+    <div style="padding:16px 24px;border-top:1px solid #f0f0f0;display:flex;justify-content:space-between;align-items:center;background:#f8f9fa;">
+      <div style="font-size:13px;color:#5f6368;font-weight:500;"><span class="contador-excluidos">${estadoPermisos_.usuariosExcluidos.length}</span> excluidos</div>
+      <button class="btn-volver" style="padding:10px 24px;background:#C1952B;color:white;border:none;border-radius:8px;cursor:pointer;font-weight:600;">Listo</button>
+    </div>
+  `;
+}
+
+function generarVistaGrupos_() {
+  const gruposHtml = estadoPermisos_.misGrupos.map(g => `
+    <div class="item-grupo" data-id="${g.id}" style="display:flex;align-items:center;padding:14px;border:1px solid ${estadoPermisos_.grupoSeleccionado === g.id ? '#C1952B' : '#e0e0e0'};border-radius:8px;margin-bottom:10px;cursor:pointer;background:${estadoPermisos_.grupoSeleccionado === g.id ? 'rgba(193,149,43,0.05)' : '#fff'};transition:all 0.2s;">
+      <div style="width:20px;height:20px;border-radius:50%;border:2px solid ${estadoPermisos_.grupoSeleccionado === g.id ? '#C1952B' : '#dadce0'};margin-right:16px;display:flex;align-items:center;justify-content:center;">
+        ${estadoPermisos_.grupoSeleccionado === g.id ? '<div style="width:10px;height:10px;background:#C1952B;border-radius:50%;"></div>' : ''}
+      </div>
+      <div style="flex:1;">
+        <div style="font-weight:600;color:#202124;font-size:15px;">${g.nombre}</div>
+        <div style="font-size:12px;color:#5f6368;">${g.integrantes.length} integrantes</div>
+      </div>
+      <button class="btn-eliminar-grupo" data-id="${g.id}" style="background:none;border:none;color:#d93025;cursor:pointer;padding:8px;border-radius:4px;" title="Eliminar grupo"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></button>
+    </div>
+  `).join('');
+
+  return `
+    <div style="padding:20px 24px;border-bottom:1px solid #f0f0f0;display:flex;align-items:center;gap:16px;background:#f8f9fa;">
+      <button class="btn-volver" style="background:none;border:none;cursor:pointer;color:#5f6368;display:flex;align-items:center;padding:4px;border-radius:50%;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg></button>
+      <div>
+        <h3 style="margin:0;color:#202124;font-size:18px;font-weight:600;">Mis Grupos</h3>
+        <p style="margin:2px 0 0 0;font-size:12px;color:#5f6368;">Selecciona un grupo para darle acceso exclusivo.</p>
+      </div>
+    </div>
+    <div style="padding:20px 24px;flex:1;overflow-y:auto;min-height:200px;max-height:50vh;">
+      ${estadoPermisos_.misGrupos.length === 0 ? '<div style="text-align:center;padding:30px 10px;color:#5f6368;font-size:14px;background:#f8f9fa;border-radius:8px;border:1px dashed #dadce0;margin-bottom:16px;">Aún no tienes grupos creados.</div>' : gruposHtml}
+      
+      <button class="btn-crear-grupo" style="width:100%;padding:14px;background:none;border:2px dashed #C1952B;border-radius:8px;color:#C1952B;font-weight:600;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:all 0.2s;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+        Crear nuevo grupo
+      </button>
+    </div>
+    <div style="padding:16px 24px;border-top:1px solid #f0f0f0;display:flex;justify-content:flex-end;background:#f8f9fa;">
+      <button class="btn-volver" style="padding:10px 24px;background:#C1952B;color:white;border:none;border-radius:8px;cursor:pointer;font-weight:600;">Listo</button>
+    </div>
+  `;
+}
+
+function generarVistaCrearGrupo_() {
+  return `
+    <div style="padding:20px 24px;border-bottom:1px solid #f0f0f0;display:flex;align-items:center;gap:16px;background:#f8f9fa;">
+      <button class="btn-volver-grupos" style="background:none;border:none;cursor:pointer;color:#5f6368;display:flex;align-items:center;padding:4px;border-radius:50%;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg></button>
+      <div>
+        <h3 style="margin:0;color:#202124;font-size:18px;font-weight:600;">Nuevo Grupo</h3>
+      </div>
+    </div>
+    <div style="padding:20px 24px;">
+      <label style="display:block;font-size:13px;font-weight:600;color:#333;margin-bottom:8px;">Nombre del grupo</label>
+      <input type="text" id="inputNombreGrupo" value="${estadoPermisos_.nuevoGrupo.nombre}" placeholder="Ej: Equipo Directivo, Finanzas..." style="width:100%;padding:12px 14px;border:1px solid #dadce0;border-radius:8px;font-size:14px;box-sizing:border-box;outline:none;margin-bottom:16px;">
+      
+      <label style="display:block;font-size:13px;font-weight:600;color:#333;margin-bottom:8px;">Integrantes (quiénes SI pueden ver)</label>
+      <input type="text" class="input-buscador-grupo" placeholder="🔍 Buscar usuarios..." style="width:100%;padding:10px 14px;border:1px solid #dadce0;border-radius:8px;font-size:13px;box-sizing:border-box;outline:none;margin-bottom:12px;">
+    </div>
+    <div class="contenedor-lista-grupo" style="padding:0 24px 20px 24px;flex:1;overflow-y:auto;min-height:150px;max-height:30vh;">
+      <!-- Llenado dinámico -->
+    </div>
+    <div style="padding:16px 24px;border-top:1px solid #f0f0f0;display:flex;justify-content:space-between;align-items:center;background:#f8f9fa;">
+      <div style="font-size:13px;color:#5f6368;font-weight:500;"><span class="contador-integrantes">${estadoPermisos_.nuevoGrupo.integrantes.length}</span> seleccionados</div>
+      <button class="btn-guardar-nuevo-grupo" style="padding:10px 24px;background:#C1952B;color:white;border:none;border-radius:8px;cursor:pointer;font-weight:600;transition:opacity 0.2s;">Crear Grupo</button>
+    </div>
+  `;
+}
+
+// ====================== RENDERIZADORES LISTAS ======================
+
+function renderizarListaExcluidos_() {
+  const contenedor = document.querySelector('.contenedor-lista');
+  if (!contenedor) return;
+  
+  const filtro = estadoPermisos_.filtroActual.toLowerCase();
+  const idUsuarioActual = getCurrentUserSession()?.ID_Usuario;
+
+  const usuariosFiltrados = estadoPermisos_.usuariosDisponibles.filter(u =>
+    u.id !== idUsuarioActual && // El uploader nunca se puede excluir a sí mismo
+    (u.nombre.toLowerCase().includes(filtro) || u.email.toLowerCase().includes(filtro))
   );
+
+  contenedor.innerHTML = usuariosFiltrados.map(u => {
+    const seleccionado = estadoPermisos_.usuariosExcluidos.includes(u.id);
+    return `
+      <label style="display:flex;align-items:center;padding:10px;border-radius:8px;cursor:pointer;transition:background 0.2s;margin-bottom:4px;" onmouseover="this.style.background='#f0f0f0';" onmouseout="this.style.background='transparent';">
+        <input type="checkbox" class="check-excluir" value="${u.id}" ${seleccionado ? 'checked' : ''} style="width:18px;height:18px;margin-right:14px;accent-color:#d93025;">
+        <div>
+          <div style="font-weight:500;color:#202124;font-size:14px;">${u.nombre}</div>
+          <div style="font-size:12px;color:#5f6368;">${u.email}</div>
+        </div>
+      </label>
+    `;
+  }).join('');
+
+  document.querySelectorAll('.check-excluir').forEach(el => {
+    el.addEventListener('change', e => {
+      if (e.target.checked) {
+        if (!estadoPermisos_.usuariosExcluidos.includes(e.target.value)) {
+          estadoPermisos_.usuariosExcluidos.push(e.target.value);
+        }
+      } else {
+        estadoPermisos_.usuariosExcluidos = estadoPermisos_.usuariosExcluidos.filter(id => id !== e.target.value);
+      }
+      document.querySelector('.contador-excluidos').innerText = estadoPermisos_.usuariosExcluidos.length;
+    });
+  });
 }
 
-/**
- * Cierra el modal de permisos
- */
-function cerrarModalPermisos_() {
-  const overlay = document.getElementById('overlayPermisosArchivo');
-  if (overlay) overlay.remove();
-  estadoSeleccionPermisos_.filtroActual = '';
+function renderizarListaCrearGrupo_() {
+  const contenedor = document.querySelector('.contenedor-lista-grupo');
+  if (!contenedor) return;
+  
+  const filtro = estadoPermisos_.filtroActual.toLowerCase();
+  const idUsuarioActual = getCurrentUserSession()?.ID_Usuario;
+
+  const usuariosFiltrados = estadoPermisos_.usuariosDisponibles.filter(u =>
+    u.id !== idUsuarioActual &&
+    (u.nombre.toLowerCase().includes(filtro) || u.email.toLowerCase().includes(filtro))
+  );
+
+  contenedor.innerHTML = usuariosFiltrados.map(u => {
+    const seleccionado = estadoPermisos_.nuevoGrupo.integrantes.includes(u.id);
+    return `
+      <label style="display:flex;align-items:center;padding:10px;border-radius:8px;cursor:pointer;transition:background 0.2s;margin-bottom:4px;" onmouseover="this.style.background='#f0f0f0';" onmouseout="this.style.background='transparent';">
+        <input type="checkbox" class="check-integrante" value="${u.id}" ${seleccionado ? 'checked' : ''} style="width:18px;height:18px;margin-right:14px;accent-color:#0F9D58;">
+        <div>
+          <div style="font-weight:500;color:#202124;font-size:14px;">${u.nombre}</div>
+          <div style="font-size:12px;color:#5f6368;">${u.email}</div>
+        </div>
+      </label>
+    `;
+  }).join('');
+
+  document.querySelectorAll('.check-integrante').forEach(el => {
+    el.addEventListener('change', e => {
+      if (e.target.checked) {
+        if (!estadoPermisos_.nuevoGrupo.integrantes.includes(e.target.value)) {
+          estadoPermisos_.nuevoGrupo.integrantes.push(e.target.value);
+        }
+      } else {
+        estadoPermisos_.nuevoGrupo.integrantes = estadoPermisos_.nuevoGrupo.integrantes.filter(id => id !== e.target.value);
+      }
+      document.querySelector('.contador-integrantes').innerText = estadoPermisos_.nuevoGrupo.integrantes.length;
+      validarBotonNuevoGrupo_();
+    });
+  });
+  
+  validarBotonNuevoGrupo_();
 }
 
-/**
- * Verifica si el usuario actual tiene acceso a un archivo
- */
-function verificarAccesoArchivoAntes(idArchivo) {
-  const usuarioActual = getCurrentUserSession();
-  if (!usuarioActual) {
-    showNotification('Sesión expirada', 'error', 3000);
-    return false;
+function validarBotonNuevoGrupo_() {
+  const input = document.getElementById('inputNombreGrupo');
+  const btn = document.querySelector('.btn-guardar-nuevo-grupo');
+  if (!btn) return;
+  
+  if (input && input.value.trim().length > 0 && estadoPermisos_.nuevoGrupo.integrantes.length > 0) {
+    btn.style.opacity = '1';
+    btn.style.pointerEvents = 'auto';
+  } else {
+    btn.style.opacity = '0.5';
+    btn.style.pointerEvents = 'none';
   }
+}
+
+// ====================== EVENT LISTENERS ======================
+
+function agregarEventListnersVista_() {
+  const modal = document.getElementById('modalPermisosContent');
+
+  if (estadoPermisos_.vistaActual === 'principal') {
+    modal.querySelector('.btn-cerrar-modal').addEventListener('click', cerrarModalPermisos_);
+    modal.querySelector('.btn-cancelar-modal').addEventListener('click', cerrarModalPermisos_);
+    
+    modal.querySelectorAll('input[name="privacidad"]').forEach(radio => {
+      radio.addEventListener('change', e => {
+        estadoPermisos_.opcionSeleccionada = e.target.value;
+        if (e.target.value === 'excepto') {
+          estadoPermisos_.vistaActual = 'excluidos';
+          estadoPermisos_.filtroActual = '';
+        } else if (e.target.value === 'grupo') {
+          estadoPermisos_.vistaActual = 'grupos';
+        }
+        renderizarModalPermisos_();
+      });
+    });
+
+    const btnEdEx = modal.querySelector('.btn-editar-excluidos');
+    if (btnEdEx) btnEdEx.addEventListener('click', (e) => {
+      e.stopPropagation(); e.preventDefault();
+      estadoPermisos_.opcionSeleccionada = 'excepto';
+      estadoPermisos_.vistaActual = 'excluidos';
+      estadoPermisos_.filtroActual = '';
+      renderizarModalPermisos_();
+    });
+
+    const btnEdGr = modal.querySelector('.btn-editar-grupos');
+    if (btnEdGr) btnEdGr.addEventListener('click', (e) => {
+      e.stopPropagation(); e.preventDefault();
+      estadoPermisos_.opcionSeleccionada = 'grupo';
+      estadoPermisos_.vistaActual = 'grupos';
+      renderizarModalPermisos_();
+    });
+
+    modal.querySelector('.btn-guardar-principal').addEventListener('click', confirmarYCalcularPermisos_);
+
+  } else if (estadoPermisos_.vistaActual === 'excluidos') {
+    modal.querySelector('.btn-volver').addEventListener('click', () => {
+      estadoPermisos_.vistaActual = 'principal';
+      renderizarModalPermisos_();
+    });
+    
+    const buscador = modal.querySelector('.input-buscador');
+    buscador.value = estadoPermisos_.filtroActual;
+    buscador.addEventListener('input', e => {
+      estadoPermisos_.filtroActual = e.target.value;
+      renderizarListaExcluidos_();
+    });
+    
+  } else if (estadoPermisos_.vistaActual === 'grupos') {
+    modal.querySelector('.btn-volver').addEventListener('click', () => {
+      estadoPermisos_.vistaActual = 'principal';
+      renderizarModalPermisos_();
+    });
+
+    modal.querySelectorAll('.item-grupo').forEach(item => {
+      item.addEventListener('click', (e) => {
+        if (e.target.closest('.btn-eliminar-grupo')) return; // No seleccionar si se hace click en borrar
+        estadoPermisos_.grupoSeleccionado = item.dataset.id;
+        estadoPermisos_.vistaActual = 'principal';
+        renderizarModalPermisos_();
+      });
+    });
+
+    modal.querySelectorAll('.btn-eliminar-grupo').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (confirm('¿Estás seguro de eliminar este grupo?')) {
+          eliminarGrupo_(btn.dataset.id);
+        }
+      });
+    });
+
+    modal.querySelector('.btn-crear-grupo').addEventListener('click', () => {
+      estadoPermisos_.nuevoGrupo = { nombre: '', integrantes: [] };
+      estadoPermisos_.filtroActual = '';
+      estadoPermisos_.vistaActual = 'crear_grupo';
+      renderizarModalPermisos_();
+    });
+
+  } else if (estadoPermisos_.vistaActual === 'crear_grupo') {
+    modal.querySelector('.btn-volver-grupos').addEventListener('click', () => {
+      estadoPermisos_.vistaActual = 'grupos';
+      renderizarModalPermisos_();
+    });
+
+    const inputNombre = modal.querySelector('#inputNombreGrupo');
+    inputNombre.addEventListener('input', e => {
+      estadoPermisos_.nuevoGrupo.nombre = e.target.value;
+      validarBotonNuevoGrupo_();
+    });
+
+    const buscador = modal.querySelector('.input-buscador-grupo');
+    buscador.value = estadoPermisos_.filtroActual;
+    buscador.addEventListener('input', e => {
+      estadoPermisos_.filtroActual = e.target.value;
+      renderizarListaCrearGrupo_();
+    });
+
+    modal.querySelector('.btn-guardar-nuevo-grupo').addEventListener('click', guardarNuevoGrupo_);
+  }
+}
+
+// ====================== LÓGICA DE DATOS ======================
+
+function guardarNuevoGrupo_() {
+  const nombre = estadoPermisos_.nuevoGrupo.nombre.trim();
+  const integrantes = estadoPermisos_.nuevoGrupo.integrantes;
+  const idUsuario = getCurrentUserSession()?.ID_Usuario;
+
+  if (!nombre || integrantes.length === 0 || !idUsuario) return;
+
+  const btn = document.querySelector('.btn-guardar-nuevo-grupo');
+  const textoOriginal = btn.innerText;
+  btn.innerText = 'Guardando...';
+  btn.style.opacity = '0.7';
+  btn.style.pointerEvents = 'none';
 
   google.script.run
-    .withSuccessHandler(function(result) {
-      if (result.puedeAcceder) {
-        // Permitir acceso
-        abrirArchivoViewer(idArchivo);
+    .withSuccessHandler(function(res) {
+      if (res.success && res.grupo) {
+        estadoPermisos_.misGrupos.push(res.grupo);
+        estadoPermisos_.grupoSeleccionado = res.grupo.id;
+        estadoPermisos_.vistaActual = 'principal';
+        showNotification('Grupo creado exitosamente', 'success', 2000);
+        renderizarModalPermisos_();
       } else {
-        // Mostrar modal de sin permisos
-        mostrarModalSinPermisos_(result.razon);
+        showNotification('Error al crear grupo: ' + res.message, 'error', 3000);
+        btn.innerText = textoOriginal;
+        btn.style.opacity = '1';
+        btn.style.pointerEvents = 'auto';
       }
     })
     .withFailureHandler(function(err) {
-      console.error('Error al verificar acceso:', err);
-      abrirArchivoViewer(idArchivo); // Permitir en caso de error
+      console.error(err);
+      showNotification('Error de conexión', 'error', 3000);
+      btn.innerText = textoOriginal;
+      btn.style.opacity = '1';
+      btn.style.pointerEvents = 'auto';
     })
-    .verificarAccesoArchivo(idArchivo, usuarioActual.ID_Usuario);
+    .crearGrupoUsuario(idUsuario, nombre, integrantes);
+}
+
+function eliminarGrupo_(idGrupo) {
+  const idUsuario = getCurrentUserSession()?.ID_Usuario;
+  
+  google.script.run
+    .withSuccessHandler(function(res) {
+      if (res.success) {
+        estadoPermisos_.misGrupos = estadoPermisos_.misGrupos.filter(g => g.id !== idGrupo);
+        if (estadoPermisos_.grupoSeleccionado === idGrupo) {
+          estadoPermisos_.grupoSeleccionado = null;
+        }
+        renderizarModalPermisos_();
+        showNotification('Grupo eliminado', 'success', 2000);
+      } else {
+        showNotification('Error al eliminar', 'error', 3000);
+      }
+    })
+    .eliminarGrupoUsuario(idUsuario, idGrupo);
 }
 
 /**
- * Muestra modal cuando el usuario no tiene permisos
+ * Calcula el array FINAL de IDs restringidos a enviar al backend en formato Lista Negra
+ */
+function confirmarYCalcularPermisos_() {
+  const opcion = estadoPermisos_.opcionSeleccionada;
+  const idUsuarioActual = getCurrentUserSession()?.ID_Usuario;
+  let idsRestringidosFinal = [];
+
+  // Obtenemos todos los IDs de la empresa excepto el usuario actual
+  const todosLosOtrosIds = estadoPermisos_.usuariosDisponibles
+    .map(u => u.id)
+    .filter(id => id !== idUsuarioActual);
+
+  if (opcion === 'todos') {
+    // Nadie excluido
+    idsRestringidosFinal = [];
+  } 
+  else if (opcion === 'nadie') {
+    // Todos excluidos excepto el uploader
+    idsRestringidosFinal = todosLosOtrosIds;
+  }
+  else if (opcion === 'excepto') {
+    // Se excluyen los que se marcaron específicamente
+    idsRestringidosFinal = estadoPermisos_.usuariosExcluidos;
+  }
+  else if (opcion === 'grupo') {
+    if (!estadoPermisos_.grupoSeleccionado) {
+      showNotification('Selecciona un grupo primero', 'warning', 2000);
+      return;
+    }
+    const g = estadoPermisos_.misGrupos.find(x => x.id === estadoPermisos_.grupoSeleccionado);
+    if (g) {
+      // Excluir a todos LOS DEMÁS (todos los otros IDs que NO estén en la lista de integrantes del grupo)
+      idsRestringidosFinal = todosLosOtrosIds.filter(id => !g.integrantes.includes(id));
+    }
+  }
+
+  // Guardamos en el objeto global que usa ArchivosUpload.js
+  // (Guardamos como array para el backend, pero adjuntamos meta-datos para restaurar el estado en la UI)
+  const arrayParaBackend = idsRestringidosFinal;
+  arrayParaBackend.tipo = opcion;
+  arrayParaBackend.excluidos = estadoPermisos_.usuariosExcluidos;
+  arrayParaBackend.grupoId = estadoPermisos_.grupoSeleccionado;
+  
+  window.permisosArchivoSeleccionados = arrayParaBackend;
+
+  // Actualizar el Panel Lateral visualmente
+  const textoResumen = document.getElementById('textoResumenPermisos');
+  const containerBloqueados = document.getElementById('listaBloqueadosContainer');
+  const listaBloqueados = document.getElementById('listaBloqueados');
+
+  if (idsRestringidosFinal.length === 0) {
+    if (textoResumen) textoResumen.innerHTML = '<span style="font-weight: 500;">Sin restricciones - Todos pueden ver</span>';
+    if (containerBloqueados) containerBloqueados.style.display = 'none';
+  } else {
+    let msg = '';
+    if (opcion === 'nadie') msg = '🔒 Privado (Solo tú)';
+    else if (opcion === 'grupo') {
+      const nomGrp = estadoPermisos_.misGrupos.find(x => x.id === estadoPermisos_.grupoSeleccionado)?.nombre;
+      msg = `👥 Solo el grupo: ${nomGrp}`;
+    }
+    else msg = `⚠️ ${idsRestringidosFinal.length} usuario(s) bloqueado(s)`;
+
+    if (textoResumen) textoResumen.innerHTML = `<span style="font-weight: 600; color: #C1952B;">${msg}</span>`;
+    
+    // Si queremos listar a los bloqueados
+    if (containerBloqueados && listaBloqueados) {
+      containerBloqueados.style.display = 'block';
+      const bloqueadosInfo = estadoPermisos_.usuariosDisponibles.filter(u => idsRestringidosFinal.includes(u.id));
+      
+      // Mostrar máximo 5 nombres para no saturar si son muchos
+      let htmlBadges = bloqueadosInfo.slice(0, 5).map(u => 
+        `<div style="display: flex; align-items: center; gap: 6px; background: rgba(193, 149, 43, 0.1); border: 1px solid rgba(193, 149, 43, 0.3); padding: 5px 10px; border-radius: 16px; font-size: 11px; font-weight: 500; color: #5a4a1a; white-space: nowrap;">
+          <span>${escaparHtml(u.nombre)}</span>
+        </div>`
+      ).join('');
+      
+      if (bloqueadosInfo.length > 5) {
+        htmlBadges += `<div style="font-size:11px;color:#666;font-style:italic;">+${bloqueadosInfo.length - 5} más</div>`;
+      }
+      listaBloqueados.innerHTML = htmlBadges;
+    }
+  }
+
+  cerrarModalPermisos_();
+  showNotification('Permisos configurados', 'success', 2000);
+}
+
+function cerrarModalPermisos_() {
+  const overlay = document.getElementById('overlayPermisosArchivo');
+  if (overlay) overlay.remove();
+}
+
+/**
+ * Muestra modal cuando el usuario no tiene permisos (para ArchivosRender / Google Picker UI)
  */
 function mostrarModalSinPermisos_(razon) {
   const overlay = document.createElement('div');
