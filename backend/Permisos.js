@@ -247,3 +247,21 @@ function obtenerPermisosCompletos(idArchivo) {
     return { success: true, permisos: [] };
   }
 }
+
+/**
+ * Actualiza los permisos de un archivo existente (validando propiedad)
+ * @param {string} idArchivo - ID del archivo (ARC-...)
+ * @param {string} idUsuarioOToken - Token o ID del usuario actual
+ * @param {array} idsRestringidosFinal - Array final de IDs a bloquear
+ */
+function actualizarPermisosExistentes(idArchivo, idUsuarioOToken, idsRestringidosFinal) {
+  if (typeof validarPropiedadOAdmin_ === 'function') {
+    const auth = validarPropiedadOAdmin_(idArchivo, idUsuarioOToken, false);
+    if (!auth.autorizado) {
+      return { success: false, message: auth.mensaje };
+    }
+  }
+
+  // Si pasa la validación (o si validarPropiedadOAdmin_ no está disponible), guardar
+  return guardarPermisosArchivo(idArchivo, idsRestringidosFinal);
+}

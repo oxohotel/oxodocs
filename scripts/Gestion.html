@@ -158,15 +158,32 @@
   }
 
   // ==================== Gestión de archivos ====================
-  function botonesGestionArchivoHtml(idArchivo) {
+  function botonesGestionArchivoHtml(archivo) {
     let html = '';
-    if (sesionPuede('Editar_Documentos')) {
-      html += '<button type="button" class="btn-gestion-carpeta" data-accion="renombrar-archivo" data-id-archivo="' + idArchivo + '" title="Renombrar">' +
+    const sesion = typeof getCurrentUserSession === 'function' ? getCurrentUserSession() : null;
+    const esAdmin = sesionPuede('Gestionar_Hoteles_Carpetas');
+    const miNombre = sesion && sesion.Nombre_Completo ? sesion.Nombre_Completo : '';
+    const miEmail = sesion && sesion.Email ? sesion.Email : '';
+    const resp = archivo.responsable || '';
+
+    const esPropietario = (resp === miNombre || resp === miEmail);
+    const autorizado = esAdmin || esPropietario;
+
+    if (autorizado || sesionPuede('Editar_Documentos')) {
+      html += '<button type="button" class="btn-gestion-carpeta" data-accion="renombrar-archivo" data-id-archivo="' + archivo.id + '" title="Renombrar">' +
         '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>' +
       '</button>';
     }
-    if (sesionPuede('Eliminar_Documentos')) {
-      html += '<button type="button" class="btn-gestion-carpeta btn-gestion-peligro" data-accion="eliminar-archivo" data-id-archivo="' + idArchivo + '" title="Eliminar">' +
+
+    // Botón de Privacidad (candado)
+    if (autorizado) {
+      html += '<button type="button" class="btn-gestion-carpeta" data-accion="privacidad-archivo" data-id-archivo="' + archivo.id + '" title="Privacidad">' +
+        '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>' +
+      '</button>';
+    }
+
+    if (autorizado || sesionPuede('Eliminar_Documentos')) {
+      html += '<button type="button" class="btn-gestion-carpeta btn-gestion-peligro" data-accion="eliminar-archivo" data-id-archivo="' + archivo.id + '" title="Eliminar">' +
         '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>' +
       '</button>';
     }
@@ -181,6 +198,16 @@
         e.stopPropagation();
         const archivo = obtenerArchivo(btn.dataset.idArchivo);
         if (archivo) abrirPanelRenombrarArchivo(archivo, onCambio);
+      });
+    });
+
+    contenedor.querySelectorAll('[data-accion="privacidad-archivo"]').forEach(function (btn) {
+      btn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        const archivo = obtenerArchivo(btn.dataset.idArchivo);
+        if (archivo && typeof abrirSelectorPermisosExistente === 'function') {
+          abrirSelectorPermisosExistente(archivo);
+        }
       });
     });
 

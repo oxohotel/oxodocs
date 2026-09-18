@@ -578,51 +578,76 @@ function confirmarYCalcularPermisos_() {
   arrayParaBackend.excluidos = estadoPermisos_.usuariosExcluidos;
   arrayParaBackend.grupoId = estadoPermisos_.grupoSeleccionado;
   
-  window.permisosArchivoSeleccionados = arrayParaBackend;
-
-  // Actualizar el Panel Lateral visualmente
-  const textoResumen = document.getElementById('textoResumenPermisos');
-  const containerBloqueados = document.getElementById('listaBloqueadosContainer');
-  const listaBloqueados = document.getElementById('listaBloqueados');
-
-  if (idsRestringidosFinal.length === 0) {
-    if (textoResumen) textoResumen.innerHTML = '<span style="font-weight: 500;">Sin restricciones - Todos pueden ver</span>';
-    if (containerBloqueados) containerBloqueados.style.display = 'none';
-  } else {
-    let msg = '';
-    if (opcion === 'nadie') msg = '🔒 Privado (Solo tú)';
-    else if (opcion === 'grupo') {
-      const nomGrp = estadoPermisos_.misGrupos.find(x => x.id === estadoPermisos_.grupoSeleccionado)?.nombre;
-      msg = `👥 Solo el grupo: ${nomGrp}`;
+  if (estadoPermisos_.modoEdicion) {
+    const btnGuardar = document.querySelector('.btn-guardar-principal');
+    if (btnGuardar) {
+      btnGuardar.disabled = true;
+      btnGuardar.innerHTML = 'Guardando...';
     }
-    else msg = `⚠️ ${idsRestringidosFinal.length} usuario(s) bloqueado(s)`;
-
-    if (textoResumen) textoResumen.innerHTML = `<span style="font-weight: 600; color: #C1952B;">${msg}</span>`;
     
-    // Si queremos listar a los bloqueados
-    if (containerBloqueados && listaBloqueados) {
-      containerBloqueados.style.display = 'block';
-      const bloqueadosInfo = estadoPermisos_.usuariosDisponibles.filter(u => idsRestringidosFinal.includes(u.id));
-      
-      // Mostrar máximo 5 nombres para no saturar si son muchos
-      let htmlBadges = bloqueadosInfo.slice(0, 5).map(u => 
-        `<div style="display: flex; align-items: center; gap: 6px; background: rgba(193, 149, 43, 0.1); border: 1px solid rgba(193, 149, 43, 0.3); padding: 5px 10px; border-radius: 16px; font-size: 11px; font-weight: 500; color: #5a4a1a; white-space: nowrap;">
-          <span>${escaparHtml(u.nombre)}</span>
-        </div>`
-      ).join('');
-      
-      if (bloqueadosInfo.length > 5) {
-        htmlBadges += `<div style="font-size:11px;color:#666;font-style:italic;">+${bloqueadosInfo.length - 5} más</div>`;
-      }
-      listaBloqueados.innerHTML = htmlBadges;
-    }
-  }
+    google.script.run
+      .withSuccessHandler(res => {
+         cerrarModalPermisos_();
+         if (res.success) {
+           showNotification('Privacidad actualizada correctamente', 'success', 3000);
+         } else {
+           showNotification('Error: ' + res.message, 'error', 4000);
+         }
+      })
+      .withFailureHandler(err => {
+         cerrarModalPermisos_();
+         showNotification('Error de red', 'error', 3000);
+         console.error(err);
+      })
+      .actualizarPermisosExistentes(estadoPermisos_.archivoEdicion, idUsuarioActual, idsRestringidosFinal);
+  } else {
+    window.permisosArchivoSeleccionados = arrayParaBackend;
 
-  cerrarModalPermisos_();
-  showNotification('Permisos configurados', 'success', 2000);
+    // Actualizar el Panel Lateral visualmente
+    const textoResumen = document.getElementById('textoResumenPermisos');
+    const containerBloqueados = document.getElementById('listaBloqueadosContainer');
+    const listaBloqueados = document.getElementById('listaBloqueados');
+
+    if (idsRestringidosFinal.length === 0) {
+      if (textoResumen) textoResumen.innerHTML = '<span style="font-weight: 500;">Sin restricciones - Todos pueden ver</span>';
+      if (containerBloqueados) containerBloqueados.style.display = 'none';
+    } else {
+      let msg = '';
+      if (opcion === 'nadie') msg = '🔒 Privado (Solo tú)';
+      else if (opcion === 'grupo') {
+        const nomGrp = estadoPermisos_.misGrupos.find(x => x.id === estadoPermisos_.grupoSeleccionado)?.nombre;
+        msg = `👥 Solo el grupo: ${nomGrp}`;
+      }
+      else msg = `⚠️ ${idsRestringidosFinal.length} usuario(s) bloqueado(s)`;
+
+      if (textoResumen) textoResumen.innerHTML = `<span style="font-weight: 600; color: #C1952B;">${msg}</span>`;
+      
+      // Si queremos listar a los bloqueados
+      if (containerBloqueados && listaBloqueados) {
+        containerBloqueados.style.display = 'block';
+        const bloqueadosInfo = estadoPermisos_.usuariosDisponibles.filter(u => idsRestringidosFinal.includes(u.id));
+        
+        let htmlBadges = bloqueadosInfo.slice(0, 5).map(u => 
+          `<div style="display: flex; align-items: center; gap: 6px; background: rgba(193, 149, 43, 0.1); border: 1px solid rgba(193, 149, 43, 0.3); padding: 5px 10px; border-radius: 16px; font-size: 11px; font-weight: 500; color: #5a4a1a; white-space: nowrap;">
+            <span>${escaparHtml(u.nombre)}</span>
+          </div>`
+        ).join('');
+        
+        if (bloqueadosInfo.length > 5) {
+          htmlBadges += `<div style="font-size:11px;color:#666;font-style:italic;">+${bloqueadosInfo.length - 5} más</div>`;
+        }
+        listaBloqueados.innerHTML = htmlBadges;
+      }
+    }
+
+    cerrarModalPermisos_();
+    showNotification('Permisos configurados', 'success', 2000);
+  }
 }
 
 function cerrarModalPermisos_() {
+  estadoPermisos_.modoEdicion = false;
+  estadoPermisos_.archivoEdicion = null;
   const overlay = document.getElementById('overlayPermisosArchivo');
   if (overlay) overlay.remove();
 }

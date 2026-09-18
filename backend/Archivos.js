@@ -305,9 +305,50 @@ function generarIdArchivo() {
   }
 }
 
+function validarPropiedadOAdmin_(idArchivoODriveId, idUsuarioOToken, esDriveId = false) {
+  // 1. Es admin?
+  const esAdmin = usuarioTienePermiso(idUsuarioOToken, 'Gestionar_Hoteles_Carpetas');
+  if (esAdmin) return { autorizado: true };
+
+  // 2. Resolver usuario
+  const solicitante = typeof resolverUsuarioSolicitante_ === 'function'
+    ? resolverUsuarioSolicitante_(idUsuarioOToken)
+    : null;
+  
+  if (!solicitante || !solicitante.usuario) {
+    // Fallback de seguridad
+    if (usuarioTienePermiso(idUsuarioOToken, 'Eliminar_Documentos')) return { autorizado: true };
+    return { autorizado: false, mensaje: 'No autorizado' };
+  }
+
+  const nombreUsuario = solicitante.usuario.Nombre_Completo;
+  const emailUsuario = solicitante.usuario.Email;
+
+  // 3. Buscar Responsable
+  const ss = SpreadsheetApp.openById(DRIVE_CONFIG.SPREADSHEET_ID);
+  const hoja = ss.getSheetByName('Archivos');
+  if (!hoja) return { autorizado: false, mensaje: 'Error de BD' };
+
+  const datos = hoja.getDataRange().getValues();
+  const colBusqueda = esDriveId ? datos[0].indexOf('DriveFileId') : datos[0].indexOf('ID_Archivo');
+  const colResp = datos[0].indexOf('Responsable');
+
+  for (let i = 1; i < datos.length; i++) {
+    if (String(datos[i][colBusqueda]) === String(idArchivoODriveId)) {
+      const resp = String(datos[i][colResp] || '').trim();
+      if (resp === nombreUsuario || resp === emailUsuario || resp === 'Sistema') {
+        return { autorizado: true };
+      }
+      return { autorizado: false, mensaje: 'Solo el creador (' + resp + ') o un Administrador puede hacer esto.' };
+    }
+  }
+  return { autorizado: false, mensaje: 'Archivo no encontrado.' };
+}
+
 function eliminarArchivo(driveFileId, idUsuarioOToken) {
-  if (!usuarioTienePermiso(idUsuarioOToken, 'Eliminar_Documentos')) {
-    return { success: false, message: 'No tienes permiso para eliminar archivos' };
+  const auth = validarPropiedadOAdmin_(driveFileId, idUsuarioOToken, true);
+  if (!auth.autorizado) {
+    return { success: false, message: auth.mensaje };
   }
 
   const solicitante = typeof resolverUsuarioSolicitante_ === 'function'
@@ -346,8 +387,9 @@ function eliminarArchivo(driveFileId, idUsuarioOToken) {
 /** Renombra un archivo tanto en Drive como en la hoja "Archivos" — conserva la extensión
  *  original aunque quien escriba el nuevo nombre no la incluya. */
 function renombrarArchivo(idArchivo, nuevoNombre, idUsuarioOToken) {
-  if (!usuarioTienePermiso(idUsuarioOToken, 'Editar_Documentos')) {
-    return { success: false, message: 'No tienes permiso para editar archivos' };
+  const auth = validarPropiedadOAdmin_(idArchivo, idUsuarioOToken, false);
+  if (!auth.autorizado) {
+    return { success: false, message: auth.mensaje };
   }
 
   const solicitante = typeof resolverUsuarioSolicitante_ === 'function'
