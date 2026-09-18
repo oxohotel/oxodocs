@@ -1,0 +1,1138 @@
+<script>
+  // ==================== Apartado "Usuarios" (solo visible para Administrador/Superadministrador —
+  // ver inicializarNavUsuarios en scripts/Sidebar.html) ====================
+
+  var _catalogoRolesCache = [];
+
+  var ESTADOS_USUARIO_TEXTO = {
+    'Activo': 'Activo',
+    'Pendiente_Verificacion': 'Falta verificar correo',
+    'Pendiente_Aprobacion': 'Pendiente de aprobación',
+    'Inactivo': 'Inactivo'
+  };
+
+  function mostrarVistaUsuarios() {
+    const homeContent = document.querySelector('.home-content');
+    if (!homeContent) return;
+
+    if (typeof ocultarVistaCarpetasHotel === 'function') ocultarVistaCarpetasHotel();
+    if (typeof ocultarVistaPerfil === 'function') ocultarVistaPerfil();
+    if (typeof ocultarVistaFavoritos === 'function') ocultarVistaFavoritos();
+    if (typeof ocultarVistaRecientes === 'function') ocultarVistaRecientes();
+    if (typeof ocultarVistaLogs === 'function') ocultarVistaLogs();
+
+    const homeWelcome = homeContent.querySelector('.home-welcome');
+    const homeWidgets = homeContent.querySelector('.home-widgets-grid');
+    if (homeWelcome) homeWelcome.style.display = 'none';
+    if (homeWidgets) homeWidgets.style.display = 'none';
+
+    let contenedor = homeContent.querySelector('#usuariosContainer');
+    if (!contenedor) {
+      const wrapper = document.createElement('div');
+      wrapper.id = 'usuariosSection';
+      wrapper.innerHTML = document.getElementById('usuariosHtml') ? document.getElementById('usuariosHtml').innerHTML : '';
+      homeContent.appendChild(wrapper);
+      contenedor = wrapper.querySelector('#usuariosContainer');
+      inicializarVistaUsuarios_();
+    } else {
+      contenedor.style.display = 'flex';
+    }
+
+    cargarVistaUsuarios();
+    if (contenedor) contenedor.scrollIntoView({ behavior: 'smooth' });
+  }
+
+  function ocultarVistaUsuarios() {
+    const homeContent = document.querySelector('.home-content');
+    if (!homeContent) return;
+    const contenedor = homeContent.querySelector('#usuariosContainer');
+    if (contenedor) contenedor.style.display = 'none';
+  }
+
+  function inicializarVistaUsuarios_() {
+    const input = document.getElementById('inputBuscadorUsuarios');
+    if (input) {
+      input.addEventListener('input', function () {
+        const termino = input.value.trim().toLowerCase();
+        document.querySelectorAll('#usuariosGrid .usuario-fila').forEach(function (fila) {
+          const visible = !termino || fila.textContent.toLowerCase().indexOf(termino) !== -1;
+          fila.classList.toggle('oculto-filtro', !visible);
+        });
+      });
+    }
+
+    const btnCrear = document.getElementById('btnCrearUsuarioModal');
+    if (btnCrear) {
+      btnCrear.addEventListener('click', function () {
+        abrirModalNuevoUsuario_();
+      });
+    }
+  }
+
+  function cargarVistaUsuarios() {
+    const grid = document.getElementById('usuariosGrid');
+    if (!grid) return;
+    grid.innerHTML = '<div class="apartado-skeleton"></div><div class="apartado-skeleton"></div><div class="apartado-skeleton"></div>';
+
+    const sesion = getCurrentUserSession();
+    if (!sesion) return;
+
+    google.script.run
+      .withSuccessHandler(function (resultadoRoles) {
+        _catalogoRolesCache = (resultadoRoles && resultadoRoles.roles) || [];
+      })
+      .withFailureHandler(function (error) { console.error('Error cargando catálogo de roles:', error); })
+      .obtenerCatalogoRoles();
+
+    const token = getCurrentUserToken();
+    const idUsuario = sesion && (sesion.ID_Usuario || sesion.idUsuario) ? (sesion.ID_Usuario || sesion.idUsuario) : null;
+
+    google.script.run
+      .withSuccessHandler(function (result) {
+        if (!result.success) { mostrarErrorApartado(grid, result.message); return; }
+        renderizarUsuarios_(result.usuarios || [], sesion);
+      })
+      .withFailureHandler(function (error) {
+        console.error('Error cargando usuarios:', error);
+        mostrarErrorApartado(grid, 'No se pudo cargar la lista de usuarios.');
+      })
+      .obtenerUsuariosParaGestion(token, idUsuario);
+  }
+
+  function renderizarUsuarios_(usuarios, sesion) {
+    const grid = document.getElementById('usuariosGrid');
+    if (!grid) return;
+
+    if (!usuarios.length) {
+      grid.innerHTML = construirEstadoVacioApartado('Sin usuarios', 'Todavía no hay usuarios registrados.');
+      return;
+    }
+
+    const rolSesion = String(sesion.Rol || sesion.ID_Rol || sesion.Rol_ID || '');
+    const idSesion = String(sesion.ID_Usuario || sesion.id_usuario || '');
+    const puedeCambiarRol = (
+      rolSesion === '3' ||
+      String(sesion.Rol).toLowerCase() === 'superadministrador'
+    );
+    const esSuperadmin = puedeCambiarRol;
+
+    grid.innerHTML = usuarios.map(function (u) {
+      const estado = String(u.estado || '');
+      const estadoClase = estado === 'Activo' ? 'activo' : (estado === 'Pendiente_Aprobacion' ? 'pendiente' : 'inactivo');
+      const estadoTexto = ESTADOS_USUARIO_TEXTO[estado] || estado;
+      const rolCelda = puedeCambiarRol
+        ? '<select class="usuario-rol-select" data-id-usuario="' + u.id + '" data-id-rol-actual="' + (u.rol_id || u.id_rol || 1) + '" data-rol-actual="' + escaparHtml(u.rol || '') + '"></select>'
+        : '<span class="usuario-rol-badge">' + escaparHtml(u.rol || '') + '</span>';
+      const botonAprobar = estado === 'Pendiente_Aprobacion'
+        ? '<button type="button" class="btn-aprobar-usuario" data-id-usuario="' + u.id + '">Aprobar</button>'
+        : '';
+
+      // Celda de Hoteles permitidos
+      const esEsteUsuario = (String(u.id) === idSesion);
+      let hotelesCelda = '';
+      if (esEsteUsuario) {
+        hotelesCelda = '<span class="badge-hoteles-yo" title="Tu perfil">' +
+          '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>' +
+          '<span>Yo</span>' +
+        '</span>';
+      } else {
+        const valHoteles = String(u.hoteles_permitidos || '').trim();
+        const esTodos = (!valHoteles || valHoteles === '*' || valHoteles.toUpperCase() === 'TODOS');
+        if (esTodos) {
+          if (esSuperadmin) {
+            hotelesCelda = '<button type="button" class="btn-hoteles-permisos btn-config-hoteles" data-id-usuario="' + u.id + '" title="Acceso a todos los hoteles. Clic para personalizar.">' +
+              '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18M3 7v14M21 7v14M6 21V11M10 21V11M14 21V11M18 21V11M9 3h6v4H9z"/></svg>' +
+              '<span>Todos los hoteles</span>' +
+              '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="opacity: 0.45;"><path d="M9 18l6-6-6-6"/></svg>' +
+            '</button>';
+          } else {
+            hotelesCelda = '<span class="badge-hoteles-info" title="Acceso a todos los hoteles del sistema">' +
+              '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18M3 7v14M21 7v14M6 21V11M10 21V11M14 21V11M18 21V11M9 3h6v4H9z"/></svg>' +
+              '<span>Todos los hoteles</span>' +
+            '</span>';
+          }
+        } else {
+          const cant = valHoteles.split(',').filter(Boolean).length;
+          if (cant === 0) {
+            if (esSuperadmin) {
+              hotelesCelda = '<button type="button" class="btn-hoteles-permisos sin-acceso btn-config-hoteles" data-id-usuario="' + u.id + '" title="Sin acceso a hoteles. Clic para asignar.">' +
+                '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>' +
+                '<span>Sin acceso</span>' +
+                '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="opacity: 0.45;"><path d="M9 18l6-6-6-6"/></svg>' +
+              '</button>';
+            } else {
+              hotelesCelda = '<span class="badge-hoteles-info sin-acceso-badge">' +
+                '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>' +
+                '<span>Sin acceso</span>' +
+              '</span>';
+            }
+          } else {
+            if (esSuperadmin) {
+              hotelesCelda = '<button type="button" class="btn-hoteles-permisos btn-config-hoteles" data-id-usuario="' + u.id + '" title="' + cant + ' hoteles asignados. Clic para editar.">' +
+                '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18M3 7v14M21 7v14M6 21V11M10 21V11M14 21V11M18 21V11M9 3h6v4H9z"/></svg>' +
+                '<span class="btn-hoteles-badge">' + cant + '</span>' +
+                '<span>' + (cant === 1 ? 'hotel' : 'hoteles') + '</span>' +
+                '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="opacity: 0.45;"><path d="M9 18l6-6-6-6"/></svg>' +
+              '</button>';
+            } else {
+              const hotelesTooltip = Array.isArray(u.hoteles_lista) ? u.hoteles_lista.join('\n') : '';
+              hotelesCelda = '<span class="badge-hoteles-info" data-hoteles-lista="' + escaparHtml(hotelesTooltip) + '">' +
+                '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18M3 7v14M21 7v14M6 21V11M10 21V11M14 21V11M18 21V11M9 3h6v4H9z"/></svg>' +
+                '<span class="btn-hoteles-badge">' + cant + '</span>' +
+                '<span>' + (cant === 1 ? 'hotel' : 'hoteles') + '</span>' +
+              '</span>';
+            }
+          }
+        }
+      }
+
+      // Columna de Acciones
+      let accionesHtml = '<button type="button" class="btn-accion-icono btn-reset-pass" data-id-usuario="' + u.id + '" title="Restablecer contraseña">' +
+        '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="7.5" cy="15.5" r="5.5"/><path d="m21 2-9.6 9.6"/><path d="m15.5 7.5 3 3"/><path d="m18.5 4.5 3 3"/></svg>' +
+      '</button>';
+
+      if (!esEsteUsuario) {
+        if (estado === 'Activo') {
+          accionesHtml += '<button type="button" class="btn-accion-icono btn-desactivar btn-toggle-estado" data-id-usuario="' + u.id + '" data-nuevo-estado="Inactivo" title="Desactivar acceso">' +
+            '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>' +
+          '</button>';
+        } else if (estado === 'Inactivo') {
+          accionesHtml += '<button type="button" class="btn-accion-icono btn-toggle-estado" data-id-usuario="' + u.id + '" data-nuevo-estado="Activo" title="Activar acceso" style="color: var(--home-accent-green);">' +
+            '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>' +
+          '</button>';
+        }
+      }
+
+      return '<div class="usuario-fila" data-id-usuario="' + u.id + '">' +
+        '<div class="usuario-nombre">' + escaparHtml(u.nombre || '') + '</div>' +
+        '<div class="usuario-email">' + escaparHtml(u.email || '') + '</div>' +
+        '<div>' + rolCelda + '</div>' +
+        '<div class="usuario-estado-celda">' +
+          '<span class="usuario-estado-badge ' + estadoClase + '">' + escaparHtml(estadoTexto) + '</span>' +
+          botonAprobar +
+        '</div>' +
+        '<div>' + hotelesCelda + '</div>' +
+        '<div class="usuario-acciones-celda">' +
+          accionesHtml +
+        '</div>' +
+      '</div>';
+    }).join('');
+
+    // Tooltips interactivos para badges de hoteles
+    grid.querySelectorAll('.badge-hoteles-info[data-hoteles-lista]').forEach(function (badge) {
+      badge.addEventListener('mouseenter', function () {
+        const hotelesList = this.dataset.hotelesLista.split('\n').filter(h => h.trim());
+        if (hotelesList.length === 0) return;
+
+        const tooltip = document.createElement('div');
+        tooltip.className = 'badge-hoteles-tooltip';
+        tooltip.innerHTML = '<div class="tooltip-header">Hoteles Asignados</div>' +
+          '<ul class="tooltip-lista">' +
+          hotelesList.map(h => '<li>' + escaparHtml(h) + '</li>').join('') +
+          '</ul>';
+
+        this.parentElement.appendChild(tooltip);
+        this._tooltip = tooltip;
+      });
+
+      badge.addEventListener('mouseleave', function () {
+        if (this._tooltip) {
+          this._tooltip.remove();
+          this._tooltip = null;
+        }
+      });
+    });
+
+    grid.querySelectorAll('.btn-config-hoteles').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        const usuario = usuarios.find(function (u) { return String(u.id) === btn.dataset.idUsuario; });
+        if (usuario) abrirModalAsignarHoteles_(usuario);
+      });
+    });
+
+    grid.querySelectorAll('.btn-reset-pass').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        const usuario = usuarios.find(function (u) { return String(u.id) === btn.dataset.idUsuario; });
+        if (usuario) abrirModalRestablecerPassword_(usuario);
+      });
+    });
+
+    grid.querySelectorAll('.btn-toggle-estado').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        const usuario = usuarios.find(function (u) { return String(u.id) === btn.dataset.idUsuario; });
+        const nuevoEstado = btn.dataset.nuevoEstado;
+        const accionTexto = nuevoEstado === 'Activo' ? 'activar el acceso de' : 'desactivar el acceso de';
+        showConfirmation(
+          '¿Deseas ' + accionTexto + ' ' + (usuario ? usuario.nombre : 'este usuario') + '?',
+          nuevoEstado === 'Activo' ? 'Activar usuario' : 'Desactivar usuario',
+          function () { confirmarCambioEstadoUsuario_(btn.dataset.idUsuario, nuevoEstado); }
+        );
+      });
+    });
+
+    grid.querySelectorAll('.btn-aprobar-usuario').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        const usuario = usuarios.find(function (u) { return String(u.id) === btn.dataset.idUsuario; });
+        showConfirmation(
+          '¿Darle acceso a ' + (usuario ? usuario.nombre : 'este usuario') + '? Va a poder iniciar sesión de inmediato.',
+          'Aprobar usuario',
+          function () { confirmarAprobarUsuario_(btn); }
+        );
+      });
+    });
+
+    if (puedeCambiarRol) {
+      grid.querySelectorAll('.usuario-rol-select').forEach(function (select) {
+        const usuario = usuarios.find(function (u) { return String(u.id) === select.dataset.idUsuario; });
+        const rolActualId = select.dataset.idRolActual;
+        const rolActualNombre = select.dataset.rolActual;
+
+        select.innerHTML = _catalogoRolesCache.map(function (rol) {
+          const rId = typeof rol === 'object' ? rol.id : rol;
+          const rNombre = typeof rol === 'object' ? rol.nombre : rol;
+          const isSelected = (String(rId) === String(rolActualId) || rNombre === rolActualNombre);
+          return '<option value="' + rId + '"' + (isSelected ? ' selected' : '') + '>' + escaparHtml(rNombre) + '</option>';
+        }).join('');
+
+        select.addEventListener('change', function () {
+          const idRolAnterior = select.dataset.idRolActual;
+          const idRolNuevo = select.value;
+          const optSeleccionada = select.options[select.selectedIndex];
+          const nombreRolNuevo = optSeleccionada ? optSeleccionada.text : idRolNuevo;
+          const nombreRolAnterior = select.dataset.rolActual;
+
+          select.value = idRolAnterior; // vuelve al valor real hasta que se confirme el cambio
+
+          showConfirmation(
+            '¿Cambiar el rol de ' + (usuario ? usuario.nombre : 'este usuario') + ' de "' + nombreRolAnterior + '" a "' + nombreRolNuevo + '"?',
+            'Confirmar cambio de rol',
+            function () { confirmarCambioRol_(select, idRolNuevo, nombreRolNuevo); }
+          );
+        });
+      });
+    }
+  }
+
+  function abrirModalAsignarHoteles_(usuario) {
+    const valHoteles = String(usuario.hoteles_permitidos || '').trim();
+    const esTodosInicial = (!valHoteles || valHoteles === '*' || valHoteles.toUpperCase() === 'TODOS');
+    const setSeleccionados = new Set(esTodosInicial ? [] : valHoteles.split(',').map(s => s.trim()));
+
+    // Iniciales para el avatar
+    const iniciales = (usuario.nombre || usuario.email || 'U')
+      .split(' ')
+      .filter(Boolean)
+      .slice(0, 2)
+      .map(p => p[0].toUpperCase())
+      .join('');
+
+    google.script.run
+      .withSuccessHandler(function (modulos) {
+        if (!Array.isArray(modulos)) {
+          showNotification('No se pudieron cargar los hoteles', 'error', 3000);
+          return;
+        }
+
+        // Calcular totales
+        let totalHotelesSistema = 0;
+        modulos.forEach(m => {
+          if (m.hoteles) totalHotelesSistema += m.hoteles.length;
+        });
+
+        // Construcción de módulos y hoteles
+        let htmlModulos = '';
+        modulos.forEach(function (mod) {
+          if (!mod.hoteles || !mod.hoteles.length) return;
+
+          let htmlHoteles = '';
+          let marcadosEnModulo = 0;
+
+          mod.hoteles.forEach(function (h) {
+            const estaMarcado = setSeleccionados.has(String(h.idHotel));
+            if (estaMarcado) marcadosEnModulo++;
+
+            htmlHoteles +=
+              '<div class="permisos-hotel-item ' + (estaMarcado ? 'selected' : '') + '" data-id-hotel="' + h.idHotel + '" data-hotel-nombre="' + escaparHtml(h.nombre.toLowerCase()) + '">' +
+                '<div class="permisos-custom-checkbox">' +
+                  '<svg width="12" height="10" viewBox="0 0 12 10" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">' +
+                    '<polyline points="1.5 5 4.5 8 10.5 2"></polyline>' +
+                  '</svg>' +
+                '</div>' +
+                '<span class="permisos-hotel-nombre">' + escaparHtml(h.nombre) + '</span>' +
+              '</div>';
+          });
+
+          htmlModulos +=
+            '<div class="permisos-modulo-grupo">' +
+              '<div class="permisos-modulo-header">' +
+                '<span class="permisos-modulo-titulo">' +
+                  '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>' +
+                  escaparHtml(mod.nombre) +
+                '</span>' +
+                '<span class="permisos-modulo-badge" data-modulo-id="' + mod.idModulo + '">' + marcadosEnModulo + '/' + mod.hoteles.length + '</span>' +
+              '</div>' +
+              '<div class="permisos-modulo-lista" style="display: flex; flex-direction: column; gap: 6px;">' +
+                htmlHoteles +
+              '</div>' +
+            '</div>';
+        });
+
+        const htmlPanel =
+          '<div class="permisos-hoteles-wrap">' +
+            '<!-- Tarjeta de Usuario con botón Restablecer Contraseña -->' +
+            '<div class="permisos-user-card">' +
+              '<div class="permisos-user-avatar">' + iniciales + '</div>' +
+              '<div class="permisos-user-info">' +
+                '<p class="permisos-user-name">' + escaparHtml(usuario.nombre || 'Sin nombre') + '</p>' +
+                '<p class="permisos-user-email">' + escaparHtml(usuario.email) + ' &bull; <strong>' + escaparHtml(usuario.rol || 'Usuario') + '</strong></p>' +
+              '</div>' +
+              '<button type="button" class="btn-restablecer-panel-trigger" id="btnToggleResetPassPanel" title="Restablecer contraseña a este usuario">' +
+                '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="7.5" cy="15.5" r="5.5"/><path d="m21 2-9.6 9.6"/><path d="m15.5 7.5 3 3"/><path d="m18.5 4.5 3 3"/></svg>' +
+                '<span>Restablecer</span>' +
+              '</button>' +
+            '</div>' +
+
+            '<!-- Caja desplegable de Restablecer Contraseña -->' +
+            '<div class="permisos-reset-box" id="boxResetPassPanel" style="display: none; margin-bottom: 12px;">' +
+              '<div class="permisos-reset-box-header">' +
+                '<div style="display: flex; align-items: center; gap: 7px;">' +
+                  '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--home-accent-gold);"><circle cx="7.5" cy="15.5" r="5.5"/><path d="m21 2-9.6 9.6"/><path d="m15.5 7.5 3 3"/><path d="m18.5 4.5 3 3"/></svg>' +
+                  '<span style="font-size: 13px; font-weight: 700; color: var(--home-text);">Restablecer Contraseña</span>' +
+                '</div>' +
+                '<button type="button" id="btnCerrarResetPassPanel" style="background: none; border: none; font-size: 18px; line-height: 1; color: var(--home-text-muted); cursor: pointer;" title="Cerrar">&times;</button>' +
+              '</div>' +
+              '<div style="display: flex; gap: 8px; margin: 10px 0 8px 0;">' +
+                '<input type="text" id="inputPassEnPanel" class="campo-input" placeholder="Nueva contraseña (mínimo 6 caracteres)" style="flex: 1; font-family: monospace; font-size: 13px;">' +
+                '<button type="button" id="btnGenPassEnPanel" class="btn-permisos-quick" style="padding: 0 12px; font-weight: 700;">Generar</button>' +
+              '</div>' +
+              '<div style="display: flex; justify-content: space-between; align-items: center; gap: 10px;">' +
+                '<small style="color: var(--home-text-muted); font-size: 11px;">El usuario usará esta clave al ingresar.</small>' +
+                '<button type="button" id="btnGuardarPassEnPanel" class="btn-enviar" style="padding: 6px 14px; font-size: 12px; display: inline-flex; align-items: center; gap: 5px;">' +
+                  '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>' +
+                  '<span>Guardar Clave</span>' +
+                '</button>' +
+              '</div>' +
+            '</div>' +
+
+            '<!-- Master Switch: Acceso Total -->' +
+            '<div class="permisos-master-card ' + (esTodosInicial ? 'active' : '') + '" id="cardMasterAccesoTotal">' +
+              '<div class="permisos-master-left">' +
+                '<div class="permisos-master-icon">' +
+                  '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">' +
+                    '<circle cx="12" cy="12" r="10"/>' +
+                    '<line x1="2" y1="12" x2="22" y2="12"/>' +
+                    '<path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>' +
+                  '</svg>' +
+                '</div>' +
+                '<div>' +
+                  '<p class="permisos-master-titulo">Acceso a Todos los Hoteles</p>' +
+                  '<p class="permisos-master-subtitulo">Ver y acceder a todos los hoteles actuales y futuros</p>' +
+                '</div>' +
+              '</div>' +
+              '<label class="permisos-switch" onclick="event.stopPropagation()">' +
+                '<input type="checkbox" id="chkToggleTodosLosHoteles" ' + (esTodosInicial ? 'checked' : '') + '>' +
+                '<span class="permisos-switch-slider"></span>' +
+              '</label>' +
+            '</div>' +
+
+            '<!-- Barra de Búsqueda y Filtros -->' +
+            '<div class="permisos-toolbar">' +
+              '<div class="permisos-search-box">' +
+                '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--home-text-muted); flex-shrink: 0;">' +
+                  '<circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.35-4.35"></path>' +
+                '</svg>' +
+                '<input type="text" id="inputBuscarHotelPermiso" placeholder="Buscar hotel por nombre...">' +
+              '</div>' +
+              '<div class="permisos-actions-bar">' +
+                '<span id="contadorTextoPermisos">' + (esTodosInicial ? 'Acceso Total Activo' : setSeleccionados.size + ' de ' + totalHotelesSistema + ' seleccionados') + '</span>' +
+                '<div style="display: flex; gap: 6px;">' +
+                  '<button type="button" class="btn-permisos-quick" id="btnMarcarTodosHoteles">Marcar todos</button>' +
+                  '<span style="color: var(--home-border);">&bull;</span>' +
+                  '<button type="button" class="btn-permisos-quick" id="btnDesmarcarTodosHoteles">Desmarcar</button>' +
+                '</div>' +
+              '</div>' +
+            '</div>' +
+
+            '<!-- Lista Scrolleable de Hoteles -->' +
+            '<div class="permisos-lista-wrapper ' + (esTodosInicial ? 'bloqueado' : '') + '" id="listaContenedorHoteles">' +
+              htmlModulos +
+            '</div>' +
+
+            '<!-- Footer Fijo de Acciones -->' +
+            '<div class="permisos-footer-sticky">' +
+              '<button type="button" class="btn-cancelar" onclick="cerrarPanelLateral()">Cancelar</button>' +
+              '<button type="button" class="btn-enviar" id="btnGuardarPermisosHoteles" style="display: inline-flex; align-items: center; gap: 6px;">' +
+                '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>' +
+                '<span>Guardar Permisos</span>' +
+              '</button>' +
+            '</div>' +
+          '</div>';
+
+        if (typeof abrirPanelLateral === 'function') {
+          abrirPanelLateral({
+            titulo: 'Gestión y Permisos del Usuario',
+            ancho: 'medio',
+            html: htmlPanel,
+            onAbrir: function (panel) {
+              const masterCard = panel.querySelector('#cardMasterAccesoTotal');
+              const chkMaster = panel.querySelector('#chkToggleTodosLosHoteles');
+              const listaCont = panel.querySelector('#listaContenedorHoteles');
+              const inputBuscar = panel.querySelector('#inputBuscarHotelPermiso');
+              const contadorTexto = panel.querySelector('#contadorTextoPermisos');
+              const btnMarcarTodos = panel.querySelector('#btnMarcarTodosHoteles');
+              const btnDesmarcar = panel.querySelector('#btnDesmarcarTodosHoteles');
+              const btnGuardar = panel.querySelector('#btnGuardarPermisosHoteles');
+
+              // Controles de Restablecer Contraseña dentro del panel
+              const btnToggleReset = panel.querySelector('#btnToggleResetPassPanel');
+              const boxReset = panel.querySelector('#boxResetPassPanel');
+              const btnCerrarReset = panel.querySelector('#btnCerrarResetPassPanel');
+              const inputPass = panel.querySelector('#inputPassEnPanel');
+              const btnGenPass = panel.querySelector('#btnGenPassEnPanel');
+              const btnGuardarPass = panel.querySelector('#btnGuardarPassEnPanel');
+
+              function generarClave() {
+                const chars = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+                let gen = 'Oxo' + new Date().getFullYear() + '*';
+                for (let i = 0; i < 4; i++) {
+                  gen += chars.charAt(Math.floor(Math.random() * chars.length));
+                }
+                if (inputPass) inputPass.value = gen;
+              }
+
+              if (btnGenPass) btnGenPass.addEventListener('click', generarClave);
+
+              if (btnToggleReset && boxReset) {
+                btnToggleReset.addEventListener('click', function () {
+                  const estaOculto = (boxReset.style.display === 'none');
+                  boxReset.style.display = estaOculto ? 'block' : 'none';
+                  if (estaOculto) {
+                    generarClave();
+                    if (inputPass) inputPass.focus();
+                  }
+                });
+              }
+
+              if (btnCerrarReset && boxReset) {
+                btnCerrarReset.addEventListener('click', function () {
+                  boxReset.style.display = 'none';
+                });
+              }
+
+              if (btnGuardarPass) {
+                btnGuardarPass.addEventListener('click', function () {
+                  const nuevaClave = inputPass ? inputPass.value.trim() : '';
+                  if (nuevaClave.length < 6) {
+                    showNotification('La contraseña debe tener al menos 6 caracteres', 'error', 3000);
+                    return;
+                  }
+
+                  btnGuardarPass.disabled = true;
+                  btnGuardarPass.innerHTML = '<span>Guardando...</span>';
+
+                  const sesion = getCurrentUserSession();
+                  const token = getCurrentUserToken();
+                  const idUsuario = sesion && (sesion.ID_Usuario || sesion.idUsuario) ? (sesion.ID_Usuario || sesion.idUsuario) : null;
+
+                  google.script.run
+                    .withSuccessHandler(function (res) {
+                      btnGuardarPass.disabled = false;
+                      btnGuardarPass.innerHTML = '<span>Guardar Clave</span>';
+                      if (res && res.success) {
+                        boxReset.style.display = 'none';
+                        showNotification('✅ ' + res.message, 'success', 4000);
+                      } else {
+                        showNotification((res && res.message) || 'Error al restablecer contraseña', 'error', 3500);
+                      }
+                    })
+                    .withFailureHandler(function (err) {
+                      btnGuardarPass.disabled = false;
+                      btnGuardarPass.innerHTML = '<span>Guardar Clave</span>';
+                      console.error('Error restablecerContrasenaUsuarioPorAdmin:', err);
+                      showNotification('Error al restablecer la contraseña', 'error', 3500);
+                    })
+                    .restablecerContrasenaUsuarioPorAdmin(usuario.id, nuevaClave, token, idUsuario);
+                });
+              }
+
+              function actualizarResumen() {
+                const esTodos = chkMaster.checked;
+                masterCard.classList.toggle('active', esTodos);
+                listaCont.classList.toggle('bloqueado', esTodos);
+
+                if (esTodos) {
+                  contadorTexto.textContent = 'Acceso Total Activo (Todos)';
+                } else {
+                  const seleccionados = panel.querySelectorAll('.permisos-hotel-item.selected:not(.oculto-filtro)');
+                  const totalVisibles = panel.querySelectorAll('.permisos-hotel-item:not(.oculto-filtro)').length;
+                  const totalSeleccionados = panel.querySelectorAll('.permisos-hotel-item.selected').length;
+                  contadorTexto.textContent = totalSeleccionados + ' de ' + totalHotelesSistema + ' seleccionados';
+                }
+
+                // Actualizar badges por módulo
+                modulos.forEach(function(m) {
+                  const badge = panel.querySelector('.permisos-modulo-badge[data-modulo-id="' + m.idModulo + '"]');
+                  if (badge) {
+                    const selEnMod = panel.querySelectorAll('.permisos-modulo-grupo:has([data-modulo-id="' + m.idModulo + '"]) .permisos-hotel-item.selected').length;
+                    badge.textContent = selEnMod + '/' + m.hoteles.length;
+                  }
+                });
+              }
+
+              // Toggle master card al hacer clic en cualquier parte de la tarjeta
+              if (masterCard && chkMaster) {
+                masterCard.addEventListener('click', function (e) {
+                  if (e.target !== chkMaster) {
+                    chkMaster.checked = !chkMaster.checked;
+                  }
+                  actualizarResumen();
+                });
+                chkMaster.addEventListener('change', actualizarResumen);
+              }
+
+              // Clic en items individuales de hotel
+              panel.querySelectorAll('.permisos-hotel-item').forEach(function (item) {
+                item.addEventListener('click', function () {
+                  if (chkMaster.checked) {
+                    // Si estaba activo "Todos", desactivarlo al hacer clic en un hotel específico
+                    chkMaster.checked = false;
+                  }
+                  item.classList.toggle('selected');
+                  actualizarResumen();
+                });
+              });
+
+              // Búsqueda en vivo
+              if (inputBuscar) {
+                inputBuscar.addEventListener('input', function () {
+                  const term = inputBuscar.value.trim().toLowerCase();
+                  panel.querySelectorAll('.permisos-hotel-item').forEach(function (item) {
+                    const nombre = item.dataset.hotelNombre || '';
+                    const coincide = !term || nombre.includes(term);
+                    item.classList.toggle('oculto-filtro', !coincide);
+                  });
+
+                  // Ocultar módulos que queden vacíos por el filtro
+                  panel.querySelectorAll('.permisos-modulo-grupo').forEach(function (grupo) {
+                    const tieneVisibles = grupo.querySelectorAll('.permisos-hotel-item:not(.oculto-filtro)').length > 0;
+                    grupo.style.display = tieneVisibles ? 'flex' : 'none';
+                  });
+                });
+              }
+
+              // Botones rápidos
+              if (btnMarcarTodos) {
+                btnMarcarTodos.addEventListener('click', function () {
+                  chkMaster.checked = false;
+                  panel.querySelectorAll('.permisos-hotel-item').forEach(item => item.classList.add('selected'));
+                  actualizarResumen();
+                });
+              }
+
+              if (btnDesmarcar) {
+                btnDesmarcar.addEventListener('click', function () {
+                  chkMaster.checked = false;
+                  panel.querySelectorAll('.permisos-hotel-item').forEach(item => item.classList.remove('selected'));
+                  actualizarResumen();
+                });
+              }
+
+              // Guardar cambios
+              if (btnGuardar) {
+                btnGuardar.addEventListener('click', function () {
+                  btnGuardar.disabled = true;
+                  btnGuardar.innerHTML = '<span>Guardando...</span>';
+
+                  let seleccion = '';
+                  if (chkMaster && chkMaster.checked) {
+                    seleccion = 'TODOS';
+                  } else {
+                    const seleccionados = panel.querySelectorAll('.permisos-hotel-item.selected');
+                    const ids = Array.from(seleccionados).map(el => el.dataset.idHotel);
+                    seleccion = ids.join(',');
+                  }
+
+                  const token = getCurrentUserToken();
+                  const sesion = getCurrentUserSession();
+                  const idUsuario = sesion && (sesion.ID_Usuario || sesion.idUsuario) ? (sesion.ID_Usuario || sesion.idUsuario) : null;
+
+                  google.script.run
+                    .withSuccessHandler(function (res) {
+                      btnGuardar.disabled = false;
+                      btnGuardar.innerHTML = '<span>Guardar Permisos</span>';
+                      if (res && res.success) {
+                        cerrarPanelLateral();
+                        showNotification('✅ Permisos de hoteles actualizados con éxito', 'success', 3000);
+                        cargarVistaUsuarios();
+                      } else {
+                        showNotification(res?.message || 'Error al guardar permisos', 'error', 3500);
+                      }
+                    })
+                    .withFailureHandler(function (err) {
+                      btnGuardar.disabled = false;
+                      btnGuardar.innerHTML = '<span>Guardar Permisos</span>';
+                      console.error('Error asignarHotelesAUsuario:', err);
+                      showNotification('Error al guardar permisos de hoteles', 'error', 3500);
+                    })
+                    .asignarHotelesAUsuario(usuario.id, seleccion, token, idUsuario);
+                });
+              }
+            }
+          });
+        }
+      })
+      .obtenerModulosConHoteles();
+  }
+
+  function confirmarCambioRol_(select, idRolNuevo, nombreRolNuevo) {
+    const idUsuarioObjetivo = select.dataset.idUsuario;
+    const sesion = getCurrentUserSession();
+    const token = getCurrentUserToken();
+    const idUsuario = sesion && (sesion.ID_Usuario || sesion.idUsuario) ? (sesion.ID_Usuario || sesion.idUsuario) : null;
+    select.disabled = true;
+
+    google.script.run
+      .withSuccessHandler(function (result) {
+        select.disabled = false;
+        if (result.success) {
+          select.value = result.rol_id || idRolNuevo;
+          select.dataset.idRolActual = result.rol_id || idRolNuevo;
+          select.dataset.rolActual = result.rol_nombre || nombreRolNuevo;
+          showNotification('✅ Rol actualizado', 'success', 2500);
+        } else {
+          showNotification('Error: ' + result.message, 'error', 3500);
+        }
+      })
+      .withFailureHandler(function (error) {
+        select.disabled = false;
+        console.error('Error cambiando rol:', error);
+        showNotification('Error al cambiar el rol', 'error', 3000);
+      })
+      .cambiarRolUsuario(idUsuarioObjetivo, idRolNuevo, token, idUsuario);
+  }
+
+  function confirmarAprobarUsuario_(btn) {
+    const idUsuarioObjetivo = btn.dataset.idUsuario;
+    const sesion = getCurrentUserSession();
+    const token = getCurrentUserToken();
+    const idUsuario = sesion && (sesion.ID_Usuario || sesion.idUsuario) ? (sesion.ID_Usuario || sesion.idUsuario) : null;
+    btn.disabled = true;
+
+    google.script.run
+      .withSuccessHandler(function (result) {
+        if (result.success) {
+          showNotification('✅ Usuario aprobado', 'success', 2500);
+          cargarVistaUsuarios();
+        } else {
+          btn.disabled = false;
+          showNotification('Error: ' + result.message, 'error', 3200);
+        }
+      })
+      .withFailureHandler(function (error) {
+        btn.disabled = false;
+        console.error('Error aprobarUsuario:', error);
+        showNotification('Error al aprobar el usuario', 'error', 3000);
+      })
+      .aprobarUsuario(idUsuarioObjetivo, token, idUsuario);
+  }
+
+  function confirmarCambioEstadoUsuario_(idUsuarioObjetivo, nuevoEstado) {
+    const sesion = getCurrentUserSession();
+    const token = getCurrentUserToken();
+    const idUsuario = sesion && (sesion.ID_Usuario || sesion.idUsuario) ? (sesion.ID_Usuario || sesion.idUsuario) : null;
+
+    google.script.run
+      .withSuccessHandler(function (result) {
+        if (result && result.success) {
+          showNotification('✅ Estado actualizado a ' + nuevoEstado, 'success', 2500);
+          cargarVistaUsuarios();
+        } else {
+          showNotification('Error: ' + ((result && result.message) || 'No se pudo cambiar el estado'), 'error', 3200);
+        }
+      })
+      .withFailureHandler(function (error) {
+        console.error('Error cambiarEstadoUsuario:', error);
+        showNotification('Error al cambiar el estado del usuario', 'error', 3000);
+      })
+      .cambiarEstadoUsuario(idUsuarioObjetivo, nuevoEstado, token, idUsuario);
+  }
+
+  function abrirModalRestablecerPassword_(usuario) {
+    const iniciales = (usuario.nombre || usuario.email || 'U')
+      .split(' ')
+      .filter(Boolean)
+      .slice(0, 2)
+      .map(p => p[0].toUpperCase())
+      .join('');
+
+    const html =
+      '<div style="padding: 20px 24px; display: flex; flex-direction: column; gap: 20px;">' +
+        '<div class="permisos-user-card">' +
+          '<div class="permisos-user-avatar">' + iniciales + '</div>' +
+          '<div class="permisos-user-info">' +
+            '<p class="permisos-user-name">' + escaparHtml(usuario.nombre || 'Usuario') + '</p>' +
+            '<p class="permisos-user-email">' + escaparHtml(usuario.email) + ' &bull; <strong>' + escaparHtml(usuario.rol || 'Usuario') + '</strong></p>' +
+          '</div>' +
+        '</div>' +
+
+        '<div class="campo-grupo">' +
+          '<label for="inputNuevaPassReset">Nueva Contraseña *</label>' +
+          '<div style="display: flex; gap: 8px;">' +
+            '<input type="text" id="inputNuevaPassReset" class="campo-input" placeholder="Mínimo 6 caracteres" style="flex: 1; font-family: monospace;">' +
+            '<button type="button" id="btnGenerarPassReset" class="btn-permisos-quick" style="padding: 0 14px; font-weight: 700;">Generar</button>' +
+          '</div>' +
+          '<small style="color: var(--home-text-muted); font-size: 11px;">Escribe una contraseña o genera una segura automáticamente.</small>' +
+        '</div>' +
+
+        '<div style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 10px;">' +
+          '<button type="button" class="btn-cancelar" onclick="cerrarPanelLateral()">Cancelar</button>' +
+          '<button type="button" class="btn-enviar" id="btnConfirmarResetPass" style="display: inline-flex; align-items: center; gap: 6px;">' +
+            '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="7.5" cy="15.5" r="5.5"/><path d="m21 2-9.6 9.6"/><path d="m15.5 7.5 3 3"/><path d="m18.5 4.5 3 3"/></svg>' +
+            '<span>Restablecer Contraseña</span>' +
+          '</button>' +
+        '</div>' +
+      '</div>';
+
+    abrirPanelLateral({
+      titulo: 'Restablecer Contraseña',
+      ancho: 'estrecho',
+      html: html,
+      onAbrir: function (panel) {
+        const inputPass = panel.querySelector('#inputNuevaPassReset');
+        const btnGen = panel.querySelector('#btnGenerarPassReset');
+        const btnSubmit = panel.querySelector('#btnConfirmarResetPass');
+
+        function generar() {
+          const chars = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+          let gen = 'Oxo' + new Date().getFullYear() + '*';
+          for (let i = 0; i < 4; i++) {
+            gen += chars.charAt(Math.floor(Math.random() * chars.length));
+          }
+          inputPass.value = gen;
+        }
+
+        if (btnGen) btnGen.addEventListener('click', generar);
+        generar();
+
+        if (btnSubmit) {
+          btnSubmit.addEventListener('click', function () {
+            const nuevaPass = inputPass.value.trim();
+            if (nuevaPass.length < 6) {
+              showNotification('La contraseña debe tener al menos 6 caracteres', 'error', 3000);
+              return;
+            }
+
+            btnSubmit.disabled = true;
+            btnSubmit.innerHTML = '<span>Guardando...</span>';
+
+            const sesion = getCurrentUserSession();
+            const token = getCurrentUserToken();
+            const idUsuario = sesion && (sesion.ID_Usuario || sesion.idUsuario) ? (sesion.ID_Usuario || sesion.idUsuario) : null;
+
+            google.script.run
+              .withSuccessHandler(function (res) {
+                btnSubmit.disabled = false;
+                btnSubmit.innerHTML = '<span>Restablecer Contraseña</span>';
+                if (res && res.success) {
+                  cerrarPanelLateral();
+                  showNotification('✅ ' + res.message, 'success', 4000);
+                } else {
+                  showNotification((res && res.message) || 'Error al restablecer contraseña', 'error', 3500);
+                }
+              })
+              .withFailureHandler(function (err) {
+                btnSubmit.disabled = false;
+                btnSubmit.innerHTML = '<span>Restablecer Contraseña</span>';
+                console.error('Error restablecerContrasenaUsuarioPorAdmin:', err);
+                showNotification('Error al restablecer la contraseña', 'error', 3500);
+              })
+              .restablecerContrasenaUsuarioPorAdmin(usuario.id, nuevaPass, token, idUsuario);
+          });
+        }
+      }
+    });
+  }
+
+  function abrirModalNuevoUsuario_() {
+    const sesion = getCurrentUserSession();
+    const rolSesion = String(sesion.Rol || sesion.ID_Rol || sesion.Rol_ID || '');
+    const esSuperadmin = (rolSesion === '3' || String(sesion.Rol).toLowerCase() === 'superadministrador');
+
+    google.script.run
+      .withSuccessHandler(function (modulos) {
+        const modulosValidos = Array.isArray(modulos) ? modulos : [];
+        let totalHotelesSistema = 0;
+        modulosValidos.forEach(m => { if (m.hoteles) totalHotelesSistema += m.hoteles.length; });
+
+        let htmlModulos = '';
+        modulosValidos.forEach(function (mod) {
+          if (!mod.hoteles || !mod.hoteles.length) return;
+          let htmlHoteles = '';
+          mod.hoteles.forEach(function (h) {
+            htmlHoteles +=
+              '<div class="permisos-hotel-item" data-id-hotel="' + h.idHotel + '" data-hotel-nombre="' + escaparHtml(h.nombre.toLowerCase()) + '">' +
+                '<div class="permisos-custom-checkbox">' +
+                  '<svg width="12" height="10" viewBox="0 0 12 10" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">' +
+                    '<polyline points="1.5 5 4.5 8 10.5 2"></polyline>' +
+                  '</svg>' +
+                '</div>' +
+                '<span class="permisos-hotel-nombre">' + escaparHtml(h.nombre) + '</span>' +
+              '</div>';
+          });
+
+          htmlModulos +=
+            '<div class="permisos-modulo-grupo">' +
+              '<div class="permisos-modulo-header">' +
+                '<span class="permisos-modulo-titulo">' +
+                  '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>' +
+                  escaparHtml(mod.nombre) +
+                '</span>' +
+                '<span class="permisos-modulo-badge" data-modulo-id="' + mod.idModulo + '">0/' + mod.hoteles.length + '</span>' +
+              '</div>' +
+              '<div class="permisos-modulo-lista" style="display: flex; flex-direction: column; gap: 6px;">' +
+                htmlHoteles +
+              '</div>' +
+            '</div>';
+        });
+
+        const opcionesRoles = _catalogoRolesCache.length > 0
+          ? _catalogoRolesCache.filter(function (r) {
+              return esSuperadmin ? true : (String(r.id) === '1' || String(r.nombre).toLowerCase() === 'usuario');
+            }).map(function (r) {
+              return '<option value="' + r.id + '">' + escaparHtml(r.nombre) + '</option>';
+            }).join('')
+          : '<option value="1">Usuario</option>' + (esSuperadmin ? '<option value="2">Administrador</option><option value="3">Superadministrador</option>' : '');
+
+        const htmlPanel =
+          '<div class="permisos-hoteles-wrap" style="padding-top: 10px;">' +
+            '<div style="display: flex; flex-direction: column; gap: 14px; margin-bottom: 20px;">' +
+              '<div class="campo-grupo">' +
+                '<label for="inputNuevoNombre">Nombre Completo *</label>' +
+                '<input type="text" id="inputNuevoNombre" class="campo-input" placeholder="p. ej. Roberto Gómez">' +
+              '</div>' +
+
+              '<div class="campo-grupo">' +
+                '<label for="inputNuevoEmail">Correo Corporativo *</label>' +
+                '<input type="email" id="inputNuevoEmail" class="campo-input" placeholder="nombre@oxohotel.com">' +
+              '</div>' +
+
+              '<div class="campo-grupo">' +
+                '<label for="inputNuevoPass">Contraseña Inicial *</label>' +
+                '<div style="display: flex; gap: 8px;">' +
+                  '<input type="text" id="inputNuevoPass" class="campo-input" placeholder="Mínimo 6 caracteres" style="flex: 1; font-family: monospace;">' +
+                  '<button type="button" id="btnGenNuevoPass" class="btn-permisos-quick" style="padding: 0 12px; font-weight: 700;">Generar</button>' +
+                '</div>' +
+              '</div>' +
+
+              '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">' +
+                '<div class="campo-grupo">' +
+                  '<label for="selectNuevoRol">Rol Asignado</label>' +
+                  '<select id="selectNuevoRol" class="usuario-rol-select" style="width: 100%;">' +
+                    opcionesRoles +
+                  '</select>' +
+                '</div>' +
+
+                '<div class="campo-grupo">' +
+                  '<label for="selectNuevoEstado">Estado Inicial</label>' +
+                  '<select id="selectNuevoEstado" class="usuario-rol-select" style="width: 100%;">' +
+                    '<option value="Activo">Activo (acceso inmediato)</option>' +
+                    '<option value="Pendiente_Aprobacion">Pendiente de aprobación</option>' +
+                  '</select>' +
+                '</div>' +
+              '</div>' +
+            '</div>' +
+
+            '<!-- Master Switch Hoteles -->' +
+            '<div class="permisos-master-card active" id="cardMasterNuevoAccesoTotal">' +
+              '<div class="permisos-master-left">' +
+                '<div class="permisos-master-icon">' +
+                  '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>' +
+                '</div>' +
+                '<div>' +
+                  '<p class="permisos-master-titulo">Acceso a Todos los Hoteles</p>' +
+                  '<p class="permisos-master-subtitulo">Ver y acceder a todos los hoteles actuales y futuros</p>' +
+                '</div>' +
+              '</div>' +
+              '<label class="permisos-switch" onclick="event.stopPropagation()">' +
+                '<input type="checkbox" id="chkNuevoTodosHoteles" checked>' +
+                '<span class="permisos-switch-slider"></span>' +
+              '</label>' +
+            '</div>' +
+
+            '<!-- Filtros de Hoteles -->' +
+            '<div class="permisos-toolbar">' +
+              '<div class="permisos-search-box">' +
+                '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--home-text-muted); flex-shrink: 0;"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.35-4.35"></path></svg>' +
+                '<input type="text" id="inputBuscarHotelNuevo" placeholder="Buscar hotel por nombre...">' +
+              '</div>' +
+              '<div class="permisos-actions-bar">' +
+                '<span id="contadorTextoNuevoPermisos">Acceso Total Activo</span>' +
+                '<div style="display: flex; gap: 6px;">' +
+                  '<button type="button" class="btn-permisos-quick" id="btnMarcarTodosNuevo">Marcar todos</button>' +
+                  '<span style="color: var(--home-border);">&bull;</span>' +
+                  '<button type="button" class="btn-permisos-quick" id="btnDesmarcarTodosNuevo">Desmarcar</button>' +
+                '</div>' +
+              '</div>' +
+            '</div>' +
+
+            '<!-- Lista de Hoteles -->' +
+            '<div class="permisos-lista-wrapper bloqueado" id="listaContenedorNuevoHoteles">' +
+              htmlModulos +
+            '</div>' +
+
+            '<!-- Sticky Footer -->' +
+            '<div class="permisos-footer-sticky">' +
+              '<button type="button" class="btn-cancelar" onclick="cerrarPanelLateral()">Cancelar</button>' +
+              '<button type="button" class="btn-enviar" id="btnConfirmarCrearUsuario" style="display: inline-flex; align-items: center; gap: 6px;">' +
+                '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>' +
+                '<span>Crear Usuario</span>' +
+              '</button>' +
+            '</div>' +
+          '</div>';
+
+        abrirPanelLateral({
+          titulo: 'Nuevo Usuario',
+          ancho: 'medio',
+          html: htmlPanel,
+          onAbrir: function (panel) {
+            const masterCard = panel.querySelector('#cardMasterNuevoAccesoTotal');
+            const chkMaster = panel.querySelector('#chkNuevoTodosHoteles');
+            const listaCont = panel.querySelector('#listaContenedorNuevoHoteles');
+            const inputBuscar = panel.querySelector('#inputBuscarHotelNuevo');
+            const contadorTexto = panel.querySelector('#contadorTextoNuevoPermisos');
+            const btnMarcarTodos = panel.querySelector('#btnMarcarTodosNuevo');
+            const btnDesmarcar = panel.querySelector('#btnDesmarcarTodosNuevo');
+            const inputPass = panel.querySelector('#inputNuevoPass');
+            const btnGen = panel.querySelector('#btnGenNuevoPass');
+            const btnSubmit = panel.querySelector('#btnConfirmarCrearUsuario');
+
+            function generarPass() {
+              const chars = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+              let gen = 'Oxo' + new Date().getFullYear() + '*';
+              for (let i = 0; i < 4; i++) {
+                gen += chars.charAt(Math.floor(Math.random() * chars.length));
+              }
+              inputPass.value = gen;
+            }
+            if (btnGen) btnGen.addEventListener('click', generarPass);
+            generarPass();
+
+            function actualizarResumen() {
+              const esTodos = chkMaster.checked;
+              masterCard.classList.toggle('active', esTodos);
+              listaCont.classList.toggle('bloqueado', esTodos);
+
+              if (esTodos) {
+                contadorTexto.textContent = 'Acceso Total Activo (Todos)';
+              } else {
+                const sel = panel.querySelectorAll('.permisos-hotel-item.selected').length;
+                contadorTexto.textContent = sel + ' de ' + totalHotelesSistema + ' seleccionados';
+              }
+            }
+
+            if (masterCard && chkMaster) {
+              masterCard.addEventListener('click', function (e) {
+                if (e.target !== chkMaster) chkMaster.checked = !chkMaster.checked;
+                actualizarResumen();
+              });
+              chkMaster.addEventListener('change', actualizarResumen);
+            }
+
+            panel.querySelectorAll('.permisos-hotel-item').forEach(function (item) {
+              item.addEventListener('click', function () {
+                if (chkMaster.checked) chkMaster.checked = false;
+                item.classList.toggle('selected');
+                actualizarResumen();
+              });
+            });
+
+            if (inputBuscar) {
+              inputBuscar.addEventListener('input', function () {
+                const term = inputBuscar.value.trim().toLowerCase();
+                panel.querySelectorAll('.permisos-hotel-item').forEach(function (item) {
+                  const nombre = item.dataset.hotelNombre || '';
+                  item.classList.toggle('oculto-filtro', !(!term || nombre.includes(term)));
+                });
+                panel.querySelectorAll('.permisos-modulo-grupo').forEach(function (grupo) {
+                  const tieneVisibles = grupo.querySelectorAll('.permisos-hotel-item:not(.oculto-filtro)').length > 0;
+                  grupo.style.display = tieneVisibles ? 'flex' : 'none';
+                });
+              });
+            }
+
+            if (btnMarcarTodos) {
+              btnMarcarTodos.addEventListener('click', function () {
+                chkMaster.checked = false;
+                panel.querySelectorAll('.permisos-hotel-item').forEach(i => i.classList.add('selected'));
+                actualizarResumen();
+              });
+            }
+            if (btnDesmarcar) {
+              btnDesmarcar.addEventListener('click', function () {
+                chkMaster.checked = false;
+                panel.querySelectorAll('.permisos-hotel-item').forEach(i => i.classList.remove('selected'));
+                actualizarResumen();
+              });
+            }
+
+            if (btnSubmit) {
+              btnSubmit.addEventListener('click', function () {
+                const nombre = panel.querySelector('#inputNuevoNombre').value.trim();
+                const email = panel.querySelector('#inputNuevoEmail').value.trim();
+                const pass = panel.querySelector('#inputNuevoPass').value.trim();
+                const rolId = panel.querySelector('#selectNuevoRol').value;
+                const estado = panel.querySelector('#selectNuevoEstado').value;
+
+                if (!nombre) { showNotification('Ingresa el nombre completo', 'error', 3000); return; }
+                if (!email) { showNotification('Ingresa el correo electrónico', 'error', 3000); return; }
+                if (pass.length < 6) { showNotification('La contraseña debe tener mínimo 6 caracteres', 'error', 3000); return; }
+
+                let seleccionHoteles = 'TODOS';
+                if (!chkMaster.checked) {
+                  const selItems = panel.querySelectorAll('.permisos-hotel-item.selected');
+                  const ids = Array.from(selItems).map(el => el.dataset.idHotel);
+                  seleccionHoteles = ids.join(',');
+                }
+
+                btnSubmit.disabled = true;
+                btnSubmit.innerHTML = '<span>Creando...</span>';
+
+                const datosUsuario = {
+                  nombre: nombre,
+                  email: email,
+                  password: pass,
+                  rolId: rolId,
+                  estado: estado,
+                  hoteles: seleccionHoteles
+                };
+
+                const token = getCurrentUserToken();
+                const idUsuario = sesion && (sesion.ID_Usuario || sesion.idUsuario) ? (sesion.ID_Usuario || sesion.idUsuario) : null;
+
+                google.script.run
+                  .withSuccessHandler(function (res) {
+                    btnSubmit.disabled = false;
+                    btnSubmit.innerHTML = '<span>Crear Usuario</span>';
+                    if (res && res.success) {
+                      cerrarPanelLateral();
+                      showNotification('✅ ' + res.message, 'success', 4000);
+                      cargarVistaUsuarios();
+                    } else {
+                      showNotification((res && res.message) || 'Error al crear usuario', 'error', 3500);
+                    }
+                  })
+                  .withFailureHandler(function (err) {
+                    btnSubmit.disabled = false;
+                    btnSubmit.innerHTML = '<span>Crear Usuario</span>';
+                    console.error('Error crearUsuarioPorAdmin:', err);
+                    showNotification('Error de conexión al crear usuario', 'error', 3500);
+                  })
+                  .crearUsuarioPorAdmin(datosUsuario, token, idUsuario);
+              });
+            }
+          }
+        });
+      })
+      .obtenerModulosConHoteles();
+  }
+</script>

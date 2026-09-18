@@ -1,0 +1,274 @@
+<script>
+  // ==========================================================================
+  // ArchivosCarpeta.html - Controlador Principal del Explorador de Archivos
+  // ==========================================================================
+
+  let estadoArchivosCarpeta = {
+    hotelActual: null,
+    carpetaActual: null,
+    ruta: [],
+    subcarpetas: [],
+    archivos: [],
+    filtro: '',
+    cargando: false,
+    archivoSeleccionado: null,
+    vistaActual: 'tarjetas',
+    usuarioActualId: null
+  };
+
+  function inicializarArchivosCarpeta() {
+    const btnVolver = document.getElementById('btnVolverACarpetas');
+    if (btnVolver) {
+      btnVolver.addEventListener('click', volverACarpetas);
+    }
+
+    const btnNuevaCarpeta = document.getElementById('btnNuevaCarpeta');
+    if (btnNuevaCarpeta) {
+      btnNuevaCarpeta.classList.toggle('oculto', !sesionPuede('Gestionar_Hoteles_Carpetas'));
+      btnNuevaCarpeta.addEventListener('click', abrirPanelNuevaCarpeta);
+    }
+
+    const btnSubir = document.getElementById('btnSubirArchivos');
+    if (btnSubir) {
+      btnSubir.classList.toggle('oculto', !sesionPuede('Subir_Documentos'));
+      btnSubir.addEventListener('click', abrirPanelSubirArchivo);
+    }
+
+    const inputBuscador = document.getElementById('inputBuscadorArchivos');
+    if (inputBuscador) {
+      inputBuscador.addEventListener('input', function(e) {
+        estadoArchivosCarpeta.filtro = e.target.value.toLowerCase();
+        renderizarContenidoCarpeta();
+      });
+    }
+
+    // Detectar cambios de usuario y recargar archivos automáticamente
+    window.addEventListener('focus', verificarCambioUsuario_);
+    window.addEventListener('visibilitychange', verificarCambioUsuario_);
+
+    // Verificar cambio de usuario cada 2 segundos
+    setInterval(verificarCambioUsuario_, 2000);
+
+    const vistaBtnsArchivos = document.querySelectorAll('.archivos-controles .vista-btn');
+    vistaBtnsArchivos.forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        vistaBtnsArchivos.forEach(function (b) { b.classList.remove('vista-btn-activo'); });
+        btn.classList.add('vista-btn-activo');
+        estadoArchivosCarpeta.vistaActual = btn.dataset.vistaArchivos;
+        cambiarVistaArchivos();
+      });
+    });
+  }
+
+  /** Detecta cambios de usuario y recarga la carpeta si es necesario */
+  function verificarCambioUsuario_() {
+    const usuarioActual = getCurrentUserSession();
+    if (!usuarioActual) return;
+
+    const idUsuarioActual = usuarioActual.ID_Usuario;
+
+    // Si el usuario cambió, recargar la carpeta
+    if (estadoArchivosCarpeta.usuarioActualId && estadoArchivosCarpeta.usuarioActualId !== idUsuarioActual) {
+      // Usuario cambió - recargar archivos para reflejar permisos nuevos
+      if (estadoArchivosCarpeta.ruta && estadoArchivosCarpeta.ruta.length > 0) {
+        const idCarpetaActual = estadoArchivosCarpeta.ruta[estadoArchivosCarpeta.ruta.length - 1].id;
+        cargarContenidoCarpeta(idCarpetaActual);
+      }
+    }
+
+    // Actualizar el ID del usuario actual
+    estadoArchivosCarpeta.usuarioActualId = idUsuarioActual;
+  }
+
+  /** Punto de entrada: se llama al hacer clic en una tarjeta de área (scripts/HotelCarpetas.html). */
+  function abrirArchivosCarpeta(carpeta, hotel, idArchivoResaltar) {
+    const homeContent = document.querySelector('.home-content');
+    if (!homeContent) return;
+
+    let archivosContainer = homeContent.querySelector('.archivos-carpeta-container');
+    if (!archivosContainer) {
+      const contenedorDiv = document.createElement('div');
+      contenedorDiv.id = 'archivosCarpetaSection';
+      contenedorDiv.innerHTML = document.getElementById('archivosCarpetaHtml')?.innerHTML || '';
+      homeContent.appendChild(contenedorDiv);
+      archivosContainer = contenedorDiv.querySelector('.archivos-carpeta-container');
+    }
+
+    if (!window.archivosCarpetaInicializado) {
+      inicializarArchivosCarpeta();
+      window.archivosCarpetaInicializado = true;
+    }
+
+    estadoArchivosCarpeta.hotelActual = hotel;
+    estadoArchivosCarpeta.ruta = [{ id: carpeta.id, nombre: carpeta.nombre }];
+
+    const breadcrumbHotel = document.getElementById('hotelNombreBreadcrumb');
+    if (breadcrumbHotel) breadcrumbHotel.textContent = hotel.nombreHotel;
+
+    const carpetasContainer = homeContent.querySelector('.hotel-carpetas-container');
+    if (carpetasContainer) carpetasContainer.style.display = 'none';
+    archivosContainer.style.display = 'flex';
+
+    cargarContenidoCarpeta(carpeta.id, idArchivoResaltar);
+  }
+
+  /** Entra a una subcarpeta (clic sobre su tarjeta dentro del explorador). */
+  function entrarSubcarpeta(carpeta) {
+    estadoArchivosCarpeta.ruta.push({ id: carpeta.id, nombre: carpeta.nombre });
+    cargarContenidoCarpeta(carpeta.id);
+  }
+
+  /** Salta a un nivel intermedio de la ruta (clic en un segmento del breadcrumb). */
+  function irANivelRuta(indice) {
+    estadoArchivosCarpeta.ruta = estadoArchivosCarpeta.ruta.slice(0, indice + 1);
+    cargarContenidoCarpeta(estadoArchivosCarpeta.ruta[indice].id);
+  }
+
+  function cargarContenidoCarpeta(idCarpeta, idArchivoResaltar) {
+    estadoArchivosCarpeta.subcarpetas = [];
+    estadoArchivosCarpeta.archivos = [];
+    estadoArchivosCarpeta.cargando = true;
+    estadoArchivosCarpeta.carpetaActual = { id: idCarpeta };
+
+    renderizarBreadcrumb();
+    mostrarLoadingArchivos();
+
+    const usuarioActual = getCurrentUserSession();
+    const idUsuario = usuarioActual ? usuarioActual.ID_Usuario : null;
+
+    google.script.run
+      .withSuccessHandler(function (result) {
+        estadoArchivosCarpeta.cargando = false;
+        if (result && result.success) {
+          estadoArchivosCarpeta.subcarpetas = result.subcarpetas || [];
+          estadoArchivosCarpeta.archivos = result.archivos || [];
+
+          if (result.carpetaActual) {
+            const ultimo = estadoArchivosCarpeta.ruta[estadoArchivosCarpeta.ruta.length - 1];
+            if (ultimo && !ultimo.nombre) ultimo.nombre = result.carpetaActual.nombre;
+            estadoArchivosCarpeta.carpetaActual.nombre = result.carpetaActual.nombre;
+          }
+
+          renderizarBreadcrumb();
+          renderizarContenidoCarpeta();
+          if (idArchivoResaltar) resaltarArchivo(idArchivoResaltar);
+        } else {
+          showNotification('Error al cargar la carpeta: ' + (result?.message || 'Error desconocido'), 'error', 3000);
+          mostrarVacioArchivos();
+        }
+      })
+      .withFailureHandler(function (error) {
+        estadoArchivosCarpeta.cargando = false;
+        console.error('Error cargarContenidoCarpeta:', error);
+        showNotification('Error al cargar la carpeta', 'error', 3000);
+        mostrarVacioArchivos();
+      })
+      .obtenerContenidoCarpeta(idCarpeta, idUsuario);
+  }
+
+  function renderizarBreadcrumb() {
+    const contenedor = document.getElementById('rutaCarpetasBreadcrumb');
+    const titulo = document.getElementById('archivosTitle');
+    if (!contenedor) return;
+
+    const ruta = estadoArchivosCarpeta.ruta;
+    contenedor.innerHTML = ruta.map(function (nivel, i) {
+      const esUltimo = i === ruta.length - 1;
+      const nombre = escaparHtml(nivel.nombre || '…');
+      if (esUltimo) return '<span class="breadcrumb-item activo">' + nombre + '</span>';
+      return '<span class="breadcrumb-item breadcrumb-link" data-indice="' + i + '">' + nombre + '</span><span class="breadcrumb-separator">/</span>';
+    }).join('');
+
+    contenedor.querySelectorAll('.breadcrumb-link').forEach(function (el) {
+      el.addEventListener('click', function () { irANivelRuta(Number(el.dataset.indice)); });
+    });
+
+    const actual = ruta[ruta.length - 1];
+    if (titulo) titulo.textContent = actual && actual.nombre ? actual.nombre : 'Cargando…';
+  }
+
+  function resaltarArchivo(idArchivo) {
+    setTimeout(function () {
+      const tarjeta = document.querySelector('.archivo-card[data-archivo-id="' + idArchivo + '"]');
+      if (!tarjeta) return;
+      tarjeta.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      tarjeta.classList.add('archivo-card-resaltado');
+      setTimeout(function () { tarjeta.classList.remove('archivo-card-resaltado'); }, 1600);
+    }, 80);
+  }
+
+  function volverACarpetas() {
+    if (estadoArchivosCarpeta.ruta.length > 1) {
+      irANivelRuta(estadoArchivosCarpeta.ruta.length - 2);
+      return;
+    }
+
+    const carpetasContainer = document.querySelector('.hotel-carpetas-container');
+    const archivosContainer = document.querySelector('.archivos-carpeta-container');
+
+    if (carpetasContainer) carpetasContainer.style.display = 'flex';
+    if (archivosContainer) archivosContainer.style.display = 'none';
+
+    estadoArchivosCarpeta.carpetaActual = null;
+    estadoArchivosCarpeta.ruta = [];
+    estadoArchivosCarpeta.subcarpetas = [];
+    estadoArchivosCarpeta.archivos = [];
+  }
+
+  // ==================== Nueva Carpeta ====================
+
+  function abrirPanelNuevaCarpeta() {
+    abrirPanelLateral({
+      titulo: 'Nueva Carpeta',
+      html:
+        '<div class="nueva-carpeta-form">' +
+          '<label for="inputNombreNuevaCarpeta">Nombre de la carpeta</label>' +
+          '<input type="text" id="inputNombreNuevaCarpeta" class="campo-input" placeholder="Ej. Contratos 2026">' +
+          '<div class="nueva-carpeta-acciones">' +
+            '<button type="button" class="btn-cancelar" id="btnCancelarNuevaCarpeta">Cancelar</button>' +
+            '<button type="button" class="btn-enviar" id="btnCrearNuevaCarpeta">Crear</button>' +
+          '</div>' +
+        '</div>'
+    });
+
+    const input = document.getElementById('inputNombreNuevaCarpeta');
+    document.getElementById('btnCancelarNuevaCarpeta')?.addEventListener('click', cerrarPanelLateral);
+    document.getElementById('btnCrearNuevaCarpeta')?.addEventListener('click', confirmarCrearCarpeta);
+    input?.addEventListener('keydown', function (e) { if (e.key === 'Enter') confirmarCrearCarpeta(); });
+    setTimeout(function () { input?.focus(); }, 50);
+  }
+
+  function confirmarCrearCarpeta() {
+    const input = document.getElementById('inputNombreNuevaCarpeta');
+    const nombre = input ? input.value.trim() : '';
+    if (!nombre) {
+      showNotification('Escribe un nombre para la carpeta', 'error', 2500);
+      return;
+    }
+
+    const ruta = estadoArchivosCarpeta.ruta;
+    const idCarpetaActual = ruta[ruta.length - 1].id;
+    const user = getCurrentUserSession();
+    const token = getCurrentUserToken();
+    const btnCrear = document.getElementById('btnCrearNuevaCarpeta');
+    if (btnCrear) btnCrear.disabled = true;
+
+    google.script.run
+      .withSuccessHandler(function (result) {
+        if (btnCrear) btnCrear.disabled = false;
+        if (result && result.success) {
+          cerrarPanelLateral();
+          showNotification('✅ Carpeta creada', 'success', 2500);
+          cargarContenidoCarpeta(idCarpetaActual);
+        } else {
+          showNotification('Error: ' + (result?.message || 'Error desconocido'), 'error', 3000);
+        }
+      })
+      .withFailureHandler(function (error) {
+        if (btnCrear) btnCrear.disabled = false;
+        console.error('Error crearSubcarpeta:', error);
+        showNotification('Error al crear la carpeta', 'error', 3000);
+      })
+      .crearSubcarpeta(idCarpetaActual, nombre, token || (user ? user.ID_Usuario : null));
+  }
+</script>

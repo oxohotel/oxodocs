@@ -1,0 +1,97 @@
+<style>
+/* ==================== PANEL LATERAL (offcanvas derecho) ==================== */
+
+.panel-lateral-overlay {
+  display: flex;
+  position: fixed;
+  inset: 0;
+  background: rgba(17, 20, 18, 0.45);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  justify-content: flex-end;
+  z-index: 1100;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.28s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.28s ease;
+}
+
+.panel-lateral-overlay.active {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+.panel-lateral {
+  width: min(440px, 100vw);
+  height: 100%;
+  background: var(--home-card-bg);
+  box-shadow: -16px 0 40px rgba(0, 0, 0, 0.25);
+  display: flex;
+  flex-direction: column;
+  transform: translateX(100%);
+  transition: transform 0.35s cubic-bezier(0.32, 0.72, 0, 1);
+  border-left: 1px solid var(--home-border);
+}
+
+.panel-lateral-overlay.active .panel-lateral {
+  transform: translateX(0);
+}
+
+.panel-lateral.panel-lateral-grande {
+  width: min(760px, 94vw);
+}
+
+.panel-lateral-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 22px 26px;
+  border-bottom: 1px solid var(--home-border);
+  flex-shrink: 0;
+}
+
+.panel-lateral-header h3 {
+  flex: 1;
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--home-text);
+  margin: 0;
+  letter-spacing: -0.3px;
+}
+
+.panel-lateral-cerrar {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--home-text-muted);
+  padding: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  transition: background-color 0.18s ease, color 0.18s ease, transform 0.12s ease;
+}
+
+.panel-lateral-cerrar:hover {
+  background: var(--home-bg);
+  color: var(--home-text);
+  transform: scale(1.08);
+}
+
+.panel-lateral-cerrar:active {
+  transform: scale(0.92);
+}
+
+.panel-lateral-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 26px;
+}
+
+@media (max-width: 480px) {
+  .panel-lateral {
+    width: 100vw;
+  }
+}
+</style>

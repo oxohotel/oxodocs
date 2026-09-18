@@ -1,0 +1,243 @@
+<script>
+  function setupFormListeners() {
+    const loginForm = document.getElementById("loginForm");
+    const registerForm = document.getElementById("registerForm");
+
+    if (loginForm) {
+      loginForm.addEventListener("submit", handleLoginSubmit);
+    }
+    if (registerForm) {
+      registerForm.addEventListener("submit", handleRegisterSubmit);
+    }
+  }
+
+  function setupCarouselNavigation() {
+    const switchLinks = document.querySelectorAll(".link-switch");
+    switchLinks.forEach(link => {
+      link.addEventListener("click", (e) => {
+        e.preventDefault();
+        const form = link.dataset.form;
+        switchForm(form);
+      });
+    });
+  }
+
+  function setupPasswordToggle() {
+    const toggleButtons = document.querySelectorAll(".toggle-password");
+    toggleButtons.forEach(button => {
+      button.addEventListener("click", (e) => {
+        e.preventDefault();
+        const targetId = button.dataset.target;
+        togglePasswordVisibility(targetId, button);
+      });
+    });
+  }
+
+  function setupRealTimeValidation() {
+    const loginEmail = document.getElementById("loginEmail");
+    if (loginEmail) {
+      loginEmail.addEventListener("blur", () => {
+        const email = getInputValue("loginEmail");
+        if (email && !isValidEmail(email)) {
+          showError("loginEmail", "loginEmailError", "Email inválido");
+        } else {
+          clearError("loginEmail", "loginEmailError");
+        }
+      });
+    }
+
+    const registerEmail = document.getElementById("registerEmail");
+    if (registerEmail) {
+      registerEmail.addEventListener("blur", () => {
+        const email = getInputValue("registerEmail");
+        if (email && !isValidEmail(email)) {
+          showError("registerEmail", "registerEmailError", "Email inválido");
+        } else {
+          clearError("registerEmail", "registerEmailError");
+        }
+      });
+    }
+
+    const registerPassword = document.getElementById("registerPassword");
+    if (registerPassword) {
+      registerPassword.addEventListener("blur", () => {
+        const password = getInputValue("registerPassword");
+        if (password) {
+          const validation = isValidPassword(password);
+          if (!validation.isValid) {
+            showError("registerPassword", "registerPasswordError", validation.message);
+          } else {
+            clearError("registerPassword", "registerPasswordError");
+          }
+        }
+      });
+    }
+
+    const registerPasswordConfirm = document.getElementById("registerPasswordConfirm");
+    if (registerPasswordConfirm) {
+      registerPasswordConfirm.addEventListener("blur", () => {
+        const password = getInputValue("registerPassword");
+        const passwordConfirm = getInputValue("registerPasswordConfirm");
+        if (passwordConfirm && !passwordsMatch(password, passwordConfirm)) {
+          showError("registerPasswordConfirm", "registerPasswordConfirmError", "Las contraseñas no coinciden");
+        } else {
+          clearError("registerPasswordConfirm", "registerPasswordConfirmError");
+        }
+      });
+    }
+  }
+
+  async function handleLoginSubmit(e) {
+    e.preventDefault();
+    clearAllErrors("loginForm");
+
+    const email = getInputValue("loginEmail");
+    const password = getInputValue("loginPassword");
+
+    let hasErrors = false;
+
+    if (!email) {
+      showError("loginEmail", "loginEmailError", "El email es requerido");
+      hasErrors = true;
+    } else if (!isValidEmail(email)) {
+      showError("loginEmail", "loginEmailError", "Email inválido");
+      hasErrors = true;
+    }
+
+    if (!password) {
+      showError("loginPassword", "loginPasswordError", "La contraseña es requerida");
+      hasErrors = true;
+    }
+
+    if (hasErrors) return;
+
+    setButtonEnabled("loginBtn", false);
+    const originalText = document.getElementById("loginBtn").textContent;
+    setButtonText("loginBtn", "Validando...");
+
+    const result = await loginUser(email, password);
+
+    if (result.success) {
+      saveUserSession(result.user);
+      logLoginAction(result.user.ID_Usuario, email);
+      showNotification(`¡Bienvenido ${result.user.Nombre_Completo}!`, "success", 2000);
+
+      setTimeout(() => {
+        redirectToMainApp();
+      }, 1000);
+    } else {
+      showError("loginEmail", "loginEmailError", result.message);
+      setButtonEnabled("loginBtn", true);
+      setButtonText("loginBtn", originalText);
+    }
+  }
+
+  async function handleRegisterSubmit(e) {
+    e.preventDefault();
+    clearAllErrors("registerForm");
+
+    const nombre = getInputValue("registerName");
+    const email = getInputValue("registerEmail");
+    const password = getInputValue("registerPassword");
+    const passwordConfirm = getInputValue("registerPasswordConfirm");
+
+    let hasErrors = false;
+
+    if (!nombre) {
+      showError("registerName", "registerNameError", "El nombre es requerido");
+      hasErrors = true;
+    } else if (!isValidName(nombre)) {
+      showError("registerName", "registerNameError", "El nombre debe tener al menos 3 caracteres");
+      hasErrors = true;
+    }
+
+    if (!email) {
+      showError("registerEmail", "registerEmailError", "El email es requerido");
+      hasErrors = true;
+    } else if (!isValidEmail(email)) {
+      showError("registerEmail", "registerEmailError", "Email inválido");
+      hasErrors = true;
+    }
+
+    if (!password) {
+      showError("registerPassword", "registerPasswordError", "La contraseña es requerida");
+      hasErrors = true;
+    } else {
+      const passwordValidation = isValidPassword(password);
+      if (!passwordValidation.isValid) {
+        showError("registerPassword", "registerPasswordError", passwordValidation.message);
+        hasErrors = true;
+      }
+    }
+
+    if (!passwordConfirm) {
+      showError("registerPasswordConfirm", "registerPasswordConfirmError", "Debe confirmar la contraseña");
+      hasErrors = true;
+    } else if (!passwordsMatch(password, passwordConfirm)) {
+      showError("registerPasswordConfirm", "registerPasswordConfirmError", "Las contraseñas no coinciden");
+      hasErrors = true;
+    }
+
+    if (hasErrors) return;
+
+    setButtonEnabled("registerBtn", false);
+    const originalText = document.getElementById("registerBtn").textContent;
+    setButtonText("registerBtn", "Registrando...");
+
+    const result = await registerUser({ nombre, email, password });
+
+    if (result.success) {
+      logRegisterAction(result.userId, email);
+      document.getElementById("registerForm").reset();
+      clearAllErrors("registerForm");
+      showNotification(result.message, "success", 3000);
+
+      setTimeout(() => {
+        switchForm("login");
+        setButtonEnabled("registerBtn", true);
+        setButtonText("registerBtn", originalText);
+        setInputValue("loginEmail", email);
+      }, 2000);
+    } else {
+      if (result.message.toLowerCase().includes("email")) {
+        showError("registerEmail", "registerEmailError", result.message);
+      } else if (result.message.toLowerCase().includes("contraseña")) {
+        showError("registerPassword", "registerPasswordError", result.message);
+      } else {
+        showNotification(result.message, "error", 4000);
+      }
+
+      setButtonEnabled("registerBtn", true);
+      setButtonText("registerBtn", originalText);
+    }
+  }
+
+  function switchForm(form) {
+    const carousel = document.getElementById("formCarousel");
+    const loginForm = carousel.querySelector(".login-form");
+    const registerForm = carousel.querySelector(".register-form");
+
+    if (form === "login") {
+      loginForm.classList.add("active");
+      registerForm.classList.remove("active");
+    } else if (form === "register") {
+      loginForm.classList.remove("active");
+      registerForm.classList.add("active");
+    }
+
+    clearAllErrors("loginForm");
+    clearAllErrors("registerForm");
+  }
+
+  function togglePasswordVisibility(inputId, buttonEl) {
+    const input = document.getElementById(inputId);
+    if (!input) return;
+
+    const isPassword = input.type === "password";
+    input.type = isPassword ? "text" : "password";
+
+    if (buttonEl) {
+      buttonEl.style.opacity = isPassword ? "0.7" : "1";
+    }
+  }
+</script>

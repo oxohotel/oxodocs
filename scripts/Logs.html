@@ -1,0 +1,99 @@
+<script>
+  // ==================== Apartado "Logs" (solo visible para Administrador/Superadministrador —
+  // ver revelarNavsDeAdministracionSiCorresponde en scripts/Sidebar.html, que también rige este item) ====================
+
+  function mostrarVistaLogs() {
+    const homeContent = document.querySelector('.home-content');
+    if (!homeContent) return;
+
+    if (typeof ocultarVistaCarpetasHotel === 'function') ocultarVistaCarpetasHotel();
+    if (typeof ocultarVistaPerfil === 'function') ocultarVistaPerfil();
+    if (typeof ocultarVistaFavoritos === 'function') ocultarVistaFavoritos();
+    if (typeof ocultarVistaRecientes === 'function') ocultarVistaRecientes();
+    if (typeof ocultarVistaUsuarios === 'function') ocultarVistaUsuarios();
+
+    const homeWelcome = homeContent.querySelector('.home-welcome');
+    const homeWidgets = homeContent.querySelector('.home-widgets-grid');
+    if (homeWelcome) homeWelcome.style.display = 'none';
+    if (homeWidgets) homeWidgets.style.display = 'none';
+
+    let contenedor = homeContent.querySelector('#logsContainer');
+    if (!contenedor) {
+      const wrapper = document.createElement('div');
+      wrapper.id = 'logsSection';
+      wrapper.innerHTML = document.getElementById('logsHtml') ? document.getElementById('logsHtml').innerHTML : '';
+      homeContent.appendChild(wrapper);
+      contenedor = wrapper.querySelector('#logsContainer');
+      inicializarVistaLogs_();
+    } else {
+      contenedor.style.display = 'flex';
+    }
+
+    cargarVistaLogs();
+    if (contenedor) contenedor.scrollIntoView({ behavior: 'smooth' });
+  }
+
+  function ocultarVistaLogs() {
+    const homeContent = document.querySelector('.home-content');
+    if (!homeContent) return;
+    const contenedor = homeContent.querySelector('#logsContainer');
+    if (contenedor) contenedor.style.display = 'none';
+  }
+
+  function inicializarVistaLogs_() {
+    const input = document.getElementById('inputBuscadorLogs');
+    if (input) {
+      input.addEventListener('input', function () {
+        const termino = input.value.trim().toLowerCase();
+        document.querySelectorAll('#logsGrid .log-fila').forEach(function (fila) {
+          const visible = !termino || fila.textContent.toLowerCase().indexOf(termino) !== -1;
+          fila.classList.toggle('oculto-filtro', !visible);
+        });
+      });
+    }
+  }
+
+  function cargarVistaLogs() {
+    const grid = document.getElementById('logsGrid');
+    if (!grid) return;
+    grid.innerHTML = '<div class="apartado-skeleton"></div><div class="apartado-skeleton"></div><div class="apartado-skeleton"></div>';
+
+    const sesion = getCurrentUserSession();
+    if (!sesion) return;
+
+    google.script.run
+      .withSuccessHandler(function (result) {
+        if (!result.success) { mostrarErrorApartado(grid, result.message); return; }
+        renderizarLogs_(result.registros || []);
+      })
+      .withFailureHandler(function (error) {
+        console.error('Error cargando logs:', error);
+        mostrarErrorApartado(grid, 'No se pudo cargar el historial.');
+      })
+      .obtenerRegistrosAuditoria(sesion.ID_Usuario, 200);
+  }
+
+  function renderizarLogs_(registros) {
+    const grid = document.getElementById('logsGrid');
+    if (!grid) return;
+
+    if (!registros.length) {
+      grid.innerHTML = construirEstadoVacioApartado('Sin actividad todavía', 'Las acciones importantes van a aparecer aquí.');
+      return;
+    }
+
+    grid.innerHTML = registros.map(function (r) {
+      const fechaTexto = r.fecha ? new Date(r.fecha).toLocaleString('es-ES', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+      const quien = r.usuarioNombre || r.usuarioEmail || 'Sistema';
+      const estadoClase = String(r.estado || '').toLowerCase() === 'exitosa' ? 'activo' : 'inactivo';
+
+      return '<div class="log-fila">' +
+        '<div class="log-fecha">' + escaparHtml(fechaTexto) + '</div>' +
+        '<div class="log-usuario">' + escaparHtml(quien) + '</div>' +
+        '<div><span class="log-tipo-badge">' + escaparHtml(r.tipo || '') + '</span></div>' +
+        '<div class="log-descripcion">' + escaparHtml(r.descripcion || '') + '</div>' +
+        '<div><span class="usuario-estado-badge ' + estadoClase + '">' + escaparHtml(r.estado || '') + '</span></div>' +
+      '</div>';
+    }).join('');
+  }
+</script>

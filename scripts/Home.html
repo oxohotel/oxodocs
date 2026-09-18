@@ -1,0 +1,188 @@
+<script>
+  function iniciarVistaHome() {
+    const user = getCurrentUserSession();
+    const saludoEl = document.getElementById("homeSaludo");
+    const avatarEl = document.getElementById("avatarInicial");
+    const nombreDropdownEl = document.getElementById("navbarUserName");
+    const primerNombre = user && user.Nombre_Completo ? user.Nombre_Completo.split(" ")[0] : "de nuevo";
+    const inicial = user && user.Nombre_Completo ? user.Nombre_Completo.trim().charAt(0).toUpperCase() : "U";
+
+    if (saludoEl) saludoEl.textContent = `¡Bienvenido ${primerNombre}!`;
+    if (avatarEl) avatarEl.textContent = inicial;
+    if (nombreDropdownEl && user) nombreDropdownEl.textContent = user.Nombre_Completo;
+
+    mostrarSkeletonWidgets();
+    if (typeof revelarNavsDeAdministracionSiCorresponde === "function") revelarNavsDeAdministracionSiCorresponde();
+
+    cargarHotelesSidebar();
+    if (typeof refrescarCacheFavoritos === "function") refrescarCacheFavoritos();
+    if (typeof cargarWidgetRecientes === "function") cargarWidgetRecientes();
+    if (typeof cargarWidgetFavoritos === "function") cargarWidgetFavoritos();
+    inicializarAtajosWidgets();
+  }
+
+  /** Los "Ver todos" de los widgets del dashboard abren el apartado completo correspondiente. */
+  function inicializarAtajosWidgets() {
+    const verTodosRecientes = document.getElementById("verTodosRecientes");
+    if (verTodosRecientes && !verTodosRecientes.dataset.wired) {
+      verTodosRecientes.dataset.wired = "1";
+      verTodosRecientes.addEventListener("click", function (e) {
+        e.preventDefault();
+        const nav = document.getElementById("navRecientes");
+        if (nav && typeof seleccionarItemSidebar === "function") seleccionarItemSidebar(nav);
+        mostrarVistaRecientes();
+      });
+    }
+
+    const verTodosFavoritos = document.getElementById("verTodosFavoritos");
+    if (verTodosFavoritos && !verTodosFavoritos.dataset.wired) {
+      verTodosFavoritos.dataset.wired = "1";
+      verTodosFavoritos.addEventListener("click", function (e) {
+        e.preventDefault();
+        const nav = document.getElementById("navFavoritos");
+        if (nav && typeof seleccionarItemSidebar === "function") seleccionarItemSidebar(nav);
+        mostrarVistaFavoritos();
+      });
+    }
+  }
+
+  function mostrarSkeletonWidgets() {
+    document.querySelectorAll("[data-widget-skeleton]").forEach(el => el.classList.remove("oculto"));
+    document.querySelectorAll("[data-widget-contenido]").forEach(el => el.classList.add("oculto"));
+  }
+
+  /** Revela solo el widget indicado (por id de su tarjeta, ej. "seccionRecientes") — cada widget
+   *  carga su propia data real de forma independiente, así que no deben revelarse juntos. */
+  function revelarWidget(idSeccion) {
+    const contenedor = document.getElementById(idSeccion);
+    if (!contenedor) return;
+    contenedor.querySelectorAll("[data-widget-skeleton]").forEach(el => el.classList.add("oculto"));
+    contenedor.querySelectorAll("[data-widget-contenido]").forEach(el => el.classList.remove("oculto"));
+  }
+
+  /** Acción real de cerrar sesión — la dispara showConfirmation() desde la navbar o desde Perfil,
+   *  así que solo hay UN lugar que sabe cómo cerrar sesión (antes había dos, uno por cada sitio
+   *  donde se podía pedir, y eso llevaba a que uno rompiera silenciosamente al otro). */
+  function iniciarCierreSesion() {
+    const user = getCurrentUserSession();
+    if (user) logLogoutAction(user.ID_Usuario, user.Email);
+
+    logoutUser();
+    showNotification("Sesión cerrada correctamente", "info", 2000);
+    mostrarVistaAuth();
+  }
+
+  function mostrarVistaCarpetasHotel(idHotel, nombreHotel, idCarpetaAutoAbrir, idArchivoResaltar) {
+    const homeContent = document.querySelector('.home-content');
+    if (!homeContent) return;
+
+    if (typeof ocultarVistaPerfil === 'function') ocultarVistaPerfil();
+    if (typeof ocultarVistaFavoritos === 'function') ocultarVistaFavoritos();
+    if (typeof ocultarVistaRecientes === 'function') ocultarVistaRecientes();
+    if (typeof ocultarVistaUsuarios === 'function') ocultarVistaUsuarios();
+    if (typeof ocultarVistaLogs === 'function') ocultarVistaLogs();
+
+    // Ocultar secciones de bienvenida y widgets
+    const homeWelcome = homeContent.querySelector('.home-welcome');
+    const homeWidgets = homeContent.querySelector('.home-widgets-grid');
+
+    if (homeWelcome) homeWelcome.style.display = 'none';
+    if (homeWidgets) homeWidgets.style.display = 'none';
+
+    // Obtener o crear el contenedor de carpetas
+    let carpetasContainer = homeContent.querySelector('.hotel-carpetas-container');
+
+    if (!carpetasContainer) {
+      const contenedorDiv = document.createElement('div');
+      contenedorDiv.id = 'hotelCarpetasSection';
+      contenedorDiv.innerHTML = document.getElementById('hotelCarpetasHtml')?.innerHTML || '';
+      homeContent.appendChild(contenedorDiv);
+      carpetasContainer = contenedorDiv.querySelector('.hotel-carpetas-container');
+    } else {
+      carpetasContainer.style.display = 'block';
+    }
+
+    // Inicializar listeners si es la primera vez
+    if (!window.hotelCarpetasInicializado) {
+      inicializarHotelCarpetas();
+      window.hotelCarpetasInicializado = true;
+    }
+
+    // Si venías de ver los archivos de una carpeta de OTRO hotel, ocúltalos.
+    const archivosContainerPrevio = homeContent.querySelector('.archivos-carpeta-container');
+    if (archivosContainerPrevio) archivosContainerPrevio.style.display = 'none';
+
+    // Cargar las carpetas del hotel
+    cargarCarpetasDelHotel(idHotel, nombreHotel, idCarpetaAutoAbrir, idArchivoResaltar);
+
+    // Hacer scroll al apartado
+    carpetasContainer.scrollIntoView({ behavior: 'smooth' });
+  }
+
+  function ocultarVistaCarpetasHotel() {
+    const homeContent = document.querySelector('.home-content');
+    if (!homeContent) return;
+
+    const homeWelcome = homeContent.querySelector('.home-welcome');
+    const homeWidgets = homeContent.querySelector('.home-widgets-grid');
+    const carpetasContainer = homeContent.querySelector('.hotel-carpetas-container');
+    const archivosContainer = homeContent.querySelector('.archivos-carpeta-container');
+
+    if (homeWelcome) homeWelcome.style.display = 'block';
+    if (homeWidgets) homeWidgets.style.display = 'grid';
+    if (carpetasContainer) carpetasContainer.style.display = 'none';
+    if (archivosContainer) archivosContainer.style.display = 'none';
+  }
+
+  function mostrarVistaPerfil() {
+    const homeContent = document.querySelector('.home-content');
+    if (!homeContent) return;
+
+    ocultarVistaCarpetasHotel();
+    if (typeof ocultarVistaFavoritos === 'function') ocultarVistaFavoritos();
+    if (typeof ocultarVistaRecientes === 'function') ocultarVistaRecientes();
+    if (typeof ocultarVistaUsuarios === 'function') ocultarVistaUsuarios();
+    if (typeof ocultarVistaLogs === 'function') ocultarVistaLogs();
+
+    const homeWelcome = homeContent.querySelector('.home-welcome');
+    const homeWidgets = homeContent.querySelector('.home-widgets-grid');
+    if (homeWelcome) homeWelcome.style.display = 'none';
+    if (homeWidgets) homeWidgets.style.display = 'none';
+
+    let perfilContainer = homeContent.querySelector('.perfil-container');
+
+    if (!perfilContainer) {
+      const contenedorDiv = document.createElement('div');
+      contenedorDiv.id = 'perfilSection';
+      contenedorDiv.innerHTML = document.getElementById('perfilHtml')?.innerHTML || '';
+      homeContent.appendChild(contenedorDiv);
+      perfilContainer = contenedorDiv.querySelector('.perfil-container');
+      perfilContainer.style.display = 'flex';
+
+      if (typeof inicializarPerfil === 'function') inicializarPerfil();
+      if (typeof cargarDatosPerfil === 'function') cargarDatosPerfil();
+    } else {
+      perfilContainer.style.display = 'flex';
+      if (typeof cargarDatosPerfil === 'function') cargarDatosPerfil();
+    }
+
+    if (perfilContainer) {
+      setTimeout(() => {
+        perfilContainer.scrollIntoView({ behavior: 'smooth' });
+      }, 200);
+    }
+  }
+
+  function ocultarVistaPerfil() {
+    const homeContent = document.querySelector('.home-content');
+    if (!homeContent) return;
+
+    const homeWelcome = homeContent.querySelector('.home-welcome');
+    const homeWidgets = homeContent.querySelector('.home-widgets-grid');
+    const perfilContainer = homeContent.querySelector('.perfil-container');
+
+    if (homeWelcome) homeWelcome.style.display = 'block';
+    if (homeWidgets) homeWidgets.style.display = 'grid';
+    if (perfilContainer) perfilContainer.style.display = 'none';
+  }
+</script>

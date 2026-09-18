@@ -1,0 +1,31 @@
+<script>
+  function mostrarLoadingScreen() {
+    const loadingScreen = document.getElementById('loadingScreen');
+    if (loadingScreen) {
+      loadingScreen.classList.remove('oculto');
+      loadingScreen.style.display = 'flex';
+      loadingScreen.style.animation = 'fadeIn 0.5s ease-in';
+    }
+  }
+
+  function ocultarLoadingScreen() {
+    const loadingScreen = document.getElementById('loadingScreen');
+    if (loadingScreen) {
+      loadingScreen.style.animation = 'fadeOut 0.5s ease-out';
+      setTimeout(() => {
+        loadingScreen.classList.add('oculto');
+        loadingScreen.style.display = 'none';
+      }, 500);
+    }
+  }
+
+  function mostrarLoadingYLuegoHome(tiempoEspera = 2000) {
+    mostrarLoadingScreen();
+    setTimeout(() => {
+      ocultarLoadingScreen();
+      setTimeout(() => {
+        mostrarVistaHome();
+      }, 500);
+    }, tiempoEspera);
+  }
+</script>

@@ -1,0 +1,13 @@
+<script>
+  /** Registro de actividad "en silencio" (fire-and-forget): no bloquea la UI ni muestra
+   *  notificación, solo deja constancia para el apartado "Recientes". Si falla, se limita a
+   *  loguearlo en consola — nunca debe interrumpir la acción real del usuario (abrir/subir). */
+  function registrarActividadSilenciosa(idUsuario, tipoRecurso, idRecurso, tipoInteraccion) {
+    if (!idUsuario || !idRecurso) return;
+    google.script.run
+      .withFailureHandler(function (error) {
+        console.error('No se pudo registrar actividad:', error);
+      })
+      .registrarActividad(idUsuario, tipoRecurso, idRecurso, tipoInteraccion);
+  }
+</script>

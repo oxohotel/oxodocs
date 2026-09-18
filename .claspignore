@@ -1,0 +1,9 @@
+**/**
+!appsscript.json
+!Code.js
+!backend/**
+!components/**
+!scripts/**
+!styles/**
+!views/**
+!index.html

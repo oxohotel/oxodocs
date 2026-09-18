@@ -1,0 +1,97 @@
+<script>
+  // ==================== VALIDACIONES ====================
+  function isValidEmail(email) {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  }
+
+  function isValidPassword(password) {
+    if (password.length < 8) {
+      return {
+        isValid: false,
+        message: "La contraseña debe tener al menos 8 caracteres"
+      };
+    }
+    return { isValid: true, message: "" };
+  }
+
+  function isValidName(name) {
+    return name.trim().length >= 3;
+  }
+
+  function passwordsMatch(password1, password2) {
+    return password1 === password2 && password1.length > 0;
+  }
+
+  // ==================== MANIPULACIÓN DEL DOM ====================
+  function showError(inputId, errorId, message) {
+    const input = document.getElementById(inputId);
+    const errorElement = document.getElementById(errorId);
+    if (input) input.classList.add("error");
+    if (errorElement) errorElement.textContent = message;
+  }
+
+  function clearError(inputId, errorId) {
+    const input = document.getElementById(inputId);
+    const errorElement = document.getElementById(errorId);
+    if (input) input.classList.remove("error");
+    if (errorElement) errorElement.textContent = "";
+  }
+
+  function clearAllErrors(formId) {
+    const form = document.getElementById(formId);
+    if (!form) return;
+    const inputs = form.querySelectorAll(".form-input");
+    const errors = form.querySelectorAll(".error-message");
+    inputs.forEach(input => input.classList.remove("error"));
+    errors.forEach(error => error.textContent = "");
+  }
+
+  function setButtonEnabled(buttonId, enabled) {
+    const button = document.getElementById(buttonId);
+    if (button) button.disabled = !enabled;
+  }
+
+  function setButtonText(buttonId, text) {
+    const button = document.getElementById(buttonId);
+    if (button) button.textContent = text;
+  }
+
+  // ==================== ALMACENAMIENTO LOCAL ====================
+  function saveToLocalStorage(key, value) {
+    try {
+      localStorage.setItem(key, JSON.stringify(value));
+    } catch (error) {
+      console.error(`Error al guardar en localStorage: ${key}`, error);
+    }
+  }
+
+  function getFromLocalStorage(key) {
+    try {
+      const value = localStorage.getItem(key);
+      return value ? JSON.parse(value) : null;
+    } catch (error) {
+      console.error(`Error al obtener de localStorage: ${key}`, error);
+      return null;
+    }
+  }
+
+  function removeFromLocalStorage(key) {
+    try {
+      localStorage.removeItem(key);
+    } catch (error) {
+      console.error(`Error al eliminar de localStorage: ${key}`, error);
+    }
+  }
+
+  // ==================== UTILIDADES GENERALES ====================
+  function getInputValue(inputId) {
+    const input = document.getElementById(inputId);
+    return input ? input.value.trim() : "";
+  }
+
+  function setInputValue(inputId, value) {
+    const input = document.getElementById(inputId);
+    if (input) input.value = value;
+  }
+</script>

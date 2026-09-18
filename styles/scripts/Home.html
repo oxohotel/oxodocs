@@ -1,0 +1,59 @@
+<script>
+  function iniciarVistaHome() {
+    const user = getCurrentUserSession();
+    const saludoEl = document.getElementById("homeSaludo");
+    const avatarEl = document.getElementById("avatarInicial");
+    const nombreDropdownEl = document.getElementById("navbarUserName");
+    const primerNombre = user && user.Nombre_Completo ? user.Nombre_Completo.split(" ")[0] : "de nuevo";
+    const inicial = user && user.Nombre_Completo ? user.Nombre_Completo.trim().charAt(0).toUpperCase() : "U";
+
+    if (saludoEl) saludoEl.textContent = `¡Bienvenido ${primerNombre}!`;
+    if (avatarEl) avatarEl.textContent = inicial;
+    if (nombreDropdownEl && user) nombreDropdownEl.textContent = user.Nombre_Completo;
+
+    mostrarSkeletonWidgets();
+    setTimeout(revelarWidgets, 900);
+
+    setupLogoutModal();
+  }
+
+  function mostrarSkeletonWidgets() {
+    document.querySelectorAll("[data-widget-skeleton]").forEach(el => el.classList.remove("oculto"));
+    document.querySelectorAll("[data-widget-contenido]").forEach(el => el.classList.add("oculto"));
+  }
+
+  function revelarWidgets() {
+    document.querySelectorAll("[data-widget-skeleton]").forEach(el => el.classList.add("oculto"));
+    document.querySelectorAll("[data-widget-contenido]").forEach(el => el.classList.remove("oculto"));
+  }
+
+  function setupLogoutModal() {
+    const btnLogout = document.getElementById("btnAbrirLogout");
+    const btnCancelar = document.getElementById("btnCancelarLogout");
+    const btnConfirmar = document.getElementById("btnConfirmarLogout");
+
+    if (btnLogout) btnLogout.onclick = () => abrirModalLogout();
+    if (btnCancelar) btnCancelar.onclick = () => cerrarModalLogout();
+    if (btnConfirmar) btnConfirmar.onclick = () => confirmarCerrarSesion();
+  }
+
+  function abrirModalLogout() {
+    const modal = document.getElementById("logoutModal");
+    if (modal) modal.classList.add("active");
+  }
+
+  function cerrarModalLogout() {
+    const modal = document.getElementById("logoutModal");
+    if (modal) modal.classList.remove("active");
+  }
+
+  function confirmarCerrarSesion() {
+    const user = getCurrentUserSession();
+    if (user) logLogoutAction(user.ID_Usuario, user.Email);
+
+    logoutUser();
+    cerrarModalLogout();
+    showNotification("Sesión cerrada correctamente", "info", 2000);
+    mostrarVistaAuth();
+  }
+</script>

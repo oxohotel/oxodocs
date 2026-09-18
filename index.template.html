@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Repositorio de Proyectos</title>
+  <link rel="icon" type="image/x-icon" href="https://acabrales-oxohotel.github.io/repo-imagenes/logo-oxodocs.ico">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <?!= include('styles/Base') ?>
+  <?!= include('styles/Auth') ?>
+  <?!= include('styles/Theme') ?>
+  <?!= include('styles/Sidebar') ?>
+  <?!= include('styles/Navbar') ?>
+  <?!= include('styles/Home') ?>
+  <?!= include('styles/HotelCarpetas') ?>
+  <?!= include('styles/ArchivosCarpeta') ?>
+  <?!= include('styles/Perfil') ?>
+  <?!= include('styles/Loading') ?>
+  <?!= include('styles/Modals') ?>
+  <?!= include('styles/PanelLateral') ?>
+  <?!= include('styles/Apartados') ?>
+  <?!= include('styles/Notifications') ?>
+</head>
+<body>
+  <!-- Pantalla de Carga -->
+  <div class="loading-screen oculto" id="loadingScreen">
+    <?!= include('views/Loading') ?>
+  </div>
+
+  <!-- Vista de Autenticación -->
+  <div class="auth-page" id="vistaAuth">
+    <?!= include('views/Auth') ?>
+  </div>
+
+  <!-- Vista Principal (Home) -->
+  <div class="home-page oculto" id="vistaHome">
+    <?!= include('views/Home') ?>
+    <!-- Contenedor oculto para las carpetas del hotel -->
+    <div id="hotelCarpetasHtml" style="display: none;">
+      <?!= include('views/HotelCarpetas') ?>
+    </div>
+    <!-- Contenedor oculto para los archivos de la carpeta -->
+    <div id="archivosCarpetaHtml" style="display: none;">
+      <?!= include('views/ArchivosCarpeta') ?>
+    </div>
+    <!-- Plantilla única para modal/panel de subida de archivo -->
+    <?!= include('views/FormSubirArchivo') ?>
+    <!-- Contenedor oculto para el perfil -->
+    <div id="perfilHtml" style="display: none;">
+      <?!= include('views/Perfil') ?>
+    </div>
+    <!-- Contenedor oculto para el apartado de Favoritos -->
+    <div id="favoritosHtml" style="display: none;">
+      <?!= include('views/Favoritos') ?>
+    </div>
+    <!-- Contenedor oculto para el apartado de Recientes -->
+    <div id="recientesHtml" style="display: none;">
+      <?!= include('views/Recientes') ?>
+    </div>
+    <!-- Contenedor oculto para el apartado de Usuarios -->
+    <div id="usuariosHtml" style="display: none;">
+      <?!= include('views/Usuarios') ?>
+    </div>
+    <!-- Contenedor oculto para el apartado de Logs -->
+    <div id="logsHtml" style="display: none;">
+      <?!= include('views/Logs') ?>
+    </div>
+  </div>
+
+  <!-- Modal de Loading (compartido por ambas vistas) -->
+  <div class="modal-overlay" id="loadingModal">
+    <div class="modal-content">
+      <div class="spinner"></div>
+      <p>Procesando...</p>
+    </div>
+  </div>
+
+  <?!= include('scripts/Utils') ?>
+  <?!= include('scripts/Loading') ?>
+  <?!= include('scripts/Modals') ?>
+  <?!= include('scripts/PanelLateral') ?>
+  <?!= include('scripts/Gestion') ?>
+  <?!= include('scripts/Auth') ?>
+  <?!= include('scripts/AuthVerificacion') ?>
+  <?!= include('scripts/AuthView') ?>
+  <?!= include('scripts/Theme') ?>
+  <?!= include('scripts/Sidebar') ?>
+  <?!= include('scripts/Navbar') ?>
+  <?!= include('scripts/Busqueda') ?>
+  <?!= include('scripts/Home') ?>
+  <?!= include('scripts/HotelCarpetas') ?>
+  <?!= include('scripts/ArchivosRender') ?>
+  <?!= include('scripts/ArchivosUpload') ?>
+  <?!= include('scripts/ArchivosCarpeta') ?>
+  <?!= include('scripts/ArchivosCarpetaPermisos') ?>
+  <?!= include('scripts/Perfil') ?>
+  <?!= include('scripts/Apartados') ?>
+  <?!= include('scripts/Favoritos') ?>
+  <?!= include('scripts/Recientes') ?>
+  <?!= include('scripts/Usuarios') ?>
+  <?!= include('scripts/Logs') ?>
+  <?!= include('scripts/Actividad') ?>
+  <?!= include('scripts/GooglePicker') ?>
+  <?!= include('scripts/App') ?>
+
+  <!-- Librería oficial de Google Identity Services (GIS) y Picker API (gapi) -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <script src="https://apis.google.com/js/api.js" async defer></script>
+</body>
+</html>

@@ -1,0 +1,563 @@
+<script>
+  function setupFormListeners() {
+    const loginForm = document.getElementById("loginForm");
+    const registerForm = document.getElementById("registerForm");
+
+    if (loginForm) {
+      loginForm.addEventListener("submit", handleLoginSubmit);
+    }
+    if (registerForm) {
+      registerForm.addEventListener("submit", handleRegisterSubmit);
+    }
+    setupForgotPassword();
+  }
+
+  function setupForgotPassword() {
+    const forgotLinks = document.querySelectorAll(".forgot-password");
+    forgotLinks.forEach(link => {
+      link.addEventListener("click", (e) => {
+        e.preventDefault();
+        abrirPanelRecuperacionContrasena();
+      });
+    });
+  }
+
+  function abrirPanelRecuperacionContrasena() {
+    const emailActual = getInputValue("loginEmail") || "";
+    mostrarPaso1Recuperacion_(emailActual);
+  }
+
+  function mostrarPaso1Recuperacion_(emailPrellenado) {
+    if (typeof abrirPanelLateral !== "function") return;
+
+    abrirPanelLateral({
+      titulo: "Recuperar Contraseña",
+      html:
+        '<div class="nueva-carpeta-form">' +
+          '<p class="verificacion-texto">Ingresa tu correo corporativo (@oxohotel.com) y te enviaremos un código de seguridad de 6 dígitos para restablecer tu contraseña directamente en esta pantalla.</p>' +
+          '<div class="campo-grupo" style="margin-top: 12px;">' +
+            '<label for="inputEmailRecuperar">Correo Electrónico</label>' +
+            '<input type="email" id="inputEmailRecuperar" class="campo-input" placeholder="tu@oxohotel.com" value="' + escaparHtml(emailPrellenado || '') + '">' +
+          '</div>' +
+          '<div class="nueva-carpeta-acciones">' +
+            '<button type="button" class="btn-cancelar" id="btnCancelarRecuperar">Cancelar</button>' +
+            '<button type="button" class="btn-enviar" id="btnConfirmarRecuperar">Enviar Código</button>' +
+          '</div>' +
+        '</div>'
+    });
+
+    const btnCancelar = document.getElementById("btnCancelarRecuperar");
+    const btnConfirmar = document.getElementById("btnConfirmarRecuperar");
+    const inputEmail = document.getElementById("inputEmailRecuperar");
+
+    if (btnCancelar) btnCancelar.addEventListener("click", cerrarPanelLateral);
+    if (inputEmail) {
+      inputEmail.addEventListener("keydown", function (e) {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          if (btnConfirmar) btnConfirmar.click();
+        }
+      });
+      setTimeout(() => inputEmail.focus(), 80);
+    }
+
+    if (btnConfirmar) {
+      btnConfirmar.addEventListener("click", function () {
+        const email = inputEmail ? inputEmail.value.trim().toLowerCase() : "";
+        if (!email || !isValidEmail(email)) {
+          showNotification("Ingresa un correo corporativo válido", "error", 3000);
+          return;
+        }
+
+        btnConfirmar.disabled = true;
+        btnConfirmar.textContent = "Enviando código...";
+
+        google.script.run
+          .withSuccessHandler(function (res) {
+            btnConfirmar.disabled = false;
+            btnConfirmar.textContent = "Enviar Código";
+            if (res && res.success) {
+              showNotification("✅ " + (res.message || "Código enviado a tu correo"), "success", 3500);
+              mostrarPaso2Recuperacion_(email);
+            } else {
+              showNotification(res?.message || "No se pudo procesar la solicitud", "error", 3800);
+            }
+          })
+          .withFailureHandler(function (err) {
+            btnConfirmar.disabled = false;
+            btnConfirmar.textContent = "Enviar Código";
+            console.error("Error solicitando código:", err);
+            showNotification("Error al conectar con el servidor", "error", 3500);
+          })
+          .solicitarCodigoRecuperacion(email);
+      });
+    }
+  }
+
+  function mostrarPaso2Recuperacion_(email) {
+    if (typeof abrirPanelLateral !== "function") return;
+
+    abrirPanelLateral({
+      titulo: "Restablecer Contraseña",
+      html:
+        '<div class="nueva-carpeta-form">' +
+          '<p class="verificacion-texto">' +
+            'Enviamos un código de 6 dígitos a <strong>' + escaparHtml(email) + '</strong>.' +
+            '<br><a href="#" id="linkCambiarEmailRecuperar" style="color: var(--home-accent-gold, #C4972B); font-weight: 700; font-size: 12px; text-decoration: underline; margin-top: 4px; display: inline-block;">Cambiar correo</a>' +
+          '</p>' +
+          '<div class="campo-grupo" style="margin-top: 10px;">' +
+            '<label for="inputCodigoRecuperar">Código de 6 dígitos</label>' +
+            '<input type="text" id="inputCodigoRecuperar" class="campo-input campo-codigo-verificacion" placeholder="123456" maxlength="6" inputmode="numeric" autocomplete="one-time-code">' +
+          '</div>' +
+
+          '<div id="accionesValidarCodigo" class="nueva-carpeta-acciones verificacion-acciones" style="margin-top: 14px;">' +
+            '<button type="button" class="btn-cancelar" id="btnReenviarCodigoRecuperar">Reenviar código</button>' +
+            '<button type="button" class="btn-enviar" id="btnValidarCodigoRecuperar">Validar Código</button>' +
+          '</div>' +
+
+          '<!-- Bloque de nueva contraseña: solo visible tras validar el código correctamente -->' +
+          '<div id="bloqueNuevaPassword" style="display: none; margin-top: 16px; border-top: 1px solid var(--home-border, #E8E3DA); padding-top: 14px;">' +
+            '<div style="background: rgba(46, 125, 50, 0.1); color: #2e7d32; border: 1px solid rgba(46, 125, 50, 0.3); border-radius: 8px; padding: 10px 14px; font-size: 12px; font-weight: 700; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">' +
+              '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>' +
+              'Código verificado. Ahora define tu nueva contraseña:' +
+            '</div>' +
+            '<div class="campo-grupo" style="margin-top: 10px;">' +
+              '<label for="inputNuevaPasswordRecuperar">Nueva Contraseña</label>' +
+              '<div class="campo-password">' +
+                '<input type="password" id="inputNuevaPasswordRecuperar" class="campo-input" placeholder="Mínimo 8 caracteres">' +
+                '<button type="button" class="btn-toggle-password" data-target="inputNuevaPasswordRecuperar" aria-label="Mostrar contraseña">' +
+                  '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>' +
+                '</button>' +
+              '</div>' +
+            '</div>' +
+            '<div class="campo-grupo" style="margin-top: 10px;">' +
+              '<label for="inputConfirmarPasswordRecuperar">Confirmar Nueva Contraseña</label>' +
+              '<div class="campo-password">' +
+                '<input type="password" id="inputConfirmarPasswordRecuperar" class="campo-input" placeholder="Repite tu contraseña">' +
+                '<button type="button" class="btn-toggle-password" data-target="inputConfirmarPasswordRecuperar" aria-label="Mostrar contraseña">' +
+                  '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>' +
+                '</button>' +
+              '</div>' +
+            '</div>' +
+            '<div class="nueva-carpeta-acciones" style="margin-top: 16px;">' +
+              '<button type="button" class="btn-enviar" id="btnRestablecerPassword" style="width: 100%;">Guardar Contraseña</button>' +
+            '</div>' +
+          '</div>' +
+        '</div>'
+    });
+
+    const linkCambiarEmail = document.getElementById("linkCambiarEmailRecuperar");
+    const inputCodigo = document.getElementById("inputCodigoRecuperar");
+    const btnValidar = document.getElementById("btnValidarCodigoRecuperar");
+    const btnReenviar = document.getElementById("btnReenviarCodigoRecuperar");
+    const accionesValidar = document.getElementById("accionesValidarCodigo");
+    const bloqueNuevaPass = document.getElementById("bloqueNuevaPassword");
+    const inputNuevaPassword = document.getElementById("inputNuevaPasswordRecuperar");
+    const inputConfirmarPassword = document.getElementById("inputConfirmarPasswordRecuperar");
+    const btnGuardar = document.getElementById("btnRestablecerPassword");
+
+    if (linkCambiarEmail) {
+      linkCambiarEmail.addEventListener("click", function (e) {
+        e.preventDefault();
+        mostrarPaso1Recuperacion_(email);
+      });
+    }
+
+    // Toggle de contraseña dentro del panel
+    document.querySelectorAll(".panel-lateral .btn-toggle-password").forEach(btn => {
+      btn.addEventListener("click", function (e) {
+        e.preventDefault();
+        const targetId = this.dataset.target;
+        togglePasswordVisibility(targetId, this);
+      });
+    });
+
+    if (inputCodigo) setTimeout(() => inputCodigo.focus(), 80);
+
+    // Reenviar código
+    if (btnReenviar) {
+      btnReenviar.addEventListener("click", function () {
+        btnReenviar.disabled = true;
+        btnReenviar.textContent = "Reenviando...";
+        google.script.run
+          .withSuccessHandler(function (res) {
+            btnReenviar.disabled = false;
+            btnReenviar.textContent = "Reenviar código";
+            if (res && res.success) {
+              showNotification("✅ Código reenviado con éxito", "success", 3000);
+            } else {
+              showNotification(res?.message || "Error al reenviar", "error", 3500);
+            }
+          })
+          .withFailureHandler(function (err) {
+            btnReenviar.disabled = false;
+            btnReenviar.textContent = "Reenviar código";
+            console.error("Error reenviando código:", err);
+            showNotification("Error al reenviar código", "error", 3000);
+          })
+          .solicitarCodigoRecuperacion(email);
+      });
+    }
+
+    // Paso 1: Validar código
+    if (btnValidar) {
+      btnValidar.addEventListener("click", function () {
+        const codigo = inputCodigo ? inputCodigo.value.trim() : "";
+        if (!codigo || codigo.length !== 6) {
+          showNotification("Ingresa el código de 6 dígitos", "error", 3000);
+          if (inputCodigo) inputCodigo.focus();
+          return;
+        }
+
+        btnValidar.disabled = true;
+        btnValidar.textContent = "Validando...";
+
+        google.script.run
+          .withSuccessHandler(function (res) {
+            btnValidar.disabled = false;
+            btnValidar.textContent = "Validar Código";
+            if (res && res.success) {
+              // Código válido: bloquear input de código y mostrar campos de contraseña
+              if (inputCodigo) inputCodigo.disabled = true;
+              if (accionesValidar) accionesValidar.style.display = "none";
+              if (bloqueNuevaPass) bloqueNuevaPass.style.display = "block";
+              showNotification("✅ Código correcto. Ingresa tu nueva contraseña", "success", 3000);
+              if (inputNuevaPassword) setTimeout(() => inputNuevaPassword.focus(), 100);
+            } else {
+              showNotification(res?.message || "Código inválido o vencido", "error", 4000);
+            }
+          })
+          .withFailureHandler(function (err) {
+            btnValidar.disabled = false;
+            btnValidar.textContent = "Validar Código";
+            console.error("Error validando código:", err);
+            showNotification("Error de conexión al validar código", "error", 3500);
+          })
+          .validarCodigoRecuperacion(email, codigo);
+      });
+
+      // Permitir Enter en el input del código
+      inputCodigo?.addEventListener("keydown", function(e) {
+        if (e.key === "Enter" && !inputCodigo.disabled) {
+          btnValidar.click();
+        }
+      });
+    }
+
+    // Paso 2: Guardar nueva contraseña tras validación
+    if (btnGuardar) {
+      btnGuardar.addEventListener("click", function () {
+        const codigo = inputCodigo ? inputCodigo.value.trim() : "";
+        const pass = inputNuevaPassword ? inputNuevaPassword.value : "";
+        const passConf = inputConfirmarPassword ? inputConfirmarPassword.value : "";
+
+        if (!pass || pass.length < 8) {
+          showNotification("La contraseña debe tener al menos 8 caracteres", "error", 3000);
+          if (inputNuevaPassword) inputNuevaPassword.focus();
+          return;
+        }
+
+        if (pass !== passConf) {
+          showNotification("Las contraseñas no coinciden", "error", 3000);
+          if (inputConfirmarPassword) inputConfirmarPassword.focus();
+          return;
+        }
+
+        btnGuardar.disabled = true;
+        btnGuardar.textContent = "Guardando...";
+
+        google.script.run
+          .withSuccessHandler(function (res) {
+            btnGuardar.disabled = false;
+            btnGuardar.textContent = "Guardar Contraseña";
+            if (res && res.success) {
+              cerrarPanelLateral();
+              showNotification(res.message || "¡Contraseña actualizada con éxito!", "success", 4000);
+              if (typeof switchForm === "function") switchForm("login");
+              if (typeof setInputValue === "function") {
+                setInputValue("loginEmail", email);
+                setInputValue("loginPassword", "");
+              }
+              const loginPassInput = document.getElementById("loginPassword");
+              if (loginPassInput) setTimeout(() => loginPassInput.focus(), 150);
+            } else {
+              showNotification(res?.message || "No se pudo actualizar la contraseña", "error", 4000);
+            }
+          })
+          .withFailureHandler(function (err) {
+            btnGuardar.disabled = false;
+            btnGuardar.textContent = "Guardar Contraseña";
+            console.error("Error restableciendo contraseña:", err);
+            showNotification("Error al actualizar la contraseña", "error", 3500);
+          })
+          .restablecerPasswordConCodigo(email, codigo, pass);
+      });
+
+      inputConfirmarPassword?.addEventListener("keydown", function(e) {
+        if (e.key === "Enter") btnGuardar.click();
+      });
+    }
+  }
+
+  function setupCarouselNavigation() {
+    const switchLinks = document.querySelectorAll(".link-switch");
+    switchLinks.forEach(link => {
+      link.addEventListener("click", (e) => {
+        e.preventDefault();
+        const form = link.dataset.form;
+        switchForm(form);
+      });
+    });
+  }
+
+  function setupPasswordToggle() {
+    const toggleButtons = document.querySelectorAll(".toggle-password");
+    toggleButtons.forEach(button => {
+      button.addEventListener("click", (e) => {
+        e.preventDefault();
+        const targetId = button.dataset.target;
+        togglePasswordVisibility(targetId, button);
+      });
+    });
+  }
+
+  function setupRealTimeValidation() {
+    const loginEmail = document.getElementById("loginEmail");
+    if (loginEmail) {
+      loginEmail.addEventListener("blur", () => {
+        const email = getInputValue("loginEmail");
+        if (email && !isValidEmail(email)) {
+          showError("loginEmail", "loginEmailError", "Email inválido");
+        } else {
+          clearError("loginEmail", "loginEmailError");
+        }
+      });
+    }
+
+    const registerEmail = document.getElementById("registerEmail");
+    if (registerEmail) {
+      registerEmail.addEventListener("blur", () => {
+        const email = getInputValue("registerEmail");
+        if (email && !isValidEmail(email)) {
+          showError("registerEmail", "registerEmailError", "Email inválido");
+        } else {
+          clearError("registerEmail", "registerEmailError");
+        }
+      });
+    }
+
+    const registerPassword = document.getElementById("registerPassword");
+    if (registerPassword) {
+      registerPassword.addEventListener("blur", () => {
+        const password = getInputValue("registerPassword");
+        if (password) {
+          const validation = isValidPassword(password);
+          if (!validation.isValid) {
+            showError("registerPassword", "registerPasswordError", validation.message);
+          } else {
+            clearError("registerPassword", "registerPasswordError");
+          }
+        }
+      });
+    }
+
+    const registerPasswordConfirm = document.getElementById("registerPasswordConfirm");
+    if (registerPasswordConfirm) {
+      registerPasswordConfirm.addEventListener("blur", () => {
+        const password = getInputValue("registerPassword");
+        const passwordConfirm = getInputValue("registerPasswordConfirm");
+        if (passwordConfirm && !passwordsMatch(password, passwordConfirm)) {
+          showError("registerPasswordConfirm", "registerPasswordConfirmError", "Las contraseñas no coinciden");
+        } else {
+          clearError("registerPasswordConfirm", "registerPasswordConfirmError");
+        }
+      });
+    }
+  }
+
+  async function handleLoginSubmit(e) {
+    e.preventDefault();
+    clearAllErrors("loginForm");
+
+    const email = getInputValue("loginEmail");
+    const password = getInputValue("loginPassword");
+
+    let hasErrors = false;
+
+    if (!email) {
+      showError("loginEmail", "loginEmailError", "El email es requerido");
+      hasErrors = true;
+    } else if (!isValidEmail(email)) {
+      showError("loginEmail", "loginEmailError", "Email inválido");
+      hasErrors = true;
+    }
+
+    if (!password) {
+      showError("loginPassword", "loginPasswordError", "La contraseña es requerida");
+      hasErrors = true;
+    }
+
+    if (hasErrors) return;
+
+    setButtonEnabled("loginBtn", false);
+    const originalText = document.getElementById("loginBtn").textContent;
+
+    // Mostrar pantalla de carga inmediatamente
+    mostrarLoadingScreen();
+
+    const result = await loginUser(email, password);
+
+    if (result.success) {
+      saveUserSession(result.user);
+      logLoginAction(result.user.ID_Usuario, email);
+
+      // Esperar 2.5 segundos con el loading visible, luego transicionar
+      setTimeout(() => {
+        // Ocultamos vistaAuth inmediatamente para que no aparezca debajo del loading
+        const vistaAuth = document.getElementById("vistaAuth");
+        if (vistaAuth) vistaAuth.classList.add("oculto");
+
+        // Mostrar home
+        mostrarVistaHome();
+
+        // Finalmente ocultar loading screen
+        setTimeout(() => {
+          ocultarLoadingScreen();
+          showNotification(`¡Bienvenido ${result.user.Nombre_Completo}!`, "success", 2000);
+        }, 200);
+      }, 2500);
+    } else {
+      ocultarLoadingScreen();
+      showError("loginEmail", "loginEmailError", result.message);
+      setButtonEnabled("loginBtn", true);
+      setButtonText("loginBtn", originalText);
+
+      if (result.requiereVerificacion && typeof abrirPanelVerificacion === "function") {
+        abrirPanelVerificacion(email);
+      }
+    }
+  }
+
+  async function handleRegisterSubmit(e) {
+    e.preventDefault();
+    clearAllErrors("registerForm");
+
+    const nombre = getInputValue("registerName");
+    const email = getInputValue("registerEmail");
+    const password = getInputValue("registerPassword");
+    const passwordConfirm = getInputValue("registerPasswordConfirm");
+
+    let hasErrors = false;
+
+    if (!nombre) {
+      showError("registerName", "registerNameError", "El nombre es requerido");
+      hasErrors = true;
+    } else if (!isValidName(nombre)) {
+      showError("registerName", "registerNameError", "El nombre debe tener al menos 3 caracteres");
+      hasErrors = true;
+    }
+
+    if (!email) {
+      showError("registerEmail", "registerEmailError", "El email es requerido");
+      hasErrors = true;
+    } else if (!isValidEmail(email)) {
+      showError("registerEmail", "registerEmailError", "Email inválido");
+      hasErrors = true;
+    }
+
+    if (!password) {
+      showError("registerPassword", "registerPasswordError", "La contraseña es requerida");
+      hasErrors = true;
+    } else {
+      const passwordValidation = isValidPassword(password);
+      if (!passwordValidation.isValid) {
+        showError("registerPassword", "registerPasswordError", passwordValidation.message);
+        hasErrors = true;
+      }
+    }
+
+    if (!passwordConfirm) {
+      showError("registerPasswordConfirm", "registerPasswordConfirmError", "Debe confirmar la contraseña");
+      hasErrors = true;
+    } else if (!passwordsMatch(password, passwordConfirm)) {
+      showError("registerPasswordConfirm", "registerPasswordConfirmError", "Las contraseñas no coinciden");
+      hasErrors = true;
+    }
+
+    if (hasErrors) return;
+
+    setButtonEnabled("registerBtn", false);
+    const originalText = document.getElementById("registerBtn").textContent;
+    setButtonText("registerBtn", "Registrando...");
+
+    const result = await registerUser({ nombre, email, password });
+
+    if (result.success) {
+      logRegisterAction(result.userId, email);
+      document.getElementById("registerForm").reset();
+      clearAllErrors("registerForm");
+      showNotification(result.message, "success", 3000);
+      setButtonEnabled("registerBtn", true);
+      setButtonText("registerBtn", originalText);
+
+      if (result.requiereVerificacion && typeof abrirPanelVerificacion === "function") {
+        // El panel de verificación se abre encima de la vista de login (más natural que
+        // quedarse en el formulario de registro ya vacío).
+        switchForm("login");
+        abrirPanelVerificacion(email);
+      } else {
+        setTimeout(() => {
+          switchForm("login");
+          setInputValue("loginEmail", email);
+        }, 2000);
+      }
+    } else {
+      if (result.message.toLowerCase().includes("email")) {
+        showError("registerEmail", "registerEmailError", result.message);
+      } else if (result.message.toLowerCase().includes("contraseña")) {
+        showError("registerPassword", "registerPasswordError", result.message);
+      } else {
+        showNotification(result.message, "error", 4000);
+      }
+
+      setButtonEnabled("registerBtn", true);
+      setButtonText("registerBtn", originalText);
+    }
+  }
+
+  function switchForm(form) {
+    const carousel = document.getElementById("formCarousel");
+    const container = document.querySelector(".auth-container");
+    const loginForm = carousel.querySelector(".login-form");
+    const registerForm = carousel.querySelector(".register-form");
+
+    if (form === "login") {
+      loginForm.classList.add("active");
+      registerForm.classList.remove("active");
+      // Deslizar a login
+      container.classList.remove("carousel-register");
+      container.classList.add("carousel-login");
+    } else if (form === "register") {
+      loginForm.classList.remove("active");
+      registerForm.classList.add("active");
+      // Deslizar a register
+      container.classList.remove("carousel-login");
+      container.classList.add("carousel-register");
+    }
+
+    clearAllErrors("loginForm");
+    clearAllErrors("registerForm");
+  }
+
+  function togglePasswordVisibility(inputId, buttonEl) {
+    const input = document.getElementById(inputId);
+    if (!input) return;
+
+    const isPassword = input.type === "password";
+    input.type = isPassword ? "text" : "password";
+
+    if (buttonEl) {
+      buttonEl.style.opacity = isPassword ? "0.7" : "1";
+    }
+  }
+</script>

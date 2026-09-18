@@ -1,0 +1,227 @@
+<script>
+  // ==========================================================================
+  // ArchivosRender.html - Módulo de Renderizado y Formato Visual
+  // ==========================================================================
+
+  var ICONOS_ARCHIVO_BASE_URL = 'https://acabrales-oxohotel.github.io/repo-imagenes/file-icons/';
+  var ICONOS_ARCHIVO_DISPONIBLES = ['css', 'doc', 'gif', 'html', 'jpg', 'js', 'mp3', 'pdf', 'php', 'png', 'ppt', 'sql', 'svg', 'txt', 'xls', 'xml', 'zip'];
+  var ICONOS_ARCHIVO_ALIAS = { docx: 'doc', xlsx: 'xls', pptx: 'ppt', jpeg: 'jpg', htm: 'html', rar: 'zip', '7z': 'zip' };
+
+  var TIPO_DOCUMENTO_POR_EXTENSION = {
+    pdf: 'PDF', doc: 'Word', docx: 'Word', xls: 'Excel', xlsx: 'Excel',
+    ppt: 'PowerPoint', pptx: 'PowerPoint', png: 'Imagen', jpg: 'Imagen', jpeg: 'Imagen',
+    gif: 'Imagen', svg: 'Imagen', txt: 'Texto', zip: 'Comprimido', rar: 'Comprimido', '7z': 'Comprimido',
+    mp3: 'Audio', html: 'Código', htm: 'Código', css: 'Código', js: 'Código', php: 'Código',
+    sql: 'Código', xml: 'Código'
+  };
+
+  function formatearTamaño(bytes) {
+    if (!bytes || bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
+  }
+  var formatearTamano = formatearTamaño;
+  window.formatearTamano = formatearTamaño;
+  window.formatearTamaño = formatearTamaño;
+
+  function extensionDeArchivo(nombreOExtension) {
+    const valor = String(nombreOExtension || '').toLowerCase().trim();
+    if (valor.indexOf('.') !== -1) {
+      return valor.split('.').pop();
+    }
+    if (valor.length <= 4 && (ICONOS_ARCHIVO_DISPONIBLES.indexOf(valor) !== -1 || ICONOS_ARCHIVO_ALIAS[valor])) {
+      return valor;
+    }
+    if (valor.startsWith('bd') || valor.includes('sheet') || valor.includes('excel') || valor.includes('tabla') || valor.includes('presupuesto')) return 'xls';
+    if (valor.includes('presentacion') || valor.includes('slide') || valor.includes('powerpoint')) return 'ppt';
+    if (valor.includes('pdf')) return 'pdf';
+    return 'doc';
+  }
+
+  function iconoArchivoUrl(nombreOExtension) {
+    const ext = extensionDeArchivo(nombreOExtension);
+    const base = ICONOS_ARCHIVO_ALIAS[ext] || ext;
+    const nombreIcono = ICONOS_ARCHIVO_DISPONIBLES.indexOf(base) !== -1 ? base : 'doc';
+    return ICONOS_ARCHIVO_BASE_URL + nombreIcono + '.png';
+  }
+
+  function tipoDocumentoPorExtension(nombreOExtension) {
+    const ext = extensionDeArchivo(nombreOExtension);
+    return TIPO_DOCUMENTO_POR_EXTENSION[ext] || 'Otro';
+  }
+
+  function cambiarVistaArchivos() {
+    const grid = document.getElementById('archivosGrid');
+    if (!grid) return;
+
+    grid.classList.remove('archivos-vista-tarjetas', 'archivos-vista-filas');
+    grid.classList.add('archivos-vista-' + estadoArchivosCarpeta.vistaActual);
+
+    const encabezado = document.getElementById('archivosListaEncabezado');
+    if (encabezado) encabezado.classList.toggle('oculto', estadoArchivosCarpeta.vistaActual !== 'filas');
+
+    renderizarContenidoCarpeta();
+  }
+
+  function renderizarContenidoCarpeta() {
+    const grid = document.getElementById('archivosGrid');
+    if (!grid) return;
+
+    const filtro = (estadoArchivosCarpeta.filtro || '').toLowerCase();
+    const subcarpetasFiltradas = estadoArchivosCarpeta.subcarpetas.filter(function (c) {
+      return c.nombre.toLowerCase().includes(filtro);
+    });
+    const archivosFiltrados = estadoArchivosCarpeta.archivos.filter(function (archivo) {
+      return archivo.nombre.toLowerCase().includes(filtro);
+    });
+
+    if (subcarpetasFiltradas.length === 0 && archivosFiltrados.length === 0) {
+      mostrarVacioArchivos();
+      return;
+    }
+
+    const claseVista = estadoArchivosCarpeta.vistaActual === 'filas' ? 'vista-filas' : '';
+
+    const htmlSubcarpetas = subcarpetasFiltradas.map(function (carpeta) {
+      const botonFavorito = typeof botonFavoritoHtml === 'function' ? botonFavoritoHtml('Carpeta', carpeta.id) : '';
+      const tamanoTexto = formatearTamaño(carpeta.tamanoTotal || 0);
+      const fechaTexto = carpeta.fechaUltimaActividad
+        ? new Date(carpeta.fechaUltimaActividad).toLocaleDateString('es-ES', { year: 'numeric', month: 'short', day: 'numeric' })
+        : 'Sin actividad';
+
+      return '<div class="archivo-card carpeta-en-explorador ' + claseVista + '" data-carpeta-id="' + carpeta.id + '">' +
+        '<svg class="archivo-icon carpeta-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M20 6h-8l-2-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2z"/></svg>' +
+        '<div class="archivo-nombre">' + escaparHtml(carpeta.nombre) + '</div>' +
+        '<div class="archivo-col-fecha">' + fechaTexto + '</div>' +
+        '<div class="archivo-col-tamano">' + tamanoTexto + '</div>' +
+        '<div class="archivo-col-acciones">' + botonFavorito + botonesGestionCarpetaHtml(carpeta.id) + '</div>' +
+      '</div>';
+    }).join('');
+
+    const htmlArchivos = archivosFiltrados.map(function(archivo) {
+      const fecha = new Date(archivo.fecha);
+      const fechaFormato = fecha.toLocaleDateString('es-ES', { year: 'numeric', month: 'short', day: 'numeric' });
+      const tamanoTexto = formatearTamaño(archivo.tamano || 0);
+
+      const botonFavorito = typeof botonFavoritoHtml === 'function' ? botonFavoritoHtml('Archivo', archivo.id) : '';
+      const iconoUrl = iconoArchivoUrl(archivo.extension || archivo.nombre);
+
+      return '<div class="archivo-card ' + claseVista + '" data-archivo-id="' + archivo.id + '">' +
+        '<img class="archivo-icon" src="' + iconoUrl + '" alt="' + extensionDeArchivo(archivo.nombre) + '">' +
+        '<div class="archivo-nombre">' + escaparHtml(archivo.nombre) + '</div>' +
+        '<div class="archivo-col-fecha">' + fechaFormato + '</div>' +
+        '<div class="archivo-col-tamano">' + tamanoTexto + '</div>' +
+        '<div class="archivo-col-acciones">' + botonFavorito + '<button class="archivo-menu" data-archivo-id="' + archivo.id + '" title="Ver en Drive"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></button>' + botonesGestionArchivoHtml(archivo.id) + '</div>' +
+      '</div>';
+    }).join('');
+
+    grid.innerHTML = htmlSubcarpetas + htmlArchivos;
+
+    // Vincular clicks a carpetas
+    grid.querySelectorAll('.carpeta-en-explorador').forEach(function (card) {
+      card.addEventListener('click', function (e) {
+        if (e.target.closest('.btn-favorito') || e.target.closest('.btn-gestion-carpeta')) return;
+        const carpeta = estadoArchivosCarpeta.subcarpetas.find(function (c) { return String(c.id) === card.dataset.carpetaId; });
+        if (carpeta && typeof entrarSubcarpeta === 'function') entrarSubcarpeta(carpeta);
+      });
+    });
+
+    // Vincular clicks a archivos
+    grid.querySelectorAll('.archivo-card:not(.carpeta-en-explorador)').forEach(function(card) {
+      card.addEventListener('click', function(e) {
+        if (e.target.closest('.btn-favorito') || e.target.closest('.archivo-menu') || e.target.closest('.btn-gestion-carpeta')) return;
+        const archivo = estadoArchivosCarpeta.archivos.find(function(a) { return String(a.id) === card.dataset.archivoId; });
+        if (archivo) abrirPreviewArchivo(archivo);
+      });
+    });
+
+    // Vincular apertura directa de Drive
+    grid.querySelectorAll('.archivo-menu').forEach(function(btn) {
+      btn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        const archivo = estadoArchivosCarpeta.archivos.find(function(a) { return String(a.id) === btn.dataset.archivoId; });
+        if (archivo) window.open(archivo.driveUrl, '_blank', 'noopener');
+
+        const user = getCurrentUserSession();
+        if (user && btn.dataset.archivoId && typeof registrarActividadSilenciosa === 'function') {
+          registrarActividadSilenciosa(user.ID_Usuario, 'Archivo', btn.dataset.archivoId, 'Abrió');
+        }
+      });
+    });
+
+    // Vincular botones de gestión (renombrar / eliminar)
+    if (estadoArchivosCarpeta.ruta && estadoArchivosCarpeta.ruta.length > 0) {
+      const idCarpetaVigente = estadoArchivosCarpeta.ruta[estadoArchivosCarpeta.ruta.length - 1].id;
+      if (typeof vincularBotonesGestionCarpeta === 'function') {
+        vincularBotonesGestionCarpeta(
+          grid,
+          function (idCarpeta) {
+            const carpeta = estadoArchivosCarpeta.subcarpetas.find(function (c) { return String(c.id) === idCarpeta; });
+            return carpeta ? carpeta.nombre : '';
+          },
+          function () { cargarContenidoCarpeta(idCarpetaVigente); }
+        );
+      }
+
+      if (typeof vincularBotonesGestionArchivo === 'function') {
+        vincularBotonesGestionArchivo(
+          grid,
+          function (idArchivo) {
+            return estadoArchivosCarpeta.archivos.find(function (a) { return String(a.id) === idArchivo; });
+          },
+          function () { cargarContenidoCarpeta(idCarpetaVigente); }
+        );
+      }
+    }
+  }
+
+  function abrirPreviewArchivo(archivo) {
+    const user = getCurrentUserSession();
+    if (user && typeof registrarActividadSilenciosa === 'function') {
+      registrarActividadSilenciosa(user.ID_Usuario, 'Archivo', archivo.id, 'Abrió');
+    }
+
+    const previewSrc = 'https://drive.google.com/file/d/' + archivo.driveFileId + '/preview';
+    const extension = extensionDeArchivo(archivo.nombre);
+    const iconoUrl = iconoArchivoUrl(extension);
+    const fecha = archivo.fecha ? new Date(archivo.fecha).toLocaleDateString('es-ES', { year: 'numeric', month: 'short', day: 'numeric' }) : '';
+
+    abrirPanelLateral({
+      titulo: 'Vista previa',
+      ancho: 'grande',
+      html:
+        '<div class="preview-archivo">' +
+          '<div class="preview-archivo-encabezado">' +
+            '<img class="preview-archivo-icono" src="' + iconoUrl + '" alt="">' +
+            '<div class="preview-archivo-info">' +
+              '<p class="preview-archivo-nombre">' + escaparHtml(archivo.nombre) + '</p>' +
+              '<p class="preview-archivo-meta">' + extension.toUpperCase() + (fecha ? ' &bull; ' + fecha : '') + '</p>' +
+            '</div>' +
+          '</div>' +
+          '<div class="preview-archivo-frame-wrap">' +
+            '<iframe class="preview-archivo-frame" src="' + previewSrc + '" allow="autoplay"></iframe>' +
+          '</div>' +
+          '<a class="preview-archivo-drive" href="' + archivo.driveUrl + '" target="_blank" rel="noopener">' +
+            '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>' +
+            'Abrir en Drive' +
+          '</a>' +
+        '</div>'
+    });
+  }
+
+  function mostrarVacioArchivos() {
+    const grid = document.getElementById('archivosGrid');
+    if (grid) {
+      grid.innerHTML = '<div class="archivos-vacia"><svg class="archivos-vacia-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2h8l4 4v12H6z"/><line x1="10" y1="9" x2="14" y2="9"/><line x1="10" y1="13" x2="14" y2="13"/></svg><h3>No hay nada aquí todavía</h3><p>Crea una carpeta o sube un archivo con los botones de arriba</p></div>';
+    }
+  }
+
+  function mostrarLoadingArchivos() {
+    const grid = document.getElementById('archivosGrid');
+    if (grid) {
+      grid.innerHTML = '<div class="archivo-skeleton"></div><div class="archivo-skeleton"></div><div class="archivo-skeleton"></div><div class="archivo-skeleton"></div>';
+    }
+  }
+</script>

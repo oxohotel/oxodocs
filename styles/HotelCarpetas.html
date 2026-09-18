@@ -1,0 +1,511 @@
+<style>
+/* ==================== HOTEL CARPETAS ==================== */
+
+.hotel-carpetas-container {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  width: 100%;
+  max-width: 100%;
+  animation: fadeInUp 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Header con controles */
+.hotel-carpetas-header {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.hotel-carpetas-titulo h2 {
+  font-size: 26px;
+  font-weight: 800;
+  color: var(--home-text);
+  margin: 0;
+  line-height: 1.25;
+  letter-spacing: -0.4px;
+}
+
+.hotel-carpetas-controles {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+}
+
+.hotel-carpetas-controles .btn-nueva-carpeta {
+  margin-left: auto;
+}
+
+/* Buscador */
+.buscador-carpetas {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--home-card-bg);
+  border: 1px solid var(--home-border);
+  border-radius: 12px;
+  padding: 0 16px;
+  height: 42px;
+  box-sizing: border-box;
+  flex: 1;
+  min-width: 260px;
+  max-width: 440px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.buscador-carpetas:focus-within {
+  border-color: var(--home-accent-gold);
+  box-shadow: 0 0 0 3px var(--home-accent-gold-glow);
+}
+
+.buscador-carpetas svg {
+  color: var(--home-text-muted);
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+}
+
+.input-buscar-carpetas {
+  flex: 1;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--home-text);
+  height: 100%;
+}
+
+.input-buscar-carpetas::placeholder {
+  color: var(--home-text-muted);
+}
+
+/* Opciones de vista */
+.vista-options {
+  display: flex;
+  gap: 4px;
+  background: var(--home-card-bg-subtle);
+  border: 1px solid var(--home-border);
+  border-radius: 12px;
+  padding: 3px;
+  height: 42px;
+  box-sizing: border-box;
+  align-items: center;
+}
+
+.vista-btn {
+  background: transparent;
+  border: none;
+  height: 34px;
+  padding: 0 12px;
+  box-sizing: border-box;
+  cursor: pointer;
+  color: var(--home-text-muted);
+  border-radius: 8px;
+  transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.vista-btn:hover {
+  color: var(--home-text);
+  background: var(--home-card-bg);
+}
+
+.vista-btn-activo {
+  background: var(--home-card-bg);
+  color: var(--home-accent-gold);
+  font-weight: 700;
+  box-shadow: var(--home-shadow);
+}
+
+/* Contenido de carpetas */
+.hotel-carpetas-content {
+  flex: 1;
+}
+
+/* Grid de carpetas */
+.carpetas-grid {
+  display: grid;
+  gap: 18px;
+  animation: fadeInUp 0.45s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.carpetas-vista-tarjetas {
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+}
+
+.carpetas-vista-filas {
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+.carpetas-lista-encabezado {
+  display: grid;
+  grid-template-columns: 44px minmax(180px, 1fr) 120px 100px 130px 110px;
+  gap: 16px;
+  padding: 0 20px 8px;
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--home-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Tarjeta de carpeta / Área Corporativa */
+.carpeta-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 20px 16px 16px;
+  background: var(--home-card-bg);
+  border: 1px solid var(--home-border);
+  border-radius: 20px;
+  cursor: pointer;
+  transition: transform 0.24s cubic-bezier(0.4, 0, 0.2, 1), 
+              box-shadow 0.24s ease, 
+              border-color 0.24s ease;
+  position: relative;
+  height: 180px;
+  box-sizing: border-box;
+  justify-content: flex-start;
+  box-shadow: var(--home-shadow);
+}
+
+.carpeta-card:hover {
+  border-color: var(--home-accent-gold);
+  box-shadow: var(--home-shadow-md), 0 8px 24px var(--home-accent-gold-glow);
+  transform: translateY(-4px);
+}
+
+.carpetas-vista-tarjetas .carpeta-card {
+  animation: fadeInUp 0.35s cubic-bezier(0.4, 0, 0.2, 1) backwards;
+}
+
+.carpetas-vista-tarjetas .carpeta-card:nth-child(1) { animation-delay: 0.02s; }
+.carpetas-vista-tarjetas .carpeta-card:nth-child(2) { animation-delay: 0.04s; }
+.carpetas-vista-tarjetas .carpeta-card:nth-child(3) { animation-delay: 0.06s; }
+.carpetas-vista-tarjetas .carpeta-card:nth-child(4) { animation-delay: 0.08s; }
+.carpetas-vista-tarjetas .carpeta-card:nth-child(5) { animation-delay: 0.1s; }
+.carpetas-vista-tarjetas .carpeta-card:nth-child(6) { animation-delay: 0.12s; }
+.carpetas-vista-tarjetas .carpeta-card:nth-child(n+7) { animation-delay: 0.14s; }
+
+/* Emblema visual unificado en dorado corporativo */
+.area-emblem {
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 12px;
+  background: var(--home-accent-gold-light);
+  color: var(--home-accent-gold);
+  border: 1px solid rgba(196, 151, 43, 0.25);
+  box-shadow: 0 4px 12px var(--home-accent-gold-light);
+  flex-shrink: 0;
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.25s ease, background 0.25s ease;
+}
+
+.area-emblem svg {
+  width: 26px;
+  height: 26px;
+}
+
+.carpeta-card:hover .area-emblem {
+  transform: scale(1.12) translateY(-2px);
+  background: var(--home-accent-gold);
+  color: #FFFFFF;
+  box-shadow: 0 6px 18px var(--home-accent-gold-glow);
+}
+
+.area-tag-badge {
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  margin-top: 6px;
+  white-space: nowrap;
+  line-height: 1;
+  color: var(--home-text-muted);
+  background: var(--home-card-bg-subtle);
+  border: 1px solid var(--home-border);
+  transition: color 0.2s ease, border-color 0.2s ease;
+}
+
+.carpeta-card:hover .area-tag-badge {
+  color: var(--home-accent-gold);
+  border-color: rgba(196, 151, 43, 0.3);
+}
+
+.carpeta-nombre {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--home-text);
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  word-break: break-word;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  line-height: 1.35;
+}
+
+.carpeta-col-elementos,
+.carpeta-col-tamano,
+.carpeta-col-fecha {
+  display: none;
+}
+
+.carpeta-col-acciones {
+  display: contents;
+}
+
+/* Vista de filas */
+.carpeta-card.vista-filas {
+  display: grid;
+  grid-template-columns: 44px minmax(180px, 1fr) 120px 100px 130px 110px;
+  align-items: center;
+  text-align: left;
+  gap: 16px;
+  height: 60px;
+  padding: 0 20px;
+  border-radius: 14px;
+  flex-direction: row;
+}
+
+.carpeta-card.vista-filas:hover {
+  transform: translateX(4px);
+  border-color: var(--area-color, var(--home-accent-gold));
+  box-shadow: var(--home-shadow-md);
+}
+
+.carpeta-card.vista-filas .area-emblem {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  margin-bottom: 0;
+}
+
+.carpeta-card.vista-filas .area-emblem svg {
+  width: 18px;
+  height: 18px;
+}
+
+.carpeta-card.vista-filas .carpeta-nombre {
+  display: block;
+  text-align: left;
+  justify-content: flex-start;
+  height: auto;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--home-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  -webkit-line-clamp: unset;
+  line-height: normal;
+}
+
+.carpeta-card.vista-filas .area-tag-badge {
+  margin-top: 0;
+  display: inline-block;
+}
+
+.carpeta-card.vista-filas .carpeta-col-elementos,
+.carpeta-card.vista-filas .carpeta-col-tamano,
+.carpeta-card.vista-filas .carpeta-col-fecha {
+  display: block;
+  font-size: 13px;
+  color: var(--home-text-muted);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.carpeta-card.vista-filas .carpeta-col-acciones {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.carpeta-card.vista-filas:hover {
+  transform: translateX(4px);
+}
+
+.carpeta-card.vista-filas .carpeta-nombre {
+  -webkit-line-clamp: 1;
+  font-size: 14px;
+  margin-bottom: 0;
+}
+
+.carpeta-card.vista-filas .carpeta-icon {
+  width: 32px;
+  height: 32px;
+  margin-bottom: 0;
+  flex-shrink: 0;
+}
+
+.carpeta-card.vista-filas .carpeta-col-elementos,
+.carpeta-card.vista-filas .carpeta-col-tamano,
+.carpeta-card.vista-filas .carpeta-col-fecha {
+  display: block;
+  font-size: 12px;
+  color: var(--home-text-muted);
+}
+
+.carpeta-card.vista-filas .carpeta-col-acciones {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.carpeta-menu {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: transparent;
+  border: none;
+  color: var(--home-text-muted);
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 6px;
+  opacity: 0;
+  transition: all 0.15s ease;
+}
+
+.carpeta-card:hover .carpeta-menu {
+  opacity: 1;
+}
+
+.carpeta-menu:hover {
+  color: var(--home-accent-gold);
+  background: var(--home-bg);
+}
+
+.carpeta-card.vista-filas .carpeta-menu {
+  position: static;
+  opacity: 1;
+}
+
+/* Skeleton loading */
+.carpeta-skeleton {
+  padding: 22px 18px;
+  background: var(--home-card-bg);
+  border: 1px solid var(--home-border);
+  border-radius: 16px;
+  height: 160px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.carpeta-skeleton::before {
+  content: '';
+  width: 52px;
+  height: 52px;
+  background: linear-gradient(90deg, var(--home-border) 0%, var(--home-bg) 50%, var(--home-border) 100%);
+  border-radius: 12px;
+}
+
+.carpeta-skeleton::after {
+  content: '';
+  width: 80%;
+  height: 12px;
+  background: linear-gradient(90deg, var(--home-border) 0%, var(--home-bg) 50%, var(--home-border) 100%);
+  border-radius: 6px;
+}
+
+/* Vista vacía */
+.carpetas-vacia {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 60px 40px;
+  color: var(--home-text-muted);
+}
+
+.carpetas-vacia-icon {
+  width: 72px;
+  height: 72px;
+  margin: 0 auto 16px;
+  opacity: 0.35;
+  color: var(--home-text-muted);
+}
+
+.carpetas-vacia h3 {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--home-text);
+  margin-bottom: 8px;
+}
+
+.carpetas-vacia p {
+  font-size: 13px;
+  color: var(--home-text-muted);
+  margin-bottom: 20px;
+}
+
+/* Animaciones */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .hotel-carpetas-container {
+    gap: 18px;
+  }
+
+  .hotel-carpetas-titulo h2 {
+    font-size: 22px;
+  }
+
+  .hotel-carpetas-controles {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .buscador-carpetas {
+    min-width: auto;
+    max-width: none;
+  }
+
+  .vista-options {
+    align-self: flex-start;
+  }
+
+  .carpetas-vista-tarjetas {
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  }
+
+  .carpeta-card {
+    height: 140px;
+  }
+}
+</style>

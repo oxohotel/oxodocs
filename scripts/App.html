@@ -1,0 +1,43 @@
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    inicializarApp();
+  });
+
+  function inicializarApp() {
+    setupFormListeners();
+    setupCarouselNavigation();
+    setupPasswordToggle();
+    setupRealTimeValidation();
+
+    inicializarSidebar();
+    inicializarNavbar();
+    inicializarBusquedaGlobal();
+    aplicarTemaGuardado();
+
+    if (isUserLoggedIn()) {
+      mostrarVistaHome();
+    } else {
+      mostrarVistaAuth();
+    }
+  }
+
+  function mostrarVistaAuth() {
+    const vistaHome = document.getElementById("vistaHome");
+    const vistaAuth = document.getElementById("vistaAuth");
+    if (vistaHome) vistaHome.classList.add("oculto");
+    if (vistaAuth) vistaAuth.classList.remove("oculto");
+  }
+
+  function mostrarVistaHome() {
+    const vistaAuth = document.getElementById("vistaAuth");
+    const vistaHome = document.getElementById("vistaHome");
+    if (vistaAuth) vistaAuth.classList.add("oculto");
+    if (vistaHome) vistaHome.classList.remove("oculto");
+    iniciarVistaHome();
+  }
+
+  // Usada por AuthView tras un login exitoso.
+  function redirectToMainApp() {
+    mostrarVistaHome();
+  }
+</script>

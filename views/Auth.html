@@ -1,0 +1,192 @@
+<div class="auth-container">
+  <!-- Lado Izquierdo - Ilustración y Descripción -->
+  <div class="auth-left">
+    <div class="auth-illustration">
+      <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+        <!-- Base/Mesa -->
+        <rect x="40" y="140" width="120" height="8" fill="#c6c6c6" rx="2"/>
+        <rect x="45" y="100" width="15" height="45" fill="#c6c6c6"/>
+        <rect x="140" y="100" width="15" height="45" fill="#c6c6c6"/>
+
+        <!-- Carpeta -->
+        <rect x="50" y="70" width="100" height="60" fill="#49677a" rx="5"/>
+        <rect x="50" y="65" width="30" height="8" fill="#49677a" rx="3"/>
+
+        <!-- Líneas de documento -->
+        <line x1="65" y1="85" x2="130" y2="85" stroke="#FFFFFF" stroke-width="2"/>
+        <line x1="65" y1="100" x2="130" y2="100" stroke="#FFFFFF" stroke-width="2"/>
+        <line x1="65" y1="115" x2="120" y2="115" stroke="#FFFFFF" stroke-width="2"/>
+
+        <!-- Hojas decorativas izquierda -->
+        <ellipse cx="35" cy="90" rx="8" ry="15" fill="#5f6d5f" transform="rotate(-30 35 90)"/>
+        <ellipse cx="30" cy="75" rx="7" ry="12" fill="#49677a" transform="rotate(-45 30 75)"/>
+        <ellipse cx="25" cy="105" rx="6" ry="10" fill="#c19528" transform="rotate(-20 25 105)"/>
+      </svg>
+    </div>
+    <h2 class="auth-title">¡Acceda a su Portal de Documentos Digitales!</h2>
+    <p class="auth-description">Inicie sesión para gestionar todos sus contratos, informes y flujos de trabajo en un solo lugar.</p>
+  </div>
+
+  <!-- Lado Derecho - Formularios (Carrusel) -->
+  <div class="auth-right">
+    <div class="form-carousel" id="formCarousel">
+      <!-- Formulario de Login -->
+      <div class="form-container login-form active">
+        <h3 class="form-title">Iniciar Sesión</h3>
+
+        <form id="loginForm" class="auth-form">
+          <div class="form-group">
+            <label for="loginEmail" class="form-label">Correo Electrónico</label>
+            <div class="input-icon-wrapper">
+              <span class="input-leading-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v16H4z" opacity="0"/><path d="M22 6l-10 7L2 6"/><rect x="2" y="4" width="20" height="16" rx="2"/></svg>
+              </span>
+              <input
+                type="email"
+                id="loginEmail"
+                class="form-input"
+                placeholder="tu@oxohotel.com"
+                required
+              >
+            </div>
+            <span class="error-message" id="loginEmailError"></span>
+          </div>
+
+          <div class="form-group">
+            <label for="loginPassword" class="form-label">Contraseña</label>
+            <div class="password-input-wrapper">
+              <span class="input-leading-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+              </span>
+              <input
+                type="password"
+                id="loginPassword"
+                class="form-input"
+                placeholder="Ingresa tu contraseña"
+                required
+              >
+              <button type="button" class="toggle-password" data-target="loginPassword" aria-label="Mostrar u ocultar contraseña">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                  <circle cx="12" cy="12" r="3"></circle>
+                </svg>
+              </button>
+            </div>
+            <span class="error-message" id="loginPasswordError"></span>
+          </div>
+
+          <div class="form-group checkbox">
+            <input type="checkbox" id="rememberMe" class="form-checkbox">
+            <label for="rememberMe" class="checkbox-label">Recuérdame</label>
+            <a href="#" class="forgot-password">Olvidé mi contraseña</a>
+          </div>
+
+          <button type="submit" class="btn-primary" id="loginBtn">
+            Iniciar Sesión
+          </button>
+        </form>
+
+        <p class="form-footer">
+          ¿No tiene una cuenta?
+          <a href="#" class="link-switch" data-form="register">Regístrese aquí</a>
+        </p>
+      </div>
+
+      <!-- Formulario de Registro -->
+      <div class="form-container register-form">
+        <h3 class="form-title">Crear Cuenta</h3>
+
+        <form id="registerForm" class="auth-form">
+          <div class="form-group">
+            <label for="registerName" class="form-label">Nombre Completo</label>
+            <div class="input-icon-wrapper">
+              <span class="input-leading-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1"/></svg>
+              </span>
+              <input
+                type="text"
+                id="registerName"
+                class="form-input"
+                placeholder="Juan Pérez"
+                required
+              >
+            </div>
+            <span class="error-message" id="registerNameError"></span>
+          </div>
+
+          <div class="form-group">
+            <label for="registerEmail" class="form-label">Correo Electrónico</label>
+            <div class="input-icon-wrapper">
+              <span class="input-leading-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 6l-10 7L2 6"/><rect x="2" y="4" width="20" height="16" rx="2"/></svg>
+              </span>
+              <input
+                type="email"
+                id="registerEmail"
+                class="form-input"
+                placeholder="tu@oxohotel.com"
+                required
+              >
+            </div>
+            <span class="error-message" id="registerEmailError"></span>
+          </div>
+
+          <div class="form-group">
+            <label for="registerPassword" class="form-label">Crear Contraseña</label>
+            <div class="password-input-wrapper">
+              <span class="input-leading-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+              </span>
+              <input
+                type="password"
+                id="registerPassword"
+                class="form-input"
+                placeholder="Mínimo 8 caracteres"
+                required
+              >
+              <button type="button" class="toggle-password" data-target="registerPassword" aria-label="Mostrar u ocultar contraseña">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                  <circle cx="12" cy="12" r="3"></circle>
+                </svg>
+              </button>
+            </div>
+            <span class="error-message" id="registerPasswordError"></span>
+          </div>
+
+          <div class="form-group">
+            <label for="registerPasswordConfirm" class="form-label">Confirmar Contraseña</label>
+            <div class="password-input-wrapper">
+              <span class="input-leading-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+              </span>
+              <input
+                type="password"
+                id="registerPasswordConfirm"
+                class="form-input"
+                placeholder="Repite tu contraseña"
+                required
+              >
+              <button type="button" class="toggle-password" data-target="registerPasswordConfirm" aria-label="Mostrar u ocultar contraseña">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                  <circle cx="12" cy="12" r="3"></circle>
+                </svg>
+              </button>
+            </div>
+            <span class="error-message" id="registerPasswordConfirmError"></span>
+          </div>
+
+          <button type="submit" class="btn-primary" id="registerBtn">
+            Registrarse
+          </button>
+        </form>
+
+        <p class="form-footer">
+          ¿Ya tiene una cuenta?
+          <a href="#" class="link-switch" data-form="login">Inicie sesión aquí</a>
+        </p>
+      </div>
+    </div>
+  </div>
+</div>

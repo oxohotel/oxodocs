@@ -1,0 +1,143 @@
+<div class="home-shell">
+  <?!= include('components/Sidebar') ?>
+
+  <div class="home-main">
+    <?!= include('components/Navbar') ?>
+
+    <main class="home-content">
+      <section class="home-welcome">
+        <div class="home-welcome-text">
+          <h1 id="homeSaludo">¡Bienvenido!</h1>
+          <p>Estamos impulsando la gestión eficiente de documentos. Este proyecto centraliza y agiliza todos nuestros flujos de trabajo digitales, asegurando que cada contrato, informe y recurso esté al alcance de tu mano.</p>
+          <span class="home-welcome-rule"></span>
+        </div>
+      </section>
+
+      <section class="home-widgets-grid">
+        <div class="widget-card" id="seccionRecientes">
+          <div class="widget-card-header">
+            <span class="widget-icon widget-icon-green">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+            </span>
+            <h3>Recientes</h3>
+            <a href="#" class="widget-ver-todos" id="verTodosRecientes">Ver todos &#8250;</a>
+          </div>
+
+          <div data-widget-skeleton>
+            <div class="skeleton-line media"></div>
+            <div class="skeleton-line"></div>
+            <div class="skeleton-line media"></div>
+            <div class="skeleton-line corta"></div>
+          </div>
+
+          <div data-widget-contenido class="oculto">
+            <div class="doc-item">
+              <span class="doc-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2h8l4 4v16H6z"/><path d="M14 2v4h4M9 13h6M9 17h6"/></svg>
+              </span>
+              <div class="doc-info">
+                <p class="doc-title">Contrato de Suministro #124</p>
+                <p class="doc-meta">Contrato &bull; 19/04/2026 &bull; A. García</p>
+              </div>
+              <span class="badge badge-revision">En revisión</span>
+              <button type="button" class="doc-menu" aria-label="Más opciones">&#8942;</button>
+            </div>
+            <div class="doc-item">
+              <span class="doc-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2h8l4 4v16H6z"/><path d="M14 2v4h4M9 13h6M9 17h6"/></svg>
+              </span>
+              <div class="doc-info">
+                <p class="doc-title">Informe Trimestral de Gestión Q2</p>
+                <p class="doc-meta">Informe &bull; 18/04/2026 &bull; A. García</p>
+              </div>
+              <span class="badge badge-aprobado">Aprobado</span>
+              <button type="button" class="doc-menu" aria-label="Más opciones">&#8942;</button>
+            </div>
+            <div class="doc-item">
+              <span class="doc-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2h8l4 4v16H6z"/><path d="M14 2v4h4M9 13h6M9 17h6"/></svg>
+              </span>
+              <div class="doc-info">
+                <p class="doc-title">Documento de Importación de Bienes</p>
+                <p class="doc-meta">Documento &bull; 17/04/2026 &bull; A. Elsenio</p>
+              </div>
+              <span class="badge badge-archivado">Archivado</span>
+              <button type="button" class="doc-menu" aria-label="Más opciones">&#8942;</button>
+            </div>
+            <div class="doc-item">
+              <span class="doc-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2h8l4 4v16H6z"/><path d="M14 2v4h4M9 13h6M9 17h6"/></svg>
+              </span>
+              <div class="doc-info">
+                <p class="doc-title">Políticas Corporativas 2026</p>
+                <p class="doc-meta">Documento &bull; 15/04/2026 &bull; M. López</p>
+              </div>
+              <span class="badge badge-revision">En revisión</span>
+              <button type="button" class="doc-menu" aria-label="Más opciones">&#8942;</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="widget-card" id="seccionFavoritos">
+          <div class="widget-card-header">
+            <span class="widget-icon widget-icon-gold">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.86L12 17.77l-6.18 3.23L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+            </span>
+            <h3>Favoritos</h3>
+            <a href="#" class="widget-ver-todos" id="verTodosFavoritos">Ver todos &#8250;</a>
+          </div>
+
+          <div data-widget-skeleton>
+            <div class="skeleton-line media"></div>
+            <div class="skeleton-line"></div>
+            <div class="skeleton-line media"></div>
+            <div class="skeleton-line corta"></div>
+          </div>
+
+          <div data-widget-contenido class="oculto">
+            <div class="doc-item">
+              <span class="doc-icon doc-icon-folder">
+                <svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M3 6a1 1 0 011-1h5l2 2h9a1 1 0 011 1v10a1 1 0 01-1 1H4a1 1 0 01-1-1V6z"/></svg>
+              </span>
+              <div class="doc-info">
+                <p class="doc-title">Contratos de Suministro</p>
+                <p class="doc-meta">Carpeta &bull; 12 elementos</p>
+              </div>
+              <button type="button" class="doc-menu" aria-label="Más opciones">&#8942;</button>
+            </div>
+            <div class="doc-item">
+              <span class="doc-icon doc-icon-folder">
+                <svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M3 6a1 1 0 011-1h5l2 2h9a1 1 0 011 1v10a1 1 0 01-1 1H4a1 1 0 01-1-1V6z"/></svg>
+              </span>
+              <div class="doc-info">
+                <p class="doc-title">Informes Financieros</p>
+                <p class="doc-meta">Carpeta &bull; 8 elementos</p>
+              </div>
+              <button type="button" class="doc-menu" aria-label="Más opciones">&#8942;</button>
+            </div>
+            <div class="doc-item">
+              <span class="doc-icon doc-icon-folder">
+                <svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M3 6a1 1 0 011-1h5l2 2h9a1 1 0 011 1v10a1 1 0 01-1 1H4a1 1 0 01-1-1V6z"/></svg>
+              </span>
+              <div class="doc-info">
+                <p class="doc-title">Políticas Corporativas</p>
+                <p class="doc-meta">Carpeta &bull; 5 elementos</p>
+              </div>
+              <button type="button" class="doc-menu" aria-label="Más opciones">&#8942;</button>
+            </div>
+            <div class="doc-item">
+              <span class="doc-icon doc-icon-folder">
+                <svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M3 6a1 1 0 011-1h5l2 2h9a1 1 0 011 1v10a1 1 0 01-1 1H4a1 1 0 01-1-1V6z"/></svg>
+              </span>
+              <div class="doc-info">
+                <p class="doc-title">Recursos Humanos</p>
+                <p class="doc-meta">Carpeta &bull; 7 elementos</p>
+              </div>
+              <button type="button" class="doc-menu" aria-label="Más opciones">&#8942;</button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+</div>

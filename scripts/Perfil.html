@@ -1,0 +1,314 @@
+<script>
+  function inicializarPerfil() {
+    if (window.perfilYaInicializado) return;
+    window.perfilYaInicializado = true;
+
+    const btnVolverPerfil = document.getElementById('btnVolverDePerfil');
+    const btnEditarPerfil = document.getElementById('btnEditarPerfil');
+    const btnCambiarContrasena = document.getElementById('btnCambiarContrasena');
+    const btnNotificaciones = document.getElementById('btnNotificaciones');
+    const btnCerrarSesionPerfil = document.getElementById('btnCerrarSesionPerfil');
+
+    if (btnVolverPerfil) {
+      btnVolverPerfil.addEventListener('click', volverDelPerfil);
+    }
+
+    if (btnEditarPerfil) {
+      btnEditarPerfil.addEventListener('click', abrirModalEditarPerfil);
+    }
+
+    if (btnCambiarContrasena) {
+      btnCambiarContrasena.addEventListener('click', abrirModalCambiarContrasena);
+    }
+
+    if (btnNotificaciones) {
+      btnNotificaciones.addEventListener('click', abrirModalNotificaciones);
+    }
+
+    if (btnCerrarSesionPerfil) {
+      btnCerrarSesionPerfil.addEventListener('click', function () {
+        showConfirmation('¿Seguro que quieres cerrar sesión?', '¿Cerrar sesión?', iniciarCierreSesion);
+      });
+    }
+
+    // Modales
+    const modalEditarPerfil = document.getElementById('modalEditarPerfil');
+    const btnCerrarModalPerfil = document.getElementById('btnCerrarModalPerfil');
+    const btnCancelarEditarPerfil = document.getElementById('btnCancelarEditarPerfil');
+    const btnGuardarPerfil = document.getElementById('btnGuardarPerfil');
+
+    if (btnCerrarModalPerfil) {
+      btnCerrarModalPerfil.addEventListener('click', () => cerrarModal(modalEditarPerfil));
+    }
+    if (btnCancelarEditarPerfil) {
+      btnCancelarEditarPerfil.addEventListener('click', () => cerrarModal(modalEditarPerfil));
+    }
+    if (btnGuardarPerfil) {
+      btnGuardarPerfil.addEventListener('click', guardarCambiosPerfil);
+    }
+
+    // Modal Contraseña
+    const modalContrasena = document.getElementById('modalCambiarContrasena');
+    const btnCerrarModalContrasena = document.getElementById('btnCerrarModalContrasena');
+    const btnCancelarContrasena = document.getElementById('btnCancelarContrasena');
+    const btnConfirmarContrasena = document.getElementById('btnConfirmarContrasena');
+
+    if (btnCerrarModalContrasena) {
+      btnCerrarModalContrasena.addEventListener('click', () => cerrarModal(modalContrasena));
+    }
+    if (btnCancelarContrasena) {
+      btnCancelarContrasena.addEventListener('click', () => cerrarModal(modalContrasena));
+    }
+    if (btnConfirmarContrasena) {
+      btnConfirmarContrasena.addEventListener('click', cambiarContrasena);
+    }
+
+    // Toggle Password
+    document.querySelectorAll('.btn-toggle-password').forEach(btn => {
+      btn.addEventListener('click', function(e) {
+        e.preventDefault();
+        const targetId = this.dataset.target;
+        const input = document.getElementById(targetId);
+        if (input) {
+          input.type = input.type === 'password' ? 'text' : 'password';
+        }
+      });
+    });
+
+    // Modal Notificaciones
+    const modalNotificaciones = document.getElementById('modalNotificaciones');
+    const btnCerrarModalNotificaciones = document.getElementById('btnCerrarModalNotificaciones');
+    const btnCancelarNotificaciones = document.getElementById('btnCancelarNotificaciones');
+    const btnGuardarNotificaciones = document.getElementById('btnGuardarNotificaciones');
+
+    if (btnCerrarModalNotificaciones) {
+      btnCerrarModalNotificaciones.addEventListener('click', () => cerrarModal(modalNotificaciones));
+    }
+    if (btnCancelarNotificaciones) {
+      btnCancelarNotificaciones.addEventListener('click', () => cerrarModal(modalNotificaciones));
+    }
+    if (btnGuardarNotificaciones) {
+      btnGuardarNotificaciones.addEventListener('click', guardarNotificaciones);
+    }
+  }
+
+  function cargarDatosPerfil() {
+    const sesion = getCurrentUserSession();
+    if (!sesion) {
+      console.error('No hay sesión activa');
+      return;
+    }
+
+    google.script.run
+      .withSuccessHandler(function(usuario) {
+        console.log('Datos recibidos del servidor:', usuario);
+
+        if (usuario) {
+          const nombreEl = document.getElementById('perfilNombreCompleto');
+          const emailEl = document.getElementById('perfilEmail');
+          const fechaEl = document.getElementById('perfilFechaRegistro');
+          const inputEl = document.getElementById('inputNombreCompleto');
+
+          console.log('Elementos encontrados:', {
+            nombreEl: !!nombreEl,
+            emailEl: !!emailEl,
+            fechaEl: !!fechaEl,
+            inputEl: !!inputEl
+          });
+
+          if (nombreEl) nombreEl.textContent = usuario.nombre || '—';
+          if (emailEl) emailEl.textContent = usuario.email || '—';
+          if (fechaEl) {
+            const fecha = usuario.fechaRegistro ? new Date(usuario.fechaRegistro).toLocaleDateString('es-ES') : '—';
+            fechaEl.textContent = fecha;
+          }
+          if (inputEl) inputEl.value = usuario.nombre || '';
+        } else {
+          console.warn('Usuario es null o undefined');
+        }
+      })
+      .withFailureHandler(function(error) {
+        console.error('Error cargando perfil:', error);
+      })
+      .obtenerDatosUsuarioActual(sesion.ID_Usuario);
+  }
+
+  function abrirModalEditarPerfil() {
+    const modal = document.getElementById('modalEditarPerfil');
+    if (modal) {
+      modal.style.display = 'flex';
+      modal.classList.add('active');
+    }
+  }
+
+  function guardarCambiosPerfil() {
+    const nombre = document.getElementById('inputNombreCompleto').value.trim();
+    const sesion = getCurrentUserSession();
+    if (!sesion) return;
+
+    if (!nombre) {
+      mostrarError('inputNombreCompleto', 'El nombre es requerido');
+      return;
+    }
+
+    if (nombre.length < 3) {
+      mostrarError('inputNombreCompleto', 'El nombre debe tener al menos 3 caracteres');
+      return;
+    }
+
+    google.script.run
+      .withSuccessHandler(function(result) {
+        if (result.success) {
+          // Refleja el nombre nuevo de inmediato en la sesión local (navbar, saludo, etc.)
+          // sin esperar a un nuevo login.
+          sesion.Nombre_Completo = nombre;
+          saveUserSession(sesion);
+          const saludoEl = document.getElementById('homeSaludo');
+          const nombreDropdownEl = document.getElementById('navbarUserName');
+          if (nombreDropdownEl) nombreDropdownEl.textContent = nombre;
+          if (saludoEl) saludoEl.textContent = `¡Bienvenido ${nombre.split(' ')[0]}!`;
+
+          showNotification('✅ Cambios guardados correctamente', 'success', 3000);
+          cerrarModal(document.getElementById('modalEditarPerfil'));
+          cargarDatosPerfil();
+        } else {
+          showNotification('Error: ' + result.message, 'error', 3000);
+        }
+      })
+      .withFailureHandler(function(error) {
+        console.error('Error guardando cambios:', error);
+        showNotification('Error al guardar cambios', 'error', 3000);
+      })
+      .actualizarNombreUsuario(sesion.ID_Usuario, nombre);
+  }
+
+  function abrirModalCambiarContrasena() {
+    const modal = document.getElementById('modalCambiarContrasena');
+    if (modal) {
+      modal.style.display = 'flex';
+      modal.classList.add('active');
+      limpiarCamposContrasena();
+    }
+  }
+
+  function limpiarCamposContrasena() {
+    document.getElementById('inputContrasenaActual').value = '';
+    document.getElementById('inputContrasenaNueva').value = '';
+    document.getElementById('inputConfirmarContrasena').value = '';
+    document.querySelectorAll('.campo-error').forEach(el => el.classList.remove('visible'));
+  }
+
+  function cambiarContrasena() {
+    const contrasenaActual = document.getElementById('inputContrasenaActual').value;
+    const contrasenaNueva = document.getElementById('inputContrasenaNueva').value;
+    const confirmarContrasena = document.getElementById('inputConfirmarContrasena').value;
+
+    // Limpiar errores previos
+    document.querySelectorAll('.campo-error').forEach(el => el.classList.remove('visible'));
+
+    if (!contrasenaActual) {
+      mostrarError('inputContrasenaActual', 'Ingresa tu contraseña actual');
+      return;
+    }
+
+    if (!contrasenaNueva) {
+      mostrarError('inputContrasenaNueva', 'Ingresa una nueva contraseña');
+      return;
+    }
+
+    if (contrasenaNueva.length < 8) {
+      mostrarError('inputContrasenaNueva', 'La contraseña debe tener al menos 8 caracteres');
+      return;
+    }
+
+    if (contrasenaNueva !== confirmarContrasena) {
+      mostrarError('inputConfirmarContrasena', 'Las contraseñas no coinciden');
+      return;
+    }
+
+    google.script.run
+      .withSuccessHandler(function(result) {
+        if (result.success) {
+          showNotification('✅ Contraseña cambiada correctamente', 'success', 3000);
+          cerrarModal(document.getElementById('modalCambiarContrasena'));
+        } else {
+          mostrarError('inputContrasenaActual', result.message || 'Error al cambiar contraseña');
+        }
+      })
+      .withFailureHandler(function(error) {
+        console.error('Error cambiando contraseña:', error);
+        mostrarError('inputContrasenaActual', 'Error al cambiar contraseña');
+      })
+      .cambiarContrasenaUsuario(getCurrentUserSession().ID_Usuario, contrasenaActual, contrasenaNueva);
+  }
+
+  function abrirModalNotificaciones() {
+    const modal = document.getElementById('modalNotificaciones');
+    if (modal) {
+      modal.style.display = 'flex';
+      modal.classList.add('active');
+      cargarPreferenciasNotificaciones();
+    }
+  }
+
+  function cargarPreferenciasNotificaciones() {
+    google.script.run
+      .withSuccessHandler(function(prefs) {
+        if (prefs) {
+          document.getElementById('checkNotificacionesActividad').checked = prefs.actividad || false;
+          document.getElementById('checkNotificacionesRecordatorios').checked = prefs.recordatorios || false;
+          document.getElementById('checkNotificacionesSeguridad').checked = prefs.seguridad || true;
+        }
+      })
+      .withFailureHandler(function(error) {
+        console.error('Error cargando preferencias:', error);
+      })
+      .obtenerPreferenciasNotificaciones(getCurrentUserSession().ID_Usuario);
+  }
+
+  function guardarNotificaciones() {
+    const prefs = {
+      actividad: document.getElementById('checkNotificacionesActividad').checked,
+      recordatorios: document.getElementById('checkNotificacionesRecordatorios').checked,
+      seguridad: document.getElementById('checkNotificacionesSeguridad').checked
+    };
+
+    google.script.run
+      .withSuccessHandler(function(result) {
+        if (result.success) {
+          showNotification('✅ Preferencias guardadas', 'success', 3000);
+          cerrarModal(document.getElementById('modalNotificaciones'));
+        } else {
+          showNotification('Error: ' + result.message, 'error', 3000);
+        }
+      })
+      .withFailureHandler(function(error) {
+        console.error('Error guardando preferencias:', error);
+        showNotification('Error al guardar preferencias', 'error', 3000);
+      })
+      .guardarPreferenciasNotificaciones(getCurrentUserSession().ID_Usuario, prefs);
+  }
+
+  function mostrarError(elementId, mensaje) {
+    const errorElement = document.getElementById('error' + elementId.charAt(0).toUpperCase() + elementId.slice(1));
+    if (errorElement) {
+      errorElement.textContent = mensaje;
+      errorElement.classList.add('visible');
+    }
+  }
+
+  function cerrarModal(modal) {
+    if (modal) {
+      modal.classList.remove('active');
+      setTimeout(() => {
+        modal.style.display = 'none';
+      }, 300);
+    }
+  }
+
+  function volverDelPerfil() {
+    if (typeof ocultarVistaPerfil === 'function') {
+      ocultarVistaPerfil();
+    }
+  }
+</script>

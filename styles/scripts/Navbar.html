@@ -1,0 +1,60 @@
+<script>
+  function inicializarNavbar() {
+    const btnNotif = document.getElementById("btnNotificaciones");
+    const notifDropdown = document.getElementById("notifDropdown");
+    const btnPerfil = document.getElementById("btnPerfil");
+    const perfilDropdown = document.getElementById("perfilDropdown");
+    const btnTema = document.getElementById("btnTema");
+    const btnVerPerfil = document.getElementById("btnVerPerfil");
+    const btnAbrirLogout = document.getElementById("btnAbrirLogout");
+
+    if (btnNotif && notifDropdown) {
+      btnNotif.addEventListener("click", function (e) {
+        e.stopPropagation();
+        const abierto = !notifDropdown.classList.contains("oculto");
+        cerrarTodosLosDropdowns();
+        if (!abierto) notifDropdown.classList.remove("oculto");
+      });
+    }
+
+    if (btnPerfil && perfilDropdown) {
+      btnPerfil.addEventListener("click", function (e) {
+        e.stopPropagation();
+        const abierto = !perfilDropdown.classList.contains("oculto");
+        cerrarTodosLosDropdowns();
+        if (!abierto) perfilDropdown.classList.remove("oculto");
+      });
+    }
+
+    document.addEventListener("click", function () {
+      cerrarTodosLosDropdowns();
+    });
+
+    if (btnTema) {
+      btnTema.addEventListener("click", function (e) {
+        e.stopPropagation();
+        alternarTema();
+      });
+    }
+
+    if (btnVerPerfil) {
+      btnVerPerfil.addEventListener("click", function () {
+        cerrarTodosLosDropdowns();
+        showNotification("La vista de perfil estará disponible próximamente", "info", 2500);
+      });
+    }
+
+    // No abre el modal (eso lo hace scripts/Home.html): solo cierra el dropdown al hacer clic.
+    if (btnAbrirLogout) {
+      btnAbrirLogout.addEventListener("click", function () {
+        cerrarTodosLosDropdowns();
+      });
+    }
+  }
+
+  function cerrarTodosLosDropdowns() {
+    document.querySelectorAll(".navbar-dropdown").forEach(function (dropdown) {
+      dropdown.classList.add("oculto");
+    });
+  }
+</script>

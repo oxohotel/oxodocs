@@ -1,0 +1,66 @@
+<script>
+  const ICONO_LUNA = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>';
+  const ICONO_SOL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>';
+
+  const LOGOS_TEMA = {
+    light: {
+      cerrado: "https://acabrales-oxohotel.github.io/repo-imagenes/logo-oxodocs.png",
+      abierto: "https://acabrales-oxohotel.github.io/repo-imagenes/logo-oxodocs-slogan.png"
+    },
+    dark: {
+      cerrado: "https://acabrales-oxohotel.github.io/repo-imagenes/logo-oxodocs-blanco.png",
+      abierto: "https://acabrales-oxohotel.github.io/repo-imagenes/logo-oxodocs-slogan-blanco.png"
+    }
+  };
+
+  // Pre-carga de imágenes para transición inmediata sin parpadeo
+  (function precargarLogos() {
+    [
+      LOGOS_TEMA.dark.cerrado,
+      LOGOS_TEMA.dark.abierto,
+      LOGOS_TEMA.light.cerrado,
+      LOGOS_TEMA.light.abierto
+    ].forEach(function(url) {
+      const img = new Image();
+      img.src = url;
+    });
+  })();
+
+  function aplicarTemaGuardado() {
+    const guardado = getFromLocalStorage("temaHome");
+    aplicarTema(guardado === "dark" ? "dark" : "light");
+  }
+
+  function aplicarTema(tema) {
+    const vistaHome = document.getElementById("vistaHome");
+    if (vistaHome) vistaHome.setAttribute("data-theme", tema);
+    actualizarIconoTema(tema);
+    actualizarLogosTema(tema);
+    saveToLocalStorage("temaHome", tema);
+  }
+
+  function alternarTema() {
+    const vistaHome = document.getElementById("vistaHome");
+    const actual = vistaHome && vistaHome.getAttribute("data-theme") === "dark" ? "dark" : "light";
+    aplicarTema(actual === "dark" ? "light" : "dark");
+  }
+
+  function actualizarIconoTema(tema) {
+    const btnTema = document.getElementById("btnTema");
+    if (!btnTema) return;
+    btnTema.innerHTML = tema === "dark" ? ICONO_SOL : ICONO_LUNA;
+  }
+
+  function actualizarLogosTema(tema) {
+    const logos = LOGOS_TEMA[tema] || LOGOS_TEMA.light;
+    const logoCerrado = document.getElementById("sidebarLogoCerrado") || document.querySelector(".brand-logo-cerrado");
+    const logoAbierto = document.getElementById("sidebarLogoAbierto") || document.querySelector(".brand-logo-abierto");
+
+    if (logoCerrado && logoCerrado.getAttribute("src") !== logos.cerrado) {
+      logoCerrado.setAttribute("src", logos.cerrado);
+    }
+    if (logoAbierto && logoAbierto.getAttribute("src") !== logos.abierto) {
+      logoAbierto.setAttribute("src", logos.abierto);
+    }
+  }
+</script>

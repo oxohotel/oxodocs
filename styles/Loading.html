@@ -1,0 +1,184 @@
+<style>
+/* ==================== LOADING SCREEN ==================== */
+
+.loading-screen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: var(--home-bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  animation: fadeIn 0.4s ease-in;
+}
+
+.loading-screen.oculto {
+  display: none !important;
+}
+
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 36px;
+  max-width: 500px;
+  text-align: center;
+  padding: 40px;
+}
+
+/* Header */
+.loading-header {
+  width: 100%;
+}
+
+.loading-title {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--home-text);
+  letter-spacing: 2px;
+  margin: 0;
+  text-transform: uppercase;
+}
+
+/* Content */
+.loading-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 28px;
+  width: 100%;
+}
+
+/* Spinner Circular */
+.spinner-circular {
+  width: 160px;
+  height: 160px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.spinner-svg {
+  width: 100%;
+  height: 100%;
+  animation: rotateSVG 8s linear infinite;
+}
+
+/* Animación de nodos */
+.node {
+  animation: nodeGlow 1.5s ease-in-out infinite;
+}
+
+.node-1 { animation-delay: 0s; }
+.node-2 { animation-delay: 0.15s; }
+.node-3 { animation-delay: 0.3s; }
+.node-4 { animation-delay: 0.45s; }
+.node-5 { animation-delay: 0.6s; }
+.node-6 { animation-delay: 0.75s; }
+.node-7 { animation-delay: 0.9s; }
+.node-8 { animation-delay: 1.05s; }
+.node-9 { animation-delay: 1.2s; }
+.node-10 { animation-delay: 1.35s; }
+
+/* Texto de carga */
+.loading-text {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.loading-status {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--home-text);
+  letter-spacing: -0.2px;
+  margin: 0;
+}
+
+.loading-subtitle {
+  font-size: 13px;
+  color: var(--home-text-muted);
+  margin: 0;
+}
+
+/* Barra de progreso */
+.progress-bar-container {
+  width: 100%;
+  max-width: 280px;
+  height: 5px;
+  background: var(--home-border);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  position: relative;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--home-accent-green) 0%, var(--home-accent-gold) 100%);
+  border-radius: 999px;
+  animation: fillProgress 2s ease-in-out infinite;
+}
+
+/* Animaciones */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes fadeOut {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+@keyframes rotateSVG {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes nodeGlow {
+  0%, 100% {
+    r: 3;
+    opacity: 1;
+  }
+  50% {
+    r: 5;
+    opacity: 0.6;
+  }
+}
+
+@keyframes fillProgress {
+  0% { width: 0%; }
+  50% { width: 100%; }
+  100% { width: 100%; }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .loading-container {
+    gap: 28px;
+    padding: 20px;
+  }
+
+  .loading-title {
+    font-size: 13px;
+  }
+
+  .spinner-circular {
+    width: 120px;
+    height: 120px;
+  }
+
+  .loading-status {
+    font-size: 14px;
+  }
+}
+</style>

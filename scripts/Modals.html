@@ -1,0 +1,70 @@
+<script>
+  // ==================== MODALES Y NOTIFICACIONES ====================
+  function showLoading() {
+    const modal = document.getElementById("loadingModal");
+    if (modal) modal.classList.add("active");
+  }
+
+  function hideLoading() {
+    const modal = document.getElementById("loadingModal");
+    if (modal) modal.classList.remove("active");
+  }
+
+  function showNotification(message, type = "info", duration = 3000) {
+    const notification = document.createElement("div");
+    notification.className = `notification ${type}`;
+    notification.textContent = message;
+    document.body.appendChild(notification);
+
+    if (duration > 0) {
+      setTimeout(() => {
+        notification.classList.add("exit");
+        setTimeout(() => notification.remove(), 300);
+      }, duration);
+    }
+  }
+
+  /**
+   * Modal de confirmación genérico y reutilizable (crea el suyo una sola vez, bajo demanda) —
+   * en vez de tener un modal dedicado por cada acción que necesita confirmación (logout, quitar
+   * de favoritos, etc.), todas comparten este mismo.
+   */
+  function showConfirmation(mensaje, titulo, onConfirm) {
+    let modal = document.getElementById("confirmacionGenericaModal");
+    if (!modal) {
+      modal = document.createElement("div");
+      modal.id = "confirmacionGenericaModal";
+      modal.className = "modal-overlay";
+      modal.innerHTML =
+        '<div class="modal-content">' +
+          '<p class="confirmacion-titulo" id="confirmacionGenericaTitulo"></p>' +
+          '<p id="confirmacionGenericaMensaje"></p>' +
+          '<div class="modal-actions">' +
+            '<button type="button" class="btn-home-ghost" id="confirmacionGenericaCancelar">Cancelar</button>' +
+            '<button type="button" class="btn-home-primary" id="confirmacionGenericaConfirmar">Confirmar</button>' +
+          '</div>' +
+        '</div>';
+      document.body.appendChild(modal);
+      modal.addEventListener("click", function (e) {
+        if (e.target === modal) cerrarConfirmacionGenerica();
+      });
+      document.getElementById("confirmacionGenericaCancelar").addEventListener("click", cerrarConfirmacionGenerica);
+    }
+
+    document.getElementById("confirmacionGenericaTitulo").textContent = titulo || "¿Estás seguro?";
+    document.getElementById("confirmacionGenericaMensaje").textContent = mensaje || "";
+
+    const btnConfirmar = document.getElementById("confirmacionGenericaConfirmar");
+    btnConfirmar.onclick = function () {
+      cerrarConfirmacionGenerica();
+      if (typeof onConfirm === "function") onConfirm();
+    };
+
+    modal.classList.add("active");
+  }
+
+  function cerrarConfirmacionGenerica() {
+    const modal = document.getElementById("confirmacionGenericaModal");
+    if (modal) modal.classList.remove("active");
+  }
+</script>

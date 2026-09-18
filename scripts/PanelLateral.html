@@ -1,0 +1,98 @@
+<script>
+  // ==================== PANEL LATERAL (offcanvas derecho) ====================
+  // Componente genérico y reutilizable: un único overlay+aside que se crea una sola vez bajo
+  // demanda (igual que showConfirmation). Dos formas de usarlo:
+  //   - abrirPanelLateral({titulo, html, onClose}) -> contenido simple, se pisa cada vez.
+  //   - abrirPanelLateralConNodo({titulo, nodo, onClose}) -> MUEVE un nodo existente del DOM
+  //     adentro del panel (para reusar formularios que ya tienen listeners atados a sus ids,
+  //     como el de subir archivo) y lo regresa a su lugar original al cerrar.
+
+  var _panelLateralNodoMovido = null;
+  var _panelLateralNodoPadreOriginal = null;
+  var _panelLateralNodoSiguienteOriginal = null;
+  var _panelLateralOnClose = null;
+
+  function _obtenerPanelLateral() {
+    let overlay = document.getElementById('panelLateralOverlay');
+    if (overlay) return overlay;
+
+    overlay = document.createElement('div');
+    overlay.id = 'panelLateralOverlay';
+    overlay.className = 'panel-lateral-overlay';
+    overlay.innerHTML =
+      '<aside class="panel-lateral" id="panelLateral">' +
+        '<div class="panel-lateral-header">' +
+          '<h3 id="panelLateralTitulo"></h3>' +
+          '<button type="button" class="panel-lateral-cerrar" id="btnCerrarPanelLateral" aria-label="Cerrar">' +
+            '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>' +
+          '</button>' +
+        '</div>' +
+        '<div class="panel-lateral-body" id="panelLateralBody"></div>' +
+      '</aside>';
+    document.body.appendChild(overlay);
+
+    overlay.addEventListener('click', function (e) {
+      if (e.target === overlay) cerrarPanelLateral();
+    });
+    document.getElementById('btnCerrarPanelLateral').addEventListener('click', cerrarPanelLateral);
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && overlay.classList.contains('active')) cerrarPanelLateral();
+    });
+
+    return overlay;
+  }
+
+  function abrirPanelLateral(opciones) {
+    opciones = opciones || {};
+    const overlay = _obtenerPanelLateral();
+    document.getElementById('panelLateralTitulo').textContent = opciones.titulo || '';
+    document.getElementById('panelLateralBody').innerHTML = opciones.html || '';
+    document.getElementById('panelLateral').classList.toggle('panel-lateral-grande', opciones.ancho === 'grande');
+    _panelLateralOnClose = typeof opciones.onClose === 'function' ? opciones.onClose : null;
+    overlay.classList.add('active');
+    if (typeof opciones.onAbrir === 'function') {
+      try { opciones.onAbrir(document.getElementById('panelLateral')); } catch (e) { console.error('Error en onAbrir panel lateral:', e); }
+    }
+  }
+
+  /** Mueve "nodo" (un elemento ya existente en el DOM) adentro del panel, conservando su
+   *  posición original para poder devolverlo ahí mismo al cerrar. */
+  function abrirPanelLateralConNodo(opciones) {
+    opciones = opciones || {};
+    const overlay = _obtenerPanelLateral();
+    const body = document.getElementById('panelLateralBody');
+    document.getElementById('panelLateralTitulo').textContent = opciones.titulo || '';
+
+    const nodo = opciones.nodo;
+    if (nodo && nodo.parentNode) {
+      _panelLateralNodoMovido = nodo;
+      _panelLateralNodoPadreOriginal = nodo.parentNode;
+      _panelLateralNodoSiguienteOriginal = nodo.nextSibling;
+      body.innerHTML = '';
+      body.appendChild(nodo);
+      nodo.style.display = '';
+    }
+
+    _panelLateralOnClose = typeof opciones.onClose === 'function' ? opciones.onClose : null;
+    overlay.classList.add('active');
+  }
+
+  function cerrarPanelLateral() {
+    const overlay = document.getElementById('panelLateralOverlay');
+    if (overlay) overlay.classList.remove('active');
+
+    if (_panelLateralNodoMovido && _panelLateralNodoPadreOriginal) {
+      _panelLateralNodoMovido.style.display = 'none';
+      _panelLateralNodoPadreOriginal.insertBefore(_panelLateralNodoMovido, _panelLateralNodoSiguienteOriginal);
+    }
+    _panelLateralNodoMovido = null;
+    _panelLateralNodoPadreOriginal = null;
+    _panelLateralNodoSiguienteOriginal = null;
+
+    if (_panelLateralOnClose) {
+      const callback = _panelLateralOnClose;
+      _panelLateralOnClose = null;
+      callback();
+    }
+  }
+</script>

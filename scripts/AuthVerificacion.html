@@ -1,0 +1,78 @@
+<script>
+  // ==================== Verificación de correo al registrarse ====================
+  // Panel lateral (no un modal — ver preferencia de la app por paneles sobre pop-ups) donde el
+  // usuario ingresa el código de 6 dígitos que backend/Auth.js:enviarCodigoVerificacion le
+  // manda por correo. Se abre tanto justo después de registrarse como si intenta iniciar
+  // sesión sin haber verificado todavía (ver handleLoginSubmit en scripts/AuthView.html).
+  function abrirPanelVerificacion(email) {
+    abrirPanelLateral({
+      titulo: 'Verifica tu correo',
+      html:
+        '<div class="nueva-carpeta-form">' +
+          '<p class="verificacion-texto">Enviamos un código de 6 dígitos a <strong>' + escaparHtml(email) + '</strong>. Ingrésalo para confirmar tu cuenta.</p>' +
+          '<label for="inputCodigoVerificacion">Código de verificación</label>' +
+          '<input type="text" id="inputCodigoVerificacion" class="campo-input campo-codigo-verificacion" placeholder="123456" maxlength="6" inputmode="numeric" autocomplete="one-time-code">' +
+          '<div class="nueva-carpeta-acciones verificacion-acciones">' +
+            '<button type="button" class="btn-cancelar" id="btnReenviarCodigo">Reenviar código</button>' +
+            '<button type="button" class="btn-enviar" id="btnConfirmarCodigo">Verificar</button>' +
+          '</div>' +
+        '</div>'
+    });
+
+    document.getElementById('btnReenviarCodigo').addEventListener('click', function () { reenviarCodigoVerificacion_(email); });
+    document.getElementById('btnConfirmarCodigo').addEventListener('click', function () { confirmarCodigoVerificacion_(email); });
+
+    const input = document.getElementById('inputCodigoVerificacion');
+    input.addEventListener('keydown', function (e) { if (e.key === 'Enter') confirmarCodigoVerificacion_(email); });
+    setTimeout(function () { input.focus(); }, 50);
+  }
+
+  function confirmarCodigoVerificacion_(email) {
+    const input = document.getElementById('inputCodigoVerificacion');
+    const codigo = input ? input.value.trim() : '';
+    if (!codigo) { showNotification('Ingresa el código', 'error', 2200); return; }
+
+    const btn = document.getElementById('btnConfirmarCodigo');
+    btn.disabled = true;
+
+    google.script.run
+      .withSuccessHandler(function (result) {
+        btn.disabled = false;
+        if (result.success) {
+          cerrarPanelLateral();
+          showNotification(result.message, 'success', 4000);
+          if (typeof switchForm === 'function') switchForm('login');
+          if (typeof setInputValue === 'function') setInputValue('loginEmail', email);
+        } else {
+          showNotification(result.message, 'error', 3500);
+        }
+      })
+      .withFailureHandler(function (error) {
+        btn.disabled = false;
+        console.error('Error verificando código:', error);
+        showNotification('Error al verificar el código', 'error', 3000);
+      })
+      .verificarCodigoRegistro(email, codigo);
+  }
+
+  function reenviarCodigoVerificacion_(email) {
+    const btn = document.getElementById('btnReenviarCodigo');
+    btn.disabled = true;
+
+    google.script.run
+      .withSuccessHandler(function (result) {
+        btn.disabled = false;
+        if (result.success) {
+          showNotification('Código reenviado a tu correo', 'success', 2500);
+        } else {
+          showNotification('Error: ' + result.message, 'error', 3200);
+        }
+      })
+      .withFailureHandler(function (error) {
+        btn.disabled = false;
+        console.error('Error reenviando código:', error);
+        showNotification('Error al reenviar el código', 'error', 3000);
+      })
+      .enviarCodigoVerificacion(email, null);
+  }
+</script>

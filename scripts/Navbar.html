@@ -1,0 +1,60 @@
+<script>
+  function inicializarNavbar() {
+    const btnNotif = document.getElementById("btnNotificaciones");
+    const notifDropdown = document.getElementById("notifDropdown");
+    const btnPerfil = document.getElementById("btnPerfil");
+    const perfilDropdown = document.getElementById("perfilDropdown");
+    const btnTema = document.getElementById("btnTema");
+    const btnVerPerfil = document.getElementById("btnVerPerfil");
+    const btnAbrirLogout = document.getElementById("btnAbrirLogout");
+
+    if (btnNotif && notifDropdown) {
+      btnNotif.addEventListener("click", function (e) {
+        e.stopPropagation();
+        const yaAbierto = notifDropdown.classList.contains("abierto");
+        cerrarTodosLosDropdowns();
+        if (!yaAbierto) notifDropdown.classList.add("abierto");
+      });
+    }
+
+    if (btnPerfil && perfilDropdown) {
+      btnPerfil.addEventListener("click", function (e) {
+        e.stopPropagation();
+        const yaAbierto = perfilDropdown.classList.contains("abierto");
+        cerrarTodosLosDropdowns();
+        if (!yaAbierto) perfilDropdown.classList.add("abierto");
+      });
+    }
+
+    document.addEventListener("click", function () {
+      cerrarTodosLosDropdowns();
+    });
+
+    if (btnTema) {
+      btnTema.addEventListener("click", function (e) {
+        e.stopPropagation();
+        alternarTema();
+      });
+    }
+
+    if (btnVerPerfil) {
+      btnVerPerfil.addEventListener("click", function () {
+        cerrarTodosLosDropdowns();
+        if (typeof mostrarVistaPerfil === "function") mostrarVistaPerfil();
+      });
+    }
+
+    if (btnAbrirLogout) {
+      btnAbrirLogout.addEventListener("click", function () {
+        cerrarTodosLosDropdowns();
+        showConfirmation("¿Seguro que quieres cerrar sesión?", "¿Cerrar sesión?", iniciarCierreSesion);
+      });
+    }
+  }
+
+  function cerrarTodosLosDropdowns() {
+    document.querySelectorAll(".navbar-dropdown").forEach(function (dropdown) {
+      dropdown.classList.remove("abierto");
+    });
+  }
+</script>

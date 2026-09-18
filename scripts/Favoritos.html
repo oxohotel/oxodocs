@@ -1,0 +1,222 @@
+<script>
+  // ==================== Estado y estrella de favorito (compartido por toda la app) ====================
+  var _favoritosCache = new Set();
+
+  /** Se llama una vez al iniciar sesión — hidrata qué carpetas/archivos ya son favoritos,
+   *  para que las estrellas nazcan en el estado correcto sin esperar a abrir cada vista. */
+  function refrescarCacheFavoritos() {
+    const user = getCurrentUserSession();
+    if (!user) return;
+
+    google.script.run
+      .withSuccessHandler(function (result) {
+        _favoritosCache = new Set((result && result.favoritos) || []);
+        document.querySelectorAll('.btn-favorito').forEach(aplicarEstadoFavoritoEnBoton_);
+      })
+      .withFailureHandler(function (error) {
+        console.error('No se pudieron cargar los favoritos:', error);
+      })
+      .obtenerIdsFavoritosUsuario(user.ID_Usuario);
+  }
+
+  function esFavoritoEnCache_(tipoRecurso, idRecurso) {
+    return _favoritosCache.has(tipoRecurso + '|' + idRecurso);
+  }
+
+  function aplicarEstadoFavoritoEnBoton_(boton) {
+    const activo = esFavoritoEnCache_(boton.dataset.tipo, boton.dataset.id);
+    boton.classList.toggle('activo', activo);
+    boton.title = activo ? 'Quitar de favoritos' : 'Agregar a favoritos';
+  }
+
+  /** Botón de estrella reutilizable — se imprime igual en carpeta-card, archivo-card y en las
+   *  tarjetas del propio apartado de Favoritos. Un solo listener delegado (más abajo) atiende
+   *  a todos, sin importar en qué vista se haya renderizado. */
+  function botonFavoritoHtml(tipoRecurso, idRecurso) {
+    const activo = esFavoritoEnCache_(tipoRecurso, idRecurso);
+    return (
+      '<button type="button" class="btn-favorito' + (activo ? ' activo' : '') + '" ' +
+        'data-tipo="' + tipoRecurso + '" data-id="' + idRecurso + '" ' +
+        'title="' + (activo ? 'Quitar de favoritos' : 'Agregar a favoritos') + '" aria-label="Favorito">' +
+        '<svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.86L12 17.77l-6.18 3.23L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>' +
+      '</button>'
+    );
+  }
+
+  document.addEventListener('click', function (e) {
+    const boton = e.target.closest && e.target.closest('.btn-favorito');
+    if (!boton) return;
+    e.preventDefault();
+    e.stopPropagation();
+    alternarFavoritoDesdeBoton_(boton);
+  });
+
+  function alternarFavoritoDesdeBoton_(boton) {
+    const user = getCurrentUserSession();
+    if (!user) return;
+    const tipoRecurso = boton.dataset.tipo;
+    const idRecurso = boton.dataset.id;
+
+    boton.disabled = true;
+    google.script.run
+      .withSuccessHandler(function (result) {
+        boton.disabled = false;
+        if (!result.success) {
+          showNotification('No se pudo actualizar el favorito', 'error', 2500);
+          return;
+        }
+
+        const clave = tipoRecurso + '|' + idRecurso;
+        if (result.esFavorito) {
+          _favoritosCache.add(clave);
+          showNotification('Añadido a favoritos', 'success', 1800);
+        } else {
+          _favoritosCache.delete(clave);
+        }
+
+        // Puede haber más de una estrella del mismo recurso visible a la vez (widget + vista
+        // completa) — todas deben reflejar el nuevo estado, con un pequeño "pop" para notarlo.
+        document.querySelectorAll('.btn-favorito[data-tipo="' + tipoRecurso + '"][data-id="' + idRecurso + '"]').forEach(function (b) {
+          aplicarEstadoFavoritoEnBoton_(b);
+          b.classList.remove('favorito-pop');
+          void b.offsetWidth;
+          b.classList.add('favorito-pop');
+        });
+
+        if (!result.esFavorito) {
+          const tarjeta = document.querySelector('#favoritosGrid .apartado-item[data-tipo="' + tipoRecurso + '"][data-id="' + idRecurso + '"]');
+          if (tarjeta) {
+            tarjeta.classList.add('apartado-item-saliendo');
+            setTimeout(function () {
+              tarjeta.remove();
+              if (!document.querySelector('#favoritosGrid .apartado-item')) {
+                document.getElementById('favoritosGrid').innerHTML =
+                  construirEstadoVacioApartado('Aún no tienes favoritos', 'Marca carpetas o archivos con la estrella para encontrarlos aquí rápido.');
+              }
+            }, 220);
+          }
+        }
+      })
+      .withFailureHandler(function (error) {
+        boton.disabled = false;
+        console.error('Error alternando favorito:', error);
+        showNotification('Error al actualizar favorito', 'error', 2500);
+      })
+      .alternarFavorito(user.ID_Usuario, tipoRecurso, idRecurso);
+  }
+
+  // ==================== Apartado "Favoritos" (vista completa) ====================
+  function mostrarVistaFavoritos() {
+    const homeContent = document.querySelector('.home-content');
+    if (!homeContent) return;
+
+    if (typeof ocultarVistaCarpetasHotel === 'function') ocultarVistaCarpetasHotel();
+    if (typeof ocultarVistaPerfil === 'function') ocultarVistaPerfil();
+    if (typeof ocultarVistaRecientes === 'function') ocultarVistaRecientes();
+    if (typeof ocultarVistaUsuarios === 'function') ocultarVistaUsuarios();
+    if (typeof ocultarVistaLogs === 'function') ocultarVistaLogs();
+
+    const homeWelcome = homeContent.querySelector('.home-welcome');
+    const homeWidgets = homeContent.querySelector('.home-widgets-grid');
+    if (homeWelcome) homeWelcome.style.display = 'none';
+    if (homeWidgets) homeWidgets.style.display = 'none';
+
+    let contenedor = homeContent.querySelector('#favoritosContainer');
+    if (!contenedor) {
+      const wrapper = document.createElement('div');
+      wrapper.id = 'favoritosSection';
+      wrapper.innerHTML = document.getElementById('favoritosHtml') ? document.getElementById('favoritosHtml').innerHTML : '';
+      homeContent.appendChild(wrapper);
+      contenedor = wrapper.querySelector('#favoritosContainer');
+      inicializarVistaFavoritos_();
+    } else {
+      contenedor.style.display = 'flex';
+    }
+
+    cargarVistaFavoritos();
+    if (contenedor) contenedor.scrollIntoView({ behavior: 'smooth' });
+  }
+
+  function ocultarVistaFavoritos() {
+    const homeContent = document.querySelector('.home-content');
+    if (!homeContent) return;
+    const contenedor = homeContent.querySelector('#favoritosContainer');
+    if (contenedor) contenedor.style.display = 'none';
+  }
+
+  function inicializarVistaFavoritos_() {
+    const input = document.getElementById('inputBuscadorFavoritos');
+    if (input) {
+      input.addEventListener('input', function () {
+        filtrarApartado('#favoritosGrid', input.value);
+      });
+    }
+  }
+
+  function cargarVistaFavoritos() {
+    const grid = document.getElementById('favoritosGrid');
+    if (!grid) return;
+    grid.innerHTML = '<div class="apartado-skeleton"></div><div class="apartado-skeleton"></div><div class="apartado-skeleton"></div>';
+
+    const user = getCurrentUserSession();
+    if (!user) return;
+
+    google.script.run
+      .withSuccessHandler(function (result) {
+        if (!result.success) { mostrarErrorApartado(grid, result.message); return; }
+        renderizarFavoritos_(result.favoritos || []);
+      })
+      .withFailureHandler(function (error) {
+        console.error('Error cargando favoritos:', error);
+        mostrarErrorApartado(grid, 'No se pudieron cargar tus favoritos.');
+      })
+      .obtenerFavoritosDetallados(user.ID_Usuario);
+  }
+
+  function renderizarFavoritos_(favoritos) {
+    const grid = document.getElementById('favoritosGrid');
+    if (!grid) return;
+
+    if (!favoritos.length) {
+      grid.innerHTML = construirEstadoVacioApartado('Aún no tienes favoritos', 'Marca carpetas o archivos con la estrella para encontrarlos aquí rápido.');
+      return;
+    }
+
+    grid.innerHTML = favoritos.map(function (recurso) {
+      return construirTarjetaApartado(recurso, '<div class="apartado-item-derecha">' + botonFavoritoHtml(recurso.tipoRecurso, recurso.idRecurso) + '</div>');
+    }).join('');
+
+    vincularClicksApartado(grid, favoritos);
+  }
+
+  // ==================== Widget del Home (dashboard) ====================
+  function cargarWidgetFavoritos() {
+    const user = getCurrentUserSession();
+    if (!user) return;
+
+    google.script.run
+      .withSuccessHandler(function (result) {
+        if (!result.success) { revelarWidget('seccionFavoritos'); return; }
+        renderizarWidgetFavoritos_((result.favoritos || []).slice(0, 4));
+        revelarWidget('seccionFavoritos');
+      })
+      .withFailureHandler(function (error) {
+        console.error('Error cargando widget de favoritos:', error);
+        revelarWidget('seccionFavoritos');
+      })
+      .obtenerFavoritosDetallados(user.ID_Usuario);
+  }
+
+  function renderizarWidgetFavoritos_(favoritos) {
+    const contenedor = document.querySelector('#seccionFavoritos [data-widget-contenido]');
+    if (!contenedor) return;
+
+    if (!favoritos.length) {
+      contenedor.innerHTML = '<p class="apartado-widget-vacio">Aún no tienes favoritos.</p>';
+      return;
+    }
+
+    contenedor.innerHTML = favoritos.map(function (recurso) { return construirTarjetaApartado(recurso, ''); }).join('');
+    vincularClicksApartado(contenedor, favoritos);
+  }
+</script>

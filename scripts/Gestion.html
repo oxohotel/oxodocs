@@ -1,0 +1,275 @@
+<script>
+  // ==================== Permisos (solo UI) ====================
+  // Espejo del catálogo de permisos por rol definido en la hoja "Roles" (ver
+  // backend/Esquema.js: actualizarRoles_). Sirve SOLO para decidir qué botones mostrar — el
+  // backend (backend/Roles.js: usuarioTienePermiso) siempre vuelve a verificar el permiso real
+  // antes de ejecutar cualquier acción, así que ocultar un botón aquí es comodidad, no seguridad.
+  var MAPA_PERMISOS_POR_ROL = {
+    '1': {
+      Ver_Documentos: true, Subir_Documentos: true, Editar_Documentos: false,
+      Eliminar_Documentos: false, Gestionar_Hoteles_Carpetas: false,
+      Gestionar_Usuarios: false, Gestionar_Roles: false
+    },
+    '2': {
+      Ver_Documentos: true, Subir_Documentos: true, Editar_Documentos: true,
+      Eliminar_Documentos: true, Gestionar_Hoteles_Carpetas: true,
+      Gestionar_Usuarios: true, Gestionar_Roles: false
+    },
+    '3': {
+      Ver_Documentos: true, Subir_Documentos: true, Editar_Documentos: true,
+      Eliminar_Documentos: true, Gestionar_Hoteles_Carpetas: true,
+      Gestionar_Usuarios: true, Gestionar_Roles: true
+    },
+    'Usuario': {
+      Ver_Documentos: true, Subir_Documentos: true, Editar_Documentos: false,
+      Eliminar_Documentos: false, Gestionar_Hoteles_Carpetas: false,
+      Gestionar_Usuarios: false, Gestionar_Roles: false
+    },
+    'Administrador': {
+      Ver_Documentos: true, Subir_Documentos: true, Editar_Documentos: true,
+      Eliminar_Documentos: true, Gestionar_Hoteles_Carpetas: true,
+      Gestionar_Usuarios: true, Gestionar_Roles: false
+    },
+    'Superadministrador': {
+      Ver_Documentos: true, Subir_Documentos: true, Editar_Documentos: true,
+      Eliminar_Documentos: true, Gestionar_Hoteles_Carpetas: true,
+      Gestionar_Usuarios: true, Gestionar_Roles: true
+    }
+  };
+
+  function sesionPuede(permiso) {
+    const sesion = typeof getCurrentUserSession === 'function' ? getCurrentUserSession() : null;
+    if (!sesion) return false;
+    const rolKey = String(sesion.ID_Rol || sesion.Rol_ID || sesion.Rol || '');
+    const permisos = MAPA_PERMISOS_POR_ROL[rolKey] || MAPA_PERMISOS_POR_ROL[sesion.Rol];
+    return !!(permisos && permisos[permiso]);
+  }
+
+  // ==================== Gestión de carpetas (áreas y subcarpetas) ====================
+  // Botones de renombrar/eliminar reutilizados por scripts/HotelCarpetas.html (tarjetas de
+  // área) y scripts/ArchivosCarpeta.html (subcarpetas dentro del explorador) — un solo lugar
+  // para no mantener dos copias casi idénticas.
+  function botonesGestionCarpetaHtml(idCarpeta) {
+    if (!sesionPuede('Gestionar_Hoteles_Carpetas')) return '';
+    return (
+      '<button type="button" class="btn-gestion-carpeta" data-accion="renombrar" data-id-carpeta="' + idCarpeta + '" title="Renombrar">' +
+        '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>' +
+      '</button>' +
+      '<button type="button" class="btn-gestion-carpeta btn-gestion-peligro" data-accion="eliminar" data-id-carpeta="' + idCarpeta + '" title="Eliminar">' +
+        '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>' +
+      '</button>'
+    );
+  }
+
+  /** Delega el clic de los botones de gestión de carpeta (event delegation — funciona sin
+   *  importar en qué vista se hayan pintado). "obtenerNombreCarpeta"/"onCambio" los define quien
+   *  llama, para no acoplar este archivo a un estado concreto. */
+  function vincularBotonesGestionCarpeta(contenedor, obtenerNombreCarpeta, onCambio) {
+    // Ojo: el selector debe quedarse en "[data-id-carpeta]" y NO en la clase .btn-gestion-carpeta
+    // sola — esa misma clase (solo para estilo) también la usan los botones de gestión de
+    // ARCHIVO (ver botonesGestionArchivoHtml), que en cambio traen "data-id-archivo".
+    contenedor.querySelectorAll('.btn-gestion-carpeta[data-id-carpeta]').forEach(function (btn) {
+      btn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        const idCarpeta = btn.dataset.idCarpeta;
+        const nombreActual = obtenerNombreCarpeta(idCarpeta) || '';
+
+        if (btn.dataset.accion === 'renombrar') {
+          abrirPanelRenombrarCarpeta(idCarpeta, nombreActual, onCambio);
+        } else {
+          confirmarEliminarCarpeta(idCarpeta, nombreActual, onCambio);
+        }
+      });
+    });
+  }
+
+  function abrirPanelRenombrarCarpeta(idCarpeta, nombreActual, onExito) {
+    abrirPanelLateral({
+      titulo: 'Renombrar carpeta',
+      html:
+        '<div class="nueva-carpeta-form">' +
+          '<label for="inputRenombrarCarpeta">Nuevo nombre</label>' +
+          '<input type="text" id="inputRenombrarCarpeta" class="campo-input" value="' + escaparHtml(nombreActual) + '">' +
+          '<div class="nueva-carpeta-acciones">' +
+            '<button type="button" class="btn-cancelar" id="btnCancelarRenombrarCarpeta">Cancelar</button>' +
+            '<button type="button" class="btn-enviar" id="btnConfirmarRenombrarCarpeta">Guardar</button>' +
+          '</div>' +
+        '</div>'
+    });
+
+    const input = document.getElementById('inputRenombrarCarpeta');
+    document.getElementById('btnCancelarRenombrarCarpeta').addEventListener('click', cerrarPanelLateral);
+    document.getElementById('btnConfirmarRenombrarCarpeta').addEventListener('click', confirmar);
+    input.addEventListener('keydown', function (e) { if (e.key === 'Enter') confirmar(); });
+    setTimeout(function () { input.focus(); input.select(); }, 50);
+
+    function confirmar() {
+      const nuevoNombre = input.value.trim();
+      if (!nuevoNombre) { showNotification('Escribe un nombre', 'error', 2200); return; }
+
+      const sesion = getCurrentUserSession();
+      const btn = document.getElementById('btnConfirmarRenombrarCarpeta');
+      btn.disabled = true;
+
+        const token = typeof getCurrentUserToken === 'function' ? getCurrentUserToken() : null;
+        google.script.run
+          .withSuccessHandler(function (result) {
+            btn.disabled = false;
+            if (result.success) {
+              cerrarPanelLateral();
+              showNotification('✅ Carpeta renombrada', 'success', 2200);
+              if (typeof onExito === 'function') onExito();
+            } else {
+              showNotification('Error: ' + result.message, 'error', 3200);
+            }
+          })
+          .withFailureHandler(function (error) {
+            btn.disabled = false;
+            console.error('Error renombrarCarpeta:', error);
+            showNotification('Error al renombrar la carpeta', 'error', 3000);
+          })
+          .renombrarCarpeta(idCarpeta, nuevoNombre, token || (sesion ? sesion.ID_Usuario : null));
+    }
+  }
+
+  function confirmarEliminarCarpeta(idCarpeta, nombre, onExito) {
+    showConfirmation(
+      '¿Eliminar "' + nombre + '"? Esto borra también todo lo que tenga adentro (subcarpetas y archivos), en la app y en Drive.',
+      'Eliminar carpeta',
+      function () {
+        const sesion = getCurrentUserSession();
+        const token = typeof getCurrentUserToken === 'function' ? getCurrentUserToken() : null;
+        google.script.run
+          .withSuccessHandler(function (result) {
+            if (result.success) {
+              showNotification('✅ Carpeta eliminada', 'success', 2200);
+              if (typeof onExito === 'function') onExito();
+            } else {
+              showNotification('Error: ' + result.message, 'error', 3200);
+            }
+          })
+          .withFailureHandler(function (error) {
+            console.error('Error eliminarCarpeta:', error);
+            showNotification('Error al eliminar la carpeta', 'error', 3000);
+          })
+          .eliminarCarpeta(idCarpeta, token || (sesion ? sesion.ID_Usuario : null));
+      }
+    );
+  }
+
+  // ==================== Gestión de archivos ====================
+  function botonesGestionArchivoHtml(idArchivo) {
+    let html = '';
+    if (sesionPuede('Editar_Documentos')) {
+      html += '<button type="button" class="btn-gestion-carpeta" data-accion="renombrar-archivo" data-id-archivo="' + idArchivo + '" title="Renombrar">' +
+        '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>' +
+      '</button>';
+    }
+    if (sesionPuede('Eliminar_Documentos')) {
+      html += '<button type="button" class="btn-gestion-carpeta btn-gestion-peligro" data-accion="eliminar-archivo" data-id-archivo="' + idArchivo + '" title="Eliminar">' +
+        '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>' +
+      '</button>';
+    }
+    return html;
+  }
+
+  /** "obtenerArchivo(idArchivo)" debe devolver el objeto archivo completo (nombre, driveFileId) —
+   *  lo define quien llama, para no acoplar este archivo a un estado concreto. */
+  function vincularBotonesGestionArchivo(contenedor, obtenerArchivo, onCambio) {
+    contenedor.querySelectorAll('[data-accion="renombrar-archivo"]').forEach(function (btn) {
+      btn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        const archivo = obtenerArchivo(btn.dataset.idArchivo);
+        if (archivo) abrirPanelRenombrarArchivo(archivo, onCambio);
+      });
+    });
+
+    contenedor.querySelectorAll('[data-accion="eliminar-archivo"]').forEach(function (btn) {
+      btn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        const archivo = obtenerArchivo(btn.dataset.idArchivo);
+        if (archivo) confirmarEliminarArchivo(archivo, onCambio);
+      });
+    });
+  }
+
+  function abrirPanelRenombrarArchivo(archivo, onExito) {
+    // El nombre sin extensión es lo único editable — renombrarArchivo (backend/Archivos.js)
+    // vuelve a agregar la extensión original si no viene incluida.
+    const nombreSinExtension = archivo.extension && archivo.nombre.toLowerCase().endsWith('.' + String(archivo.extension).toLowerCase())
+      ? archivo.nombre.slice(0, -(archivo.extension.length + 1))
+      : archivo.nombre;
+
+    abrirPanelLateral({
+      titulo: 'Renombrar archivo',
+      html:
+        '<div class="nueva-carpeta-form">' +
+          '<label for="inputRenombrarArchivo">Nuevo nombre</label>' +
+          '<input type="text" id="inputRenombrarArchivo" class="campo-input" value="' + escaparHtml(nombreSinExtension) + '">' +
+          '<div class="nueva-carpeta-acciones">' +
+            '<button type="button" class="btn-cancelar" id="btnCancelarRenombrarArchivo">Cancelar</button>' +
+            '<button type="button" class="btn-enviar" id="btnConfirmarRenombrarArchivo">Guardar</button>' +
+          '</div>' +
+        '</div>'
+    });
+
+    const input = document.getElementById('inputRenombrarArchivo');
+    document.getElementById('btnCancelarRenombrarArchivo').addEventListener('click', cerrarPanelLateral);
+    document.getElementById('btnConfirmarRenombrarArchivo').addEventListener('click', confirmar);
+    input.addEventListener('keydown', function (e) { if (e.key === 'Enter') confirmar(); });
+    setTimeout(function () { input.focus(); input.select(); }, 50);
+
+    function confirmar() {
+      const nuevoNombre = input.value.trim();
+      if (!nuevoNombre) { showNotification('Escribe un nombre', 'error', 2200); return; }
+
+      const sesion = getCurrentUserSession();
+      const btn = document.getElementById('btnConfirmarRenombrarArchivo');
+      btn.disabled = true;
+
+      const token = typeof getCurrentUserToken === 'function' ? getCurrentUserToken() : null;
+      google.script.run
+        .withSuccessHandler(function (result) {
+          btn.disabled = false;
+          if (result.success) {
+            cerrarPanelLateral();
+            showNotification('✅ Archivo renombrado', 'success', 2200);
+            if (typeof onExito === 'function') onExito();
+          } else {
+            showNotification('Error: ' + result.message, 'error', 3200);
+          }
+        })
+        .withFailureHandler(function (error) {
+          btn.disabled = false;
+          console.error('Error renombrarArchivo:', error);
+          showNotification('Error al renombrar el archivo', 'error', 3000);
+        })
+        .renombrarArchivo(archivo.id, nuevoNombre, token || (sesion ? sesion.ID_Usuario : null));
+    }
+  }
+
+  function confirmarEliminarArchivo(archivo, onExito) {
+    showConfirmation(
+      '¿Eliminar "' + archivo.nombre + '"? Esta acción no se puede deshacer.',
+      'Eliminar archivo',
+      function () {
+        const sesion = getCurrentUserSession();
+        const token = typeof getCurrentUserToken === 'function' ? getCurrentUserToken() : null;
+        google.script.run
+          .withSuccessHandler(function (result) {
+            if (result.success) {
+              showNotification('✅ Archivo eliminado', 'success', 2200);
+              if (typeof onExito === 'function') onExito();
+            } else {
+              showNotification('Error: ' + result.message, 'error', 3200);
+            }
+          })
+          .withFailureHandler(function (error) {
+            console.error('Error eliminarArchivo:', error);
+            showNotification('Error al eliminar el archivo', 'error', 3000);
+          })
+          .eliminarArchivo(archivo.driveFileId, token || (sesion ? sesion.ID_Usuario : null));
+      }
+    );
+  }
+</script>

@@ -1,0 +1,26 @@
+<script>
+  // ==================== MODALES Y NOTIFICACIONES ====================
+  function showLoading() {
+    const modal = document.getElementById("loadingModal");
+    if (modal) modal.classList.add("active");
+  }
+
+  function hideLoading() {
+    const modal = document.getElementById("loadingModal");
+    if (modal) modal.classList.remove("active");
+  }
+
+  function showNotification(message, type = "info", duration = 3000) {
+    const notification = document.createElement("div");
+    notification.className = `notification ${type}`;
+    notification.textContent = message;
+    document.body.appendChild(notification);
+
+    if (duration > 0) {
+      setTimeout(() => {
+        notification.classList.add("exit");
+        setTimeout(() => notification.remove(), 300);
+      }, duration);
+    }
+  }
+</script>

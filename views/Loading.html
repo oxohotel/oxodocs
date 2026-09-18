@@ -1,0 +1,65 @@
+<div class="loading-screen" id="loadingScreen">
+  <div class="loading-container">
+    <div class="loading-header">
+      <h1 class="loading-title">GESTOR DE DOCUMENTOS DE HOTELES</h1>
+    </div>
+
+    <div class="loading-content">
+      <!-- Spinner circular con nodos -->
+      <div class="spinner-circular">
+        <svg class="spinner-svg" viewBox="0 0 100 100">
+          <!-- Círculo de fondo -->
+          <circle cx="50" cy="50" r="45" fill="none" stroke="#f0f0f0" stroke-width="1"/>
+
+          <!-- Nodos alrededor del círculo -->
+          <g class="nodes">
+            <circle class="node node-1" cx="50" cy="8" r="3" fill="var(--secondary-color)"/>
+            <circle class="node node-2" cx="75" cy="15" r="3" fill="#c9a961"/>
+            <circle class="node node-3" cx="92" cy="30" r="3" fill="#5B9F6F"/>
+            <circle class="node node-4" cx="92" cy="70" r="3" fill="#4A7C7E"/>
+            <circle class="node node-5" cx="75" cy="85" r="3" fill="#5B9F6F"/>
+            <circle class="node node-6" cx="50" cy="92" r="3" fill="#c9a961"/>
+            <circle class="node node-7" cx="25" cy="85" r="3" fill="var(--secondary-color)"/>
+            <circle class="node node-8" cx="8" cy="70" r="3" fill="#c9a961"/>
+            <circle class="node node-9" cx="8" cy="30" r="3" fill="#5B9F6F"/>
+            <circle class="node node-10" cx="25" cy="15" r="3" fill="#4A7C7E"/>
+          </g>
+
+          <!-- Líneas conectando los nodos -->
+          <g class="connections" stroke="var(--secondary-color)" stroke-width="0.5" opacity="0.3">
+            <line x1="50" y1="8" x2="75" y2="15"/>
+            <line x1="75" y1="15" x2="92" y2="30"/>
+            <line x1="92" y1="30" x2="92" y2="70"/>
+            <line x1="92" y1="70" x2="75" y2="85"/>
+            <line x1="75" y1="85" x2="50" y2="92"/>
+            <line x1="50" y1="92" x2="25" y2="85"/>
+            <line x1="25" y1="85" x2="8" y2="70"/>
+            <line x1="8" y1="70" x2="8" y2="30"/>
+            <line x1="8" y1="30" x2="25" y2="15"/>
+            <line x1="25" y1="15" x2="50" y2="8"/>
+          </g>
+
+          <!-- Icono de documento en el centro -->
+          <g class="center-icon">
+            <rect x="42" y="40" width="16" height="20" fill="none" stroke="var(--secondary-color)" stroke-width="1" rx="1"/>
+            <line x1="46" y1="46" x2="54" y2="46" stroke="var(--secondary-color)" stroke-width="0.8"/>
+            <line x1="46" y1="50" x2="54" y2="50" stroke="var(--secondary-color)" stroke-width="0.8"/>
+            <line x1="46" y1="54" x2="52" y2="54" stroke="var(--secondary-color)" stroke-width="0.8"/>
+          </g>
+        </svg>
+      </div>
+
+      <div class="loading-text">
+        <h2 class="loading-status">CARGANDO SU PANEL DE CONTROL...</h2>
+        <p class="loading-subtitle">POR FAVOR ESPERE UN MOMENTO.</p>
+      </div>
+
+      <!-- Barra de progreso -->
+      <div class="progress-bar-container">
+        <div class="progress-bar">
+          <div class="progress-fill"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

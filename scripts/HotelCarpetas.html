@@ -1,0 +1,340 @@
+<script>
+  let estadoHotelCarpetas = {
+    hotelActual: null,
+    carpetas: [],
+    vistaActual: 'tarjetas',
+    filtro: ''
+  };
+
+  function inicializarHotelCarpetas() {
+    const inputBuscador = document.getElementById('inputBuscadorCarpetas');
+    if (inputBuscador) {
+      inputBuscador.addEventListener('input', (e) => {
+        estadoHotelCarpetas.filtro = e.target.value.toLowerCase();
+        renderizarCarpetas();
+      });
+    }
+
+    const btnNuevaArea = document.getElementById('btnNuevaArea');
+    if (btnNuevaArea) {
+      btnNuevaArea.classList.toggle('oculto', !sesionPuede('Gestionar_Hoteles_Carpetas'));
+      btnNuevaArea.addEventListener('click', abrirPanelNuevaArea);
+    }
+
+    // Escopado a .hotel-carpetas-controles: la vista de archivos (scripts/ArchivosCarpeta.html)
+    // reusa la misma clase .vista-btn para su propio selector tarjetas/filas, y sin este
+    // alcance, un solo querySelectorAll('.vista-btn') global habría atado ambos controles
+    // al mismo estado.
+    const vistaBtns = document.querySelectorAll('.hotel-carpetas-controles .vista-btn');
+    vistaBtns.forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        vistaBtns.forEach(b => b.classList.remove('vista-btn-activo'));
+        btn.classList.add('vista-btn-activo');
+        estadoHotelCarpetas.vistaActual = btn.dataset.vista;
+        cambiarVista();
+      });
+    });
+  }
+
+  async function cargarCarpetasDelHotel(idHotel, nombreHotel, idCarpetaAutoAbrir, idArchivoResaltar) {
+    estadoHotelCarpetas.hotelActual = { idHotel, nombreHotel };
+
+    const tituloCarpetas = document.getElementById('hotelCarpetasTitulo');
+    if (tituloCarpetas) {
+      tituloCarpetas.textContent = nombreHotel + ' - Repositorio de Proyectos';
+    }
+
+    mostrarLoadingCarpetas();
+
+    try {
+      const sesionCarp = typeof getCurrentUserSession === 'function' ? getCurrentUserSession() : null;
+      const tokenCarp = typeof getCurrentUserToken === 'function' ? getCurrentUserToken() : null;
+      const idUsuarioCarp = sesionCarp && (sesionCarp.ID_Usuario || sesionCarp.idUsuario) ? (sesionCarp.ID_Usuario || sesionCarp.idUsuario) : null;
+
+      const result = await new Promise((resolve, reject) => {
+        google.script.run
+          .withSuccessHandler((response) => resolve(response))
+          .withFailureHandler((error) => reject(error))
+          .obtenerCarpetasDelHotel(idHotel, tokenCarp, idUsuarioCarp);
+      });
+
+      if (result.success) {
+        estadoHotelCarpetas.carpetas = result.carpetas || [];
+        renderizarCarpetas();
+
+        // Favoritos/Recientes pueden llegar aquí pidiendo abrir directo una carpeta puntual
+        // (y opcionalmente resaltar un archivo dentro de ella) en vez de solo mostrar el grid.
+        // Esa carpeta puede ser una de las áreas de este grid, o una subcarpeta creada por un
+        // usuario en cualquier profundidad — si no aparece entre las áreas, se abre igual como
+        // un nodo suelto (el explorador resuelve su nombre real al cargar su contenido).
+        if (idCarpetaAutoAbrir) {
+          const carpeta = estadoHotelCarpetas.carpetas.find(function (c) { return String(c.id) === String(idCarpetaAutoAbrir); });
+          abrirCarpeta(carpeta || { id: idCarpetaAutoAbrir, nombre: '' }, idArchivoResaltar);
+        }
+      } else {
+        mostrarErrorCarpetas(result.message);
+      }
+    } catch (error) {
+      console.error('Error al cargar carpetas:', error);
+      mostrarErrorCarpetas('Error al cargar las carpetas. Intenta de nuevo.');
+    }
+  }
+
+  function obtenerDetallesArea(nombreArea) {
+    const n = String(nombreArea || '').toLowerCase().trim();
+
+    if (n.includes('alimento') || n.includes('bebida') || n.includes('f&b') || n.includes('restaurante') || n.includes('bar') || n.includes('cocina')) {
+      return {
+        badge: 'F&B • Gastronomía',
+        svg: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8h1a4 4 0 0 1 0 8h-1"></path><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"></path><line x1="6" y1="1" x2="6" y2="4"></line><line x1="10" y1="1" x2="10" y2="4"></line><line x1="14" y1="1" x2="14" y2="4"></line></svg>'
+      };
+    }
+
+    if (n.includes('caf') || n.includes('finanz') || n.includes('contab') || n.includes('tesorer') || n.includes('fiscal') || n.includes('costos') || n.includes('auditor')) {
+      return {
+        badge: 'Finanzas & Control',
+        svg: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="18" rx="2"></rect><line x1="2" y1="9" x2="22" y2="9"></line><line x1="8" y1="13" x2="8" y2="17"></line><line x1="12" y1="13" x2="12" y2="17"></line><line x1="16" y1="13" x2="16" y2="17"></line></svg>'
+      };
+    }
+
+    if (n.includes('it') || n.includes('sistemas') || n.includes('tecnolog') || n.includes('infraestructura') || n.includes('software')) {
+      return {
+        badge: 'Tecnología & TI',
+        svg: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect><rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect><line x1="6" y1="6" x2="6.01" y2="6"></line><line x1="6" y1="18" x2="6.01" y2="18"></line><line x1="10" y1="6" x2="14" y2="6"></line><line x1="10" y1="18" x2="14" y2="18"></line></svg>'
+      };
+    }
+
+    if (n.includes('juridic') || n.includes('jurídic') || n.includes('legal') || n.includes('contrato') || n.includes('normat') || n.includes('abogad')) {
+      return {
+        badge: 'Legal & Contratos',
+        svg: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"></path><path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"></path><path d="M7 21h10"></path><path d="M12 3v18"></path><path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2"></path></svg>'
+      };
+    }
+
+    if (n.includes('presidencia') || n.includes('directiv') || n.includes('gerencia general') || n.includes('ejecutiv') || n.includes('ceo')) {
+      return {
+        badge: 'Alta Dirección',
+        svg: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"></path><path d="M2 17l10 5 10-5"></path><path d="M2 12l10 5 10-5"></path></svg>'
+      };
+    }
+
+    if (n.includes('inversion') || n.includes('inversionista') || n.includes('investor') || n.includes('socios') || n.includes('capital')) {
+      return {
+        badge: 'Inversiones & Socios',
+        svg: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"></path><path d="M22 12A10 10 0 0 0 12 2v10z"></path></svg>'
+      };
+    }
+
+    if (n.includes('revenue') || n.includes('yield') || n.includes('tarifa') || n.includes('ingreso') || n.includes('monetiz')) {
+      return {
+        badge: 'Gestión de Revenue',
+        svg: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg>'
+      };
+    }
+
+    if (n.includes('comercial') || n.includes('ventas') || n.includes('marketing') || n.includes('mercadeo') || n.includes('clientes')) {
+      return {
+        badge: 'Estrategia Comercial',
+        svg: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>'
+      };
+    }
+
+    if (n.includes('desarrollo') || n.includes('proyecto') || n.includes('construc') || n.includes('obras') || n.includes('expansion')) {
+      return {
+        badge: 'Desarrollo & Obras',
+        svg: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"></path><path d="M5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16"></path><path d="M9 9h1"></path><path d="M9 13h1"></path><path d="M9 17h1"></path><path d="M14 9h1"></path><path d="M14 13h1"></path><path d="M14 17h1"></path></svg>'
+      };
+    }
+
+    if (n.includes('operacion') || n.includes('operación') || n.includes('calidad') || n.includes('gestion') || n.includes('gestión') || n.includes('hotel')) {
+      return {
+        badge: 'Operación Hotelera',
+        svg: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>'
+      };
+    }
+
+    if (n.includes('talento') || n.includes('rrhh') || n.includes('recursos humanos') || n.includes('humano') || n.includes('personal') || n.includes('personas')) {
+      return {
+        badge: 'Talento & Personas',
+        svg: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>'
+      };
+    }
+
+    if (n.includes('mantenimiento') || n.includes('tecnico') || n.includes('técnico') || n.includes('instalac')) {
+      return {
+        badge: 'Mantenimiento & Soporte',
+        svg: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path></svg>'
+      };
+    }
+
+    return {
+      badge: 'Área Corporativa',
+      svg: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>'
+    };
+  }
+
+  function renderizarCarpetas() {
+    const grid = document.getElementById('carpetasGrid');
+    if (!grid) return;
+
+    const carpetasFiltradas = estadoHotelCarpetas.carpetas.filter(carpeta => {
+      return carpeta.nombre.toLowerCase().includes(estadoHotelCarpetas.filtro);
+    });
+
+    if (carpetasFiltradas.length === 0) {
+      grid.innerHTML = `
+        <div class="carpetas-vacia">
+          <svg class="carpetas-vacia-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline>
+          </svg>
+          <h3>No hay áreas registradas aún</h3>
+          <p>${estadoHotelCarpetas.filtro ? 'No coinciden con tu búsqueda' : 'Cargando áreas corporativas...'}</p>
+        </div>
+      `;
+      return;
+    }
+
+    const htmlCarpetas = carpetasFiltradas.map(carpeta => {
+      const claseVista = estadoHotelCarpetas.vistaActual === 'filas' ? 'vista-filas' : '';
+      const cantidad = carpeta.cantidad || 0;
+      const tamanoTexto = typeof formatearTamaño === 'function' ? formatearTamaño(carpeta.tamanoTotal || 0) : '';
+      const fechaTexto = carpeta.fechaUltimaActividad
+        ? new Date(carpeta.fechaUltimaActividad).toLocaleDateString('es-ES', { year: 'numeric', month: 'short', day: 'numeric' })
+        : 'Sin actividad';
+
+      const areaInfo = obtenerDetallesArea(carpeta.nombre);
+
+      return `
+        <div class="carpeta-card ${claseVista}" data-carpeta-id="${carpeta.id}">
+          <div class="area-emblem">
+            ${areaInfo.svg}
+          </div>
+          <div class="carpeta-nombre">${carpeta.nombre}</div>
+          <div class="area-tag-badge">${areaInfo.badge}</div>
+          <div class="carpeta-col-elementos">${cantidad} elemento${cantidad === 1 ? '' : 's'}</div>
+          <div class="carpeta-col-tamano">${tamanoTexto}</div>
+          <div class="carpeta-col-fecha">${fechaTexto}</div>
+          <div class="carpeta-col-acciones">${typeof botonFavoritoHtml === 'function' ? botonFavoritoHtml('Carpeta', carpeta.id) : ''}${botonesGestionCarpetaHtml(carpeta.id)}</div>
+        </div>
+      `;
+    }).join('');
+
+    grid.innerHTML = htmlCarpetas;
+
+    grid.querySelectorAll('.carpeta-card').forEach(card => {
+      card.addEventListener('click', (e) => {
+        if (e.target.closest('.btn-favorito') || e.target.closest('.btn-gestion-carpeta')) return;
+        const carpetaId = card.dataset.carpetaId;
+        const carpeta = estadoHotelCarpetas.carpetas.find(c => c.id === carpetaId);
+        if (carpeta) {
+          abrirCarpeta(carpeta);
+        }
+      });
+    });
+
+    vincularBotonesGestionCarpeta(
+      grid,
+      function (idCarpeta) {
+        const carpeta = estadoHotelCarpetas.carpetas.find(c => c.id === idCarpeta);
+        return carpeta ? carpeta.nombre : '';
+      },
+      function () { cargarCarpetasDelHotel(estadoHotelCarpetas.hotelActual.idHotel, estadoHotelCarpetas.hotelActual.nombreHotel); }
+    );
+  }
+
+  function abrirPanelNuevaArea() {
+    abrirPanelLateral({
+      titulo: 'Nueva Área',
+      html:
+        '<div class="nueva-carpeta-form">' +
+          '<label for="inputNombreNuevaArea">Nombre del área</label>' +
+          '<input type="text" id="inputNombreNuevaArea" class="campo-input" placeholder="Ej. Mantenimiento">' +
+          '<div class="nueva-carpeta-acciones">' +
+            '<button type="button" class="btn-cancelar" id="btnCancelarNuevaArea">Cancelar</button>' +
+            '<button type="button" class="btn-enviar" id="btnCrearNuevaArea">Crear</button>' +
+          '</div>' +
+        '</div>'
+    });
+
+    const input = document.getElementById('inputNombreNuevaArea');
+    document.getElementById('btnCancelarNuevaArea').addEventListener('click', cerrarPanelLateral);
+    document.getElementById('btnCrearNuevaArea').addEventListener('click', confirmarCrearArea);
+    input.addEventListener('keydown', function (e) { if (e.key === 'Enter') confirmarCrearArea(); });
+    setTimeout(function () { input.focus(); }, 50);
+  }
+
+  function confirmarCrearArea() {
+    const input = document.getElementById('inputNombreNuevaArea');
+    const nombre = input ? input.value.trim() : '';
+    if (!nombre) {
+      showNotification('Escribe un nombre para el área', 'error', 2500);
+      return;
+    }
+
+    const sesion = getCurrentUserSession();
+    const btnCrear = document.getElementById('btnCrearNuevaArea');
+    if (btnCrear) btnCrear.disabled = true;
+
+    google.script.run
+      .withSuccessHandler(function (result) {
+        if (btnCrear) btnCrear.disabled = false;
+        if (result.success) {
+          cerrarPanelLateral();
+          showNotification('✅ Área creada', 'success', 2500);
+          cargarCarpetasDelHotel(estadoHotelCarpetas.hotelActual.idHotel, estadoHotelCarpetas.hotelActual.nombreHotel);
+        } else {
+          showNotification('Error: ' + result.message, 'error', 3000);
+        }
+      })
+      .withFailureHandler(function (error) {
+        if (btnCrear) btnCrear.disabled = false;
+        console.error('Error crearArea:', error);
+        showNotification('Error al crear el área', 'error', 3000);
+      })
+      .crearArea(estadoHotelCarpetas.hotelActual.idHotel, nombre, sesion ? sesion.ID_Usuario : null);
+  }
+
+  function cambiarVista() {
+    const grid = document.getElementById('carpetasGrid');
+    if (!grid) return;
+
+    grid.classList.remove('carpetas-vista-tarjetas', 'carpetas-vista-filas');
+    grid.classList.add(`carpetas-vista-${estadoHotelCarpetas.vistaActual}`);
+
+    const encabezado = document.getElementById('carpetasListaEncabezado');
+    if (encabezado) encabezado.classList.toggle('oculto', estadoHotelCarpetas.vistaActual !== 'filas');
+
+    renderizarCarpetas();
+  }
+
+  function abrirCarpeta(carpeta, idArchivoResaltar) {
+    abrirArchivosCarpeta(carpeta, estadoHotelCarpetas.hotelActual, idArchivoResaltar);
+
+    const user = getCurrentUserSession();
+    if (user) registrarActividadSilenciosa(user.ID_Usuario, 'Carpeta', carpeta.id, 'Abrió');
+  }
+
+  function mostrarLoadingCarpetas() {
+    const grid = document.getElementById('carpetasGrid');
+    if (grid) {
+      grid.innerHTML = `
+        <div class="carpeta-skeleton"></div>
+        <div class="carpeta-skeleton"></div>
+        <div class="carpeta-skeleton"></div>
+        <div class="carpeta-skeleton"></div>
+      `;
+    }
+  }
+
+  function mostrarErrorCarpetas(mensaje) {
+    const grid = document.getElementById('carpetasGrid');
+    if (grid) {
+      grid.innerHTML = `
+        <div class="carpetas-vacia">
+          <h3>Error al cargar</h3>
+          <p>${mensaje}</p>
+        </div>
+      `;
+    }
+  }
+</script>

@@ -1,0 +1,193 @@
+<script>
+  async function registerUser(userData) {
+    try {
+      showLoading();
+      const { nombre, email, password } = userData;
+      const validation = validateRegisterData(nombre, email, password);
+      if (!validation.isValid) {
+        hideLoading();
+        return { success: false, message: validation.message, userId: null };
+      }
+
+      const result = await new Promise((resolve, reject) => {
+        google.script.run
+          .withSuccessHandler((response) => resolve(response))
+          .withFailureHandler((error) => reject(error))
+          .registrarUsuario(nombre, email, password);
+      });
+
+      hideLoading();
+      return result;
+    } catch (error) {
+      hideLoading();
+      console.error("Error en registrarUsuario:", error);
+      return { success: false, message: "Error al registrar el usuario. Intenta de nuevo.", userId: null };
+    }
+  }
+
+  function validateRegisterData(nombre, email, password) {
+    if (!isValidName(nombre)) {
+      return { isValid: false, message: "El nombre debe tener al menos 3 caracteres" };
+    }
+    if (!isValidEmail(email)) {
+      return { isValid: false, message: "Por favor ingresa un email válido" };
+    }
+    const passwordValidation = isValidPassword(password);
+    if (!passwordValidation.isValid) {
+      return { isValid: false, message: passwordValidation.message };
+    }
+    return { isValid: true, message: "" };
+  }
+
+  async function loginUser(email, password) {
+    try {
+      const validation = validateLoginData(email, password);
+      if (!validation.isValid) {
+        return { success: false, message: validation.message, user: null };
+      }
+
+      const result = await new Promise((resolve) => {
+        google.script.run
+          .withSuccessHandler((response) => resolve(response))
+          .withFailureHandler((error) => {
+            console.error("Error en google.script.run.validarCredenciales:", error);
+            resolve({
+              success: false,
+              message: "Error de conexión con el servidor: " + (error && error.message ? error.message : error)
+            });
+          })
+          .validarCredenciales(email, password);
+      });
+
+      return result || { success: false, message: "No se recibió respuesta del servidor", user: null };
+    } catch (error) {
+      console.error("Error en loginUser:", error);
+      return { success: false, message: "Error al validar credenciales: " + (error && error.message ? error.message : error), user: null };
+    }
+  }
+
+  function validateLoginData(email, password) {
+    if (!isValidEmail(email)) {
+      return { isValid: false, message: "Por favor ingresa un email válido" };
+    }
+    if (!password || password.length === 0) {
+      return { isValid: false, message: "Por favor ingresa tu contraseña" };
+    }
+    return { isValid: true, message: "" };
+  }
+
+  function saveUserSession(user) {
+    saveToLocalStorage("currentUser", user);
+  }
+
+  function getCurrentUserSession() {
+    return getFromLocalStorage("currentUser");
+  }
+
+  function getCurrentUserToken() {
+    const s = getCurrentUserSession();
+    return (s && s.token) ? s.token : null;
+  }
+
+  function logoutUser() {
+    const token = getCurrentUserToken();
+    if (token && window.google && google.script && google.script.run) {
+      try {
+        google.script.run.cerrarSesionUsuario(token);
+      } catch (e) {}
+    }
+
+    removeFromLocalStorage("currentUser");
+
+    // Limpiar estado del formulario
+    const loginForm = document.getElementById("loginForm");
+    const registerForm = document.getElementById("registerForm");
+
+    if (loginForm) {
+      loginForm.reset();
+      clearAllErrors("loginForm");
+      setButtonEnabled("loginBtn", true);
+      setButtonText("loginBtn", "Iniciar Sesión");
+    }
+
+    if (registerForm) {
+      registerForm.reset();
+      clearAllErrors("registerForm");
+      setButtonEnabled("registerBtn", true);
+      setButtonText("registerBtn", "Registrarse");
+    }
+
+    // Asegurar que se muestre el formulario de login
+    switchForm("login");
+
+    // Limpiar cualquier modal abierto
+    hideLoading();
+  }
+
+  function isUserLoggedIn() {
+    return getCurrentUserSession() !== null;
+  }
+
+  async function logAction(actionData) {
+    try {
+      const result = await new Promise((resolve, reject) => {
+        google.script.run
+          .withSuccessHandler((response) => resolve(response))
+          .withFailureHandler((error) => reject(error))
+          .registrarAuditoria(actionData);
+      });
+      return result;
+    } catch (error) {
+      console.error("Error al registrar auditoría:", error);
+      return { success: false };
+    }
+  }
+
+  function logLoginAction(userId, email) {
+    logAction({
+      tipo: "Login",
+      descripcion: "Inicio de sesión exitoso",
+      usuarioId: userId,
+      emailUsuario: email,
+      entidadAfectada: "Usuarios",
+      estado: "Exitosa"
+    });
+  }
+
+  function logRegisterAction(userId, email) {
+    logAction({
+      tipo: "Registro",
+      descripcion: "Nuevo usuario registrado",
+      usuarioId: userId,
+      emailUsuario: email,
+      entidadAfectada: "Usuarios",
+      estado: "Exitosa"
+    });
+  }
+
+  function logLogoutAction(userId, email) {
+    logAction({
+      tipo: "Logout",
+      descripcion: "Cierre de sesión",
+      usuarioId: userId,
+      emailUsuario: email,
+      entidadAfectada: "Usuarios",
+      estado: "Exitosa"
+    });
+  }
+
+  async function checkEmailExists(email) {
+    try {
+      const result = await new Promise((resolve, reject) => {
+        google.script.run
+          .withSuccessHandler((response) => resolve(response))
+          .withFailureHandler((error) => reject(error))
+          .verificarEmailExistente(email);
+      });
+      return result.exists;
+    } catch (error) {
+      console.error("Error al verificar email:", error);
+      return false;
+    }
+  }
+</script>

@@ -1,0 +1,13 @@
+{
+  "name": "repositorio-proyectos-oxohotel",
+  "version": "1.0.0",
+  "description": "Repositorio de Proyectos OxoHotel - Frontend GitHub Pages & Backend Apps Script",
+  "scripts": {
+    "build": "node build.js",
+    "push": "clasp push",
+    "deploy-backend": "clasp push"
+  },
+  "keywords": ["oxohotel", "apps-script", "github-pages", "drive"],
+  "author": "OxoHotel",
+  "license": "ISC"
+}

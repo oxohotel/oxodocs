@@ -1,0 +1,96 @@
+<script>
+  // ==================== Helpers compartidos por Favoritos y Recientes ====================
+  // Ambos apartados muestran el mismo tipo de tarjeta (Hotel/Carpeta/Archivo resuelto por el
+  // backend) y navegan igual al hacer clic — solo cambia qué van a la derecha de la tarjeta
+  // (una estrella en Favoritos, un sello de "Abriste/Subiste" en Recientes).
+
+  function iconoParaRecurso_(recurso) {
+    if (recurso.tipoRecurso === 'Hotel') {
+      return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="3" width="16" height="18" rx="1"/><path d="M9 21v-4h6v4M9 7h1M14 7h1M9 11h1M14 11h1M9 15h1M14 15h1"/></svg>';
+    }
+    if (recurso.tipoRecurso === 'Archivo') {
+      // Mismo ícono por extensión que en la vista de la carpeta (scripts/ArchivosCarpeta.html) —
+      // así una tarjeta de favorito/reciente se ve igual que su tarjeta original.
+      const iconoUrl = typeof iconoArchivoUrl === 'function' ? iconoArchivoUrl(recurso.extension || recurso.nombre) : '';
+      return '<img src="' + iconoUrl + '" alt="">';
+    }
+    return '<svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M3 6a1 1 0 011-1h5l2 2h9a1 1 0 011 1v10a1 1 0 01-1 1H4a1 1 0 01-1-1V6z"/></svg>';
+  }
+
+  /** Navega hasta el recurso real reusando la lógica de carpetas/archivos que ya existía —
+   *  un favorito o una actividad reciente no son más que un atajo hacia ahí. */
+  function abrirRecurso(recurso) {
+    if (typeof ocultarVistaPerfil === 'function') ocultarVistaPerfil();
+    if (typeof ocultarVistaFavoritos === 'function') ocultarVistaFavoritos();
+    if (typeof ocultarVistaRecientes === 'function') ocultarVistaRecientes();
+    if (typeof seleccionarItemSidebar === 'function') {
+      document.querySelectorAll('.sidebar-item.active, .sidebar-subitem.active').forEach(function (el) {
+        el.classList.remove('active');
+      });
+    }
+
+    if (recurso.tipoRecurso === 'Hotel') {
+      mostrarVistaCarpetasHotel(recurso.idHotel, recurso.nombreHotel);
+    } else if (recurso.tipoRecurso === 'Carpeta') {
+      mostrarVistaCarpetasHotel(recurso.idHotel, recurso.nombreHotel, recurso.idRecurso);
+    } else if (recurso.tipoRecurso === 'Archivo') {
+      mostrarVistaCarpetasHotel(recurso.idHotel, recurso.nombreHotel, recurso.idCarpeta, recurso.idRecurso);
+    }
+  }
+
+  /** Tarjeta genérica — reusa las clases .doc-item/.doc-icon/.doc-info (styles/Home.html) para
+   *  que luzca igual en el widget chico del dashboard y en el apartado de página completa;
+   *  ".apartado-item" solo agrega el cursor/hover/animación de entrada de la vista completa. */
+  function construirTarjetaApartado(recurso, extraHtmlDerecha) {
+    const claseIcono = recurso.tipoRecurso === 'Carpeta' ? 'doc-icon-folder' : '';
+    return (
+      '<div class="doc-item apartado-item" data-tipo="' + recurso.tipoRecurso + '" data-id="' + recurso.idRecurso + '">' +
+        '<span class="doc-icon ' + claseIcono + '">' + iconoParaRecurso_(recurso) + '</span>' +
+        '<div class="doc-info">' +
+          '<p class="doc-title">' + escaparHtml(recurso.nombre) + '</p>' +
+          '<p class="doc-meta">' + escaparHtml(recurso.contexto || recurso.tipoRecurso) + '</p>' +
+        '</div>' +
+        (extraHtmlDerecha || '') +
+      '</div>'
+    );
+  }
+
+  /** Delega el clic de cada tarjeta (excepto sobre botones internos, como la estrella) hacia
+   *  abrirRecurso(), buscando el recurso completo en "lista" por tipo+id. */
+  function vincularClicksApartado(contenedor, lista) {
+    contenedor.querySelectorAll('.apartado-item').forEach(function (item) {
+      item.addEventListener('click', function (e) {
+        if (e.target.closest('.btn-favorito')) return;
+        const recurso = lista.find(function (r) {
+          return r.tipoRecurso === item.dataset.tipo && String(r.idRecurso) === item.dataset.id;
+        });
+        if (recurso) abrirRecurso(recurso);
+      });
+    });
+  }
+
+  function construirEstadoVacioApartado(titulo, subtitulo) {
+    return (
+      '<div class="apartado-vacio">' +
+        '<svg class="apartado-vacio-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="9"/><path d="M9 10h.01M15 10h.01M8 15c1 1 2.5 1.5 4 1.5s3-.5 4-1.5"/></svg>' +
+        '<h3>' + escaparHtml(titulo) + '</h3>' +
+        '<p>' + escaparHtml(subtitulo) + '</p>' +
+      '</div>'
+    );
+  }
+
+  function mostrarErrorApartado(grid, mensaje) {
+    grid.innerHTML = '<div class="apartado-vacio"><h3>Error al cargar</h3><p>' + escaparHtml(mensaje || '') + '</p></div>';
+  }
+
+  function filtrarApartado(selectorGrid, termino) {
+    const grid = document.querySelector(selectorGrid);
+    if (!grid) return;
+    const texto = termino.trim().toLowerCase();
+
+    grid.querySelectorAll('.apartado-item').forEach(function (item) {
+      const contenido = item.textContent.toLowerCase();
+      item.classList.toggle('oculto-filtro', !!texto && contenido.indexOf(texto) === -1);
+    });
+  }
+</script>

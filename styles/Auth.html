@@ -1,0 +1,438 @@
+<style>
+:root {
+  /* Paleta Corporativa OxoHotel / OxoDocs */
+  --primary-color: #3D5A4C;
+  --primary-light: rgba(61, 90, 76, 0.12);
+  --secondary-color: #C4972B;
+  --secondary-light: rgba(196, 151, 43, 0.12);
+  --accent-color: #C6C6C6;
+  --danger-color: #D32F2F;
+  --danger-light: rgba(211, 47, 47, 0.08);
+  --success-color: #2E7D32;
+  
+  --gray-dark: #19211E;
+  --gray-light: #E8E3DA;
+  --gray-medium: #C8C3BA;
+  
+  --text-dark: #19211E;
+  --text-light: #66706B;
+  --border-color: #E8E3DA;
+  --border-light: #EFECE6;
+  --bg-light: #F7F5F0;
+  --bg-beige: #FCFBF9;
+  --transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ==================== PÁGINA ==================== */
+.auth-page {
+  background: radial-gradient(circle at 10% 20%, #F5F1EA 0%, #E9E3D8 90%);
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+/* ==================== CONTENEDOR PRINCIPAL ==================== */
+.auth-container {
+  display: flex;
+  background: #FFFFFF;
+  border-radius: 24px;
+  box-shadow: 0 24px 70px rgba(25, 33, 30, 0.12), 0 4px 20px rgba(25, 33, 30, 0.06);
+  max-width: 960px;
+  width: 100%;
+  overflow: hidden;
+  height: 660px !important;
+  border: 1px solid rgba(232, 227, 218, 0.6);
+}
+
+/* ==================== LADO IZQUIERDO ==================== */
+.auth-left {
+  flex: 1;
+  background: linear-gradient(145deg, #EBE6DE 0%, #DFD7CB 100%);
+  padding: 50px 40px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  order: 1;
+  transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+  transform: translateX(0);
+  z-index: 1;
+}
+
+.register-form.active ~ .auth-left {
+  order: 2;
+}
+
+.auth-illustration {
+  width: 190px;
+  height: 190px;
+  margin-bottom: 28px;
+  opacity: 0.95;
+  transition: transform 0.3s ease;
+}
+
+.auth-illustration:hover {
+  transform: scale(1.04);
+}
+
+.auth-illustration svg {
+  width: 100%;
+  height: 100%;
+}
+
+.auth-title {
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--gray-dark);
+  margin-bottom: 12px;
+  line-height: 1.3;
+  letter-spacing: -0.4px;
+}
+
+.auth-description {
+  font-size: 13px;
+  color: var(--text-light);
+  line-height: 1.6;
+  max-width: 240px;
+  font-weight: 500;
+}
+
+/* ==================== LADO DERECHO ==================== */
+.auth-right {
+  flex: 1;
+  padding: 48px 40px;
+  overflow: hidden;
+  order: 2;
+  transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+  transform: translateX(0);
+}
+
+.form-carousel {
+  position: relative;
+  width: 100%;
+  max-width: 340px;
+  height: 100%;
+}
+
+.form-container {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.6s cubic-bezier(0.4, 0, 0.2, 1),
+              visibility 0.6s cubic-bezier(0.4, 0, 0.2, 1),
+              transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  transform: translateX(60px);
+}
+
+.form-container.active {
+  position: relative;
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(0);
+}
+
+.login-form.active ~ .register-form {
+  transform: translateX(60px);
+}
+
+.register-form.active ~ .login-form {
+  transform: translateX(-60px);
+}
+
+/* Carrusel */
+.auth-container.carousel-register .auth-left {
+  transform: translateX(100%);
+  z-index: 10;
+}
+
+.auth-container.carousel-register .auth-right {
+  transform: translateX(-100%);
+  z-index: 1;
+}
+
+.auth-container.carousel-login .auth-left {
+  transform: translateX(0);
+  z-index: 10;
+}
+
+.auth-container.carousel-login .auth-right {
+  transform: translateX(0);
+  z-index: 1;
+}
+
+/* ==================== FORMULARIOS ==================== */
+.form-title {
+  font-size: 26px;
+  font-weight: 800;
+  color: var(--gray-dark);
+  margin-bottom: 24px;
+  text-align: center;
+  letter-spacing: -0.5px;
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-group.checkbox {
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+  margin-bottom: 6px;
+}
+
+.form-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-light);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.form-input {
+  padding: 12px 42px 12px 42px;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 500;
+  transition: var(--transition);
+  background: #FFFFFF;
+  color: var(--text-dark);
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: var(--secondary-color);
+  background: #FCFBF9;
+  box-shadow: 0 0 0 3px rgba(196, 151, 43, 0.15);
+}
+
+.form-input::placeholder {
+  color: #9EA6A0;
+}
+
+.form-input.error {
+  border-color: var(--danger-color);
+  background: #FFF8F7;
+}
+
+.input-icon-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.input-icon-wrapper .form-input {
+  width: 100%;
+}
+
+.input-leading-icon {
+  position: absolute;
+  left: 14px;
+  display: flex;
+  align-items: center;
+  color: #9EA6A0;
+  pointer-events: none;
+  transition: color 0.2s ease;
+}
+
+.input-icon-wrapper:focus-within .input-leading-icon {
+  color: var(--secondary-color);
+}
+
+/* Input de contraseña */
+.password-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.password-input-wrapper .form-input {
+  width: 100%;
+  padding-right: 42px;
+}
+
+.toggle-password {
+  position: absolute;
+  right: 14px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #9EA6A0;
+  transition: var(--transition);
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.toggle-password:hover {
+  color: var(--secondary-color);
+}
+
+/* Checkbox */
+.form-checkbox {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: var(--primary-color);
+  flex-shrink: 0;
+}
+
+.checkbox-label {
+  font-size: 12px;
+  color: var(--text-dark);
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.forgot-password {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--primary-color);
+  text-decoration: none;
+  transition: var(--transition);
+  font-weight: 700;
+}
+
+.forgot-password:hover {
+  color: var(--secondary-color);
+  text-decoration: underline;
+}
+
+/* Mensajes de error */
+.error-message {
+  font-size: 11px;
+  color: var(--danger-color);
+  min-height: 14px;
+  margin-top: -2px;
+  font-weight: 600;
+}
+
+/* ==================== BOTONES ==================== */
+.btn-primary {
+  padding: 13px 32px;
+  background: linear-gradient(135deg, var(--secondary-color) 0%, #B38620 100%);
+  color: #FFFFFF;
+  border: none;
+  border-radius: 50px;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: var(--transition);
+  margin-top: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  box-shadow: 0 4px 16px rgba(196, 151, 43, 0.35);
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(196, 151, 43, 0.45);
+}
+
+.btn-primary:active {
+  transform: translateY(0);
+}
+
+.btn-primary:disabled {
+  background: var(--text-light);
+  cursor: not-allowed;
+  opacity: 0.45;
+  transform: none;
+  box-shadow: none;
+}
+
+/* ==================== PIE DE FORMULARIO ==================== */
+.form-footer {
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-light);
+  margin-top: 16px;
+  font-weight: 500;
+}
+
+.link-switch {
+  color: var(--primary-color);
+  text-decoration: none;
+  font-weight: 800;
+  transition: var(--transition);
+  cursor: pointer;
+}
+
+.link-switch:hover {
+  color: var(--secondary-color);
+  text-decoration: underline;
+}
+
+/* ==================== RESPONSIVE ==================== */
+@media (max-width: 768px) {
+  .auth-container {
+    flex-direction: column;
+    height: auto !important;
+  }
+
+  .auth-left {
+    padding: 35px 25px;
+    min-height: 260px;
+  }
+
+  .auth-illustration {
+    width: 140px;
+    height: 140px;
+    margin-bottom: 16px;
+  }
+
+  .auth-title {
+    font-size: 20px;
+    margin-bottom: 8px;
+  }
+
+  .auth-description {
+    font-size: 12px;
+    max-width: 200px;
+  }
+
+  .auth-right {
+    padding: 35px 25px;
+    min-height: auto;
+  }
+
+  .form-title {
+    font-size: 22px;
+  }
+
+  .form-carousel {
+    max-width: 100%;
+  }
+
+  .form-container {
+    opacity: 1;
+    visibility: visible;
+    transform: none;
+    display: none;
+  }
+
+  .form-container.active {
+    display: block;
+  }
+}
+</style>

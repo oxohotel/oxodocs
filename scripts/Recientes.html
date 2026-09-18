@@ -1,0 +1,128 @@
+<script>
+  function textoInteraccion_(tipoInteraccion) {
+    if (tipoInteraccion === 'Subió') return 'Subido';
+    if (tipoInteraccion === 'Abrió') return 'Abierto';
+    return tipoInteraccion || '';
+  }
+
+  function tarjetaReciente_(recurso) {
+    const derecha =
+      '<div class="apartado-item-derecha">' +
+        '<span class="badge-interaccion">' + escaparHtml(textoInteraccion_(recurso.tipoInteraccion)) + '</span>' +
+        botonFavoritoHtml(recurso.tipoRecurso, recurso.idRecurso) +
+      '</div>';
+    return construirTarjetaApartado(recurso, derecha);
+  }
+
+  // ==================== Apartado "Recientes" (vista completa) ====================
+  function mostrarVistaRecientes() {
+    const homeContent = document.querySelector('.home-content');
+    if (!homeContent) return;
+
+    if (typeof ocultarVistaCarpetasHotel === 'function') ocultarVistaCarpetasHotel();
+    if (typeof ocultarVistaPerfil === 'function') ocultarVistaPerfil();
+    if (typeof ocultarVistaFavoritos === 'function') ocultarVistaFavoritos();
+    if (typeof ocultarVistaUsuarios === 'function') ocultarVistaUsuarios();
+    if (typeof ocultarVistaLogs === 'function') ocultarVistaLogs();
+
+    const homeWelcome = homeContent.querySelector('.home-welcome');
+    const homeWidgets = homeContent.querySelector('.home-widgets-grid');
+    if (homeWelcome) homeWelcome.style.display = 'none';
+    if (homeWidgets) homeWidgets.style.display = 'none';
+
+    let contenedor = homeContent.querySelector('#recientesContainer');
+    if (!contenedor) {
+      const wrapper = document.createElement('div');
+      wrapper.id = 'recientesSection';
+      wrapper.innerHTML = document.getElementById('recientesHtml') ? document.getElementById('recientesHtml').innerHTML : '';
+      homeContent.appendChild(wrapper);
+      contenedor = wrapper.querySelector('#recientesContainer');
+      inicializarVistaRecientes_();
+    } else {
+      contenedor.style.display = 'flex';
+    }
+
+    cargarVistaRecientes();
+    if (contenedor) contenedor.scrollIntoView({ behavior: 'smooth' });
+  }
+
+  function ocultarVistaRecientes() {
+    const homeContent = document.querySelector('.home-content');
+    if (!homeContent) return;
+    const contenedor = homeContent.querySelector('#recientesContainer');
+    if (contenedor) contenedor.style.display = 'none';
+  }
+
+  function inicializarVistaRecientes_() {
+    const input = document.getElementById('inputBuscadorRecientes');
+    if (input) {
+      input.addEventListener('input', function () {
+        filtrarApartado('#recientesGrid', input.value);
+      });
+    }
+  }
+
+  function cargarVistaRecientes() {
+    const grid = document.getElementById('recientesGrid');
+    if (!grid) return;
+    grid.innerHTML = '<div class="apartado-skeleton"></div><div class="apartado-skeleton"></div><div class="apartado-skeleton"></div>';
+
+    const user = getCurrentUserSession();
+    if (!user) return;
+
+    google.script.run
+      .withSuccessHandler(function (result) {
+        if (!result.success) { mostrarErrorApartado(grid, result.message); return; }
+        renderizarRecientes_(result.actividad || []);
+      })
+      .withFailureHandler(function (error) {
+        console.error('Error cargando actividad reciente:', error);
+        mostrarErrorApartado(grid, 'No se pudo cargar tu actividad reciente.');
+      })
+      .obtenerActividadReciente(user.ID_Usuario, 40);
+  }
+
+  function renderizarRecientes_(actividad) {
+    const grid = document.getElementById('recientesGrid');
+    if (!grid) return;
+
+    if (!actividad.length) {
+      grid.innerHTML = construirEstadoVacioApartado('Todavía no hay actividad', 'Lo que abras o subas en los hoteles aparecerá aquí.');
+      return;
+    }
+
+    grid.innerHTML = actividad.map(tarjetaReciente_).join('');
+    vincularClicksApartado(grid, actividad);
+  }
+
+  // ==================== Widget del Home (dashboard) ====================
+  function cargarWidgetRecientes() {
+    const user = getCurrentUserSession();
+    if (!user) return;
+
+    google.script.run
+      .withSuccessHandler(function (result) {
+        if (!result.success) { revelarWidget('seccionRecientes'); return; }
+        renderizarWidgetRecientes_((result.actividad || []).slice(0, 4));
+        revelarWidget('seccionRecientes');
+      })
+      .withFailureHandler(function (error) {
+        console.error('Error cargando widget de recientes:', error);
+        revelarWidget('seccionRecientes');
+      })
+      .obtenerActividadReciente(user.ID_Usuario, 4);
+  }
+
+  function renderizarWidgetRecientes_(actividad) {
+    const contenedor = document.querySelector('#seccionRecientes [data-widget-contenido]');
+    if (!contenedor) return;
+
+    if (!actividad.length) {
+      contenedor.innerHTML = '<p class="apartado-widget-vacio">Todavía no hay actividad reciente.</p>';
+      return;
+    }
+
+    contenedor.innerHTML = actividad.map(tarjetaReciente_).join('');
+    vincularClicksApartado(contenedor, actividad);
+  }
+</script>

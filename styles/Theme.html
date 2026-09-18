@@ -1,0 +1,96 @@
+<style>
+/* Variables de tema globales para el Repositorio de Proyectos */
+:root, #vistaHome {
+  --home-bg: #F7F5F0;
+  --home-sidebar-bg: #FFFFFF;
+  --home-card-bg: #FFFFFF;
+  --home-card-hover: #FCFBF9;
+  --home-card-bg-subtle: #F3EFEA;
+  --home-border: #E8E3DA;
+  --home-border-subtle: #EFECE6;
+  --home-text: #19211E;
+  --home-text-muted: #66706B;
+  --home-text-subtle: #929D97;
+  
+  --home-accent-gold: #C4972B;
+  --home-accent-gold-hover: #AF831E;
+  --home-accent-gold-light: rgba(196, 151, 43, 0.12);
+  --home-accent-gold-glow: rgba(196, 151, 43, 0.28);
+  
+  --home-accent-green: #3D5A4C;
+  --home-accent-green-hover: #2E453A;
+  --home-accent-green-light: rgba(61, 90, 76, 0.12);
+  
+  --home-active-bg: #EAEFEA;
+  --home-shadow: 0 4px 20px rgba(25, 33, 30, 0.05);
+  --home-shadow-md: 0 8px 30px rgba(25, 33, 30, 0.08);
+  --home-shadow-lg: 0 16px 40px rgba(25, 33, 30, 0.12);
+  --home-shadow-glow: 0 0 20px rgba(196, 151, 43, 0.2);
+
+  --badge-revision-bg: #E5F3EB;
+  --badge-revision-text: #276945;
+  --badge-aprobado-bg: #E6F0FA;
+  --badge-aprobado-text: #245FA6;
+  --badge-archivado-bg: #FAF0E1;
+  --badge-archivado-text: #A66E14;
+  
+  /* Alias de compatibilidad para vistas hijas */
+  --secondary-color: var(--home-accent-gold);
+  --primary-color: var(--home-accent-green);
+  --primary-light: var(--home-accent-green-light);
+  --gray-dark: var(--home-text);
+  --text-dark: var(--home-text);
+  --text-light: var(--home-text-muted);
+  --border-light: var(--home-border);
+  --border-color: var(--home-border);
+  --bg-light: var(--home-bg);
+  --bg-beige: var(--home-card-bg-subtle);
+  --transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+  --danger-color: #D32F2F;
+  --danger-light: rgba(211, 47, 47, 0.1);
+  --success-color: #2E7D32;
+}
+
+#vistaHome[data-theme="dark"] {
+  --home-bg: #141715;
+  --home-sidebar-bg: #1A1E1C;
+  --home-card-bg: #212623;
+  --home-card-hover: #282E2B;
+  --home-card-bg-subtle: #191D1B;
+  --home-border: #2E3632;
+  --home-border-subtle: #242A27;
+  --home-text: #F3F4F3;
+  --home-text-muted: #9EAAA3;
+  --home-text-subtle: #6E7973;
+  
+  --home-accent-gold: #D8B84A;
+  --home-accent-gold-hover: #E4C860;
+  --home-accent-gold-light: rgba(216, 184, 74, 0.15);
+  --home-accent-gold-glow: rgba(216, 184, 74, 0.35);
+  
+  --home-accent-green: #5D8B74;
+  --home-accent-green-hover: #72A38A;
+  --home-accent-green-light: rgba(93, 139, 116, 0.18);
+  
+  --home-active-bg: #27342D;
+  --home-shadow: 0 4px 24px rgba(0, 0, 0, 0.45);
+  --home-shadow-md: 0 8px 32px rgba(0, 0, 0, 0.55);
+  --home-shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.65);
+  --home-shadow-glow: 0 0 24px rgba(216, 184, 74, 0.25);
+
+  --badge-revision-bg: #1A3324;
+  --badge-revision-text: #8FD9A8;
+  --badge-aprobado-bg: #182C40;
+  --badge-aprobado-text: #96C2F2;
+  --badge-archivado-bg: #382A14;
+  --badge-archivado-text: #E5BE72;
+}
+
+/* Transiciones fluidas entre cambios de tema */
+:where(#vistaHome, #vistaHome *) {
+  transition: background-color 0.25s cubic-bezier(0.4, 0, 0.2, 1), 
+              color 0.25s cubic-bezier(0.4, 0, 0.2, 1), 
+              border-color 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+</style>
