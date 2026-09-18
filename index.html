@@ -1899,6 +1899,30 @@ button, input, select, textarea {
 
 .hotel-carpetas-controles .btn-nueva-carpeta {
   margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 16px;
+  height: 42px;
+  background: var(--home-accent-blue);
+  color: #FFFFFF;
+  border: none;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 4px 12px var(--home-shadow);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.hotel-carpetas-controles .btn-nueva-carpeta:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px var(--home-shadow-md);
+  background: var(--home-accent-blue-hover);
+}
+
+.hotel-carpetas-controles .btn-nueva-carpeta svg {
+  flex-shrink: 0;
 }
 
 /* Buscador */
@@ -2008,7 +2032,7 @@ button, input, select, textarea {
 
 .carpetas-lista-encabezado {
   display: grid;
-  grid-template-columns: 44px minmax(180px, 1fr) 120px 100px 130px 110px;
+  grid-template-columns: 44px minmax(180px, 1fr) 120px 100px 130px 110px auto;
   gap: 16px;
   padding: 0 20px 8px;
   font-size: 11px;
@@ -2138,14 +2162,13 @@ button, input, select, textarea {
 /* Vista de filas */
 .carpeta-card.vista-filas {
   display: grid;
-  grid-template-columns: 44px minmax(180px, 1fr) 120px 100px 130px 110px;
+  grid-template-columns: 44px minmax(180px, 1fr) 120px 100px 130px 110px auto;
   align-items: center;
   text-align: left;
   gap: 16px;
   height: 60px;
   padding: 0 20px;
   border-radius: 14px;
-  flex-direction: row;
 }
 
 .carpeta-card.vista-filas:hover {
