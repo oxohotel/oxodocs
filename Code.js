@@ -84,3 +84,25 @@ function include(nombreArchivo) {
   return HtmlService.createTemplateFromFile(nombreArchivo).evaluate().getContent();
 }
 
+/**
+ * Función global para forzar la limpieza del caché del navegador (localStorage)
+ * de todos los usuarios de la aplicación.
+ * Al ejecutar esta función desde el editor de Apps Script, se incrementa
+ * la versión global del caché, lo que hace que los clientes borren su estado local.
+ */
+function resetearCacheGlobalAplicativo() {
+  const props = PropertiesService.getScriptProperties();
+  let version = props.getProperty('APP_CACHE_VERSION');
+  if (!version) { version = '1'; }
+  const nuevaVersion = String(parseInt(version, 10) + 1);
+  props.setProperty('APP_CACHE_VERSION', nuevaVersion);
+  Logger.log('✅ Caché global reseteado. Nueva versión: ' + nuevaVersion);
+  return 'Caché global reseteado a versión ' + nuevaVersion;
+}
+
+/**
+ * Función expuesta al Frontend para verificar la versión del caché
+ */
+function obtenerVersionCacheGlobal() {
+  return PropertiesService.getScriptProperties().getProperty('APP_CACHE_VERSION') || '1';
+}

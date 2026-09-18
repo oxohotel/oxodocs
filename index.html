@@ -13750,10 +13750,47 @@ const GOOGLE_PICKER_CONFIG = {
     inicializarBusquedaGlobal();
     aplicarTemaGuardado();
 
+    // Verificamos si la sesión guardada tiene una cacheVersion
+    const currentUser = typeof getFromLocalStorage === 'function' ? getFromLocalStorage('currentUser') : null;
+    if (currentUser && currentUser.cacheVersion) {
+      const localVersion = getFromLocalStorage('appCacheVersion');
+      if (!localVersion) {
+        saveToLocalStorage('appCacheVersion', currentUser.cacheVersion);
+      } else if (localVersion !== currentUser.cacheVersion) {
+        localStorage.clear();
+        saveToLocalStorage('appCacheVersion', currentUser.cacheVersion);
+        saveToLocalStorage('currentUser', currentUser);
+        window.location.reload();
+        return;
+      }
+    }
+
     if (isUserLoggedIn()) {
       mostrarVistaHome();
     } else {
       mostrarVistaAuth();
+    }
+    
+    // Verificar en segundo plano por si el Apps Script cambió la versión hoy
+    verificarVersionCacheFondo();
+  }
+
+  function verificarVersionCacheFondo() {
+    if (window.google && google.script && google.script.run) {
+       google.script.run.withSuccessHandler(version => {
+         if (version && typeof getFromLocalStorage === 'function') {
+           const localVersion = getFromLocalStorage('appCacheVersion');
+           if (!localVersion) {
+             saveToLocalStorage('appCacheVersion', version);
+           } else if (localVersion !== version) {
+             const user = getFromLocalStorage('currentUser');
+             localStorage.clear();
+             saveToLocalStorage('appCacheVersion', version);
+             if (user) saveToLocalStorage('currentUser', user);
+             window.location.reload();
+           }
+         }
+       }).obtenerVersionCacheGlobal();
     }
   }
 

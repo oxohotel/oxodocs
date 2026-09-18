@@ -104,6 +104,7 @@ function obtenerUsuarioPorToken(token) {
     if (cached) {
       const data = JSON.parse(cached);
       if (data.exp && Date.now() < data.exp) {
+        data.cacheVersion = PropertiesService.getScriptProperties().getProperty('APP_CACHE_VERSION') || '1';
         return data;
       }
     }
@@ -142,6 +143,9 @@ function obtenerUsuarioPorToken(token) {
           try {
             CacheService.getScriptCache().put('session_' + tokenStr, JSON.stringify(info), 21600);
           } catch (err) {}
+
+          const cacheVersion = PropertiesService.getScriptProperties().getProperty('APP_CACHE_VERSION') || '1';
+          info.cacheVersion = cacheVersion;
 
           return info;
         }
