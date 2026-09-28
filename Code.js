@@ -74,7 +74,7 @@ function doGet(e) {
 
   return HtmlService.createTemplateFromFile('index')
     .evaluate()
-    .setTitle('Repositorio de Proyectos')
+    .setTitle('Repositorio de Documentos')
     .setFaviconUrl('https://acabrales-oxohotel.github.io/repo-imagenes/logo-oxodocs.ico')
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
     .addMetaTag('viewport', 'width=device-width, initial-scale=1');

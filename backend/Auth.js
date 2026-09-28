@@ -286,10 +286,10 @@ function enviarCodigoVerificacion(email, idUsuario) {
 
     MailApp.sendEmail({
       to: email,
-      subject: 'Tu código de verificación - Repositorio de Proyectos',
+      subject: 'Tu código de verificación - Repositorio de Documentos',
       htmlBody:
         '<p>Hola,</p>' +
-        '<p>Este es tu código para confirmar tu cuenta en el Repositorio de Proyectos de OxoHotel:</p>' +
+        '<p>Este es tu código para confirmar tu cuenta en el Repositorio de Documentos de OxoHotel:</p>' +
         '<p style="font-size:28px;font-weight:bold;letter-spacing:6px;">' + codigo + '</p>' +
         '<p>Vence en 15 minutos. Si tú no solicitaste esto, puedes ignorar este correo.</p>'
     });
@@ -606,7 +606,7 @@ function solicitarCodigoRecuperacion(email) {
         '<div style="font-family: \'Segoe UI\', Roboto, Arial, sans-serif; max-width: 540px; margin: 0 auto; padding: 28px; background-color: #FCFBF9; border: 1px solid #E8E3DA; border-radius: 16px; color: #19211E;">' +
           '<div style="text-align: center; margin-bottom: 24px;">' +
             '<h2 style="color: #3D5A4C; margin: 0 0 6px; font-size: 22px; font-weight: 800;">Restablecer Contraseña</h2>' +
-            '<p style="color: #66706B; font-size: 13px; margin: 0;">Repositorio de Proyectos OxoHotel</p>' +
+            '<p style="color: #66706B; font-size: 13px; margin: 0;">Repositorio de Documentos OxoHotel</p>' +
           '</div>' +
           '<p style="font-size: 14px; line-height: 1.6; color: #19211E; margin-bottom: 16px;">Hola <strong>' + nombreDestinatario + '</strong>,</p>' +
           '<p style="font-size: 14px; line-height: 1.6; color: #19211E; margin-bottom: 24px;">Recibimos una solicitud para restablecer la contraseña de tu cuenta. Ingresa el siguiente código de seguridad en la plataforma:</p>' +
