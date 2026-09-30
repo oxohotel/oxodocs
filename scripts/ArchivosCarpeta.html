@@ -16,6 +16,10 @@
     usuarioActualId: null
   };
 
+  // Token incremental para descartar respuestas de peticiones obsoletas
+  // (clics rápidos que navegan antes de que responda una carga anterior).
+  let solicitudCarpetaActualId = 0;
+
   function inicializarArchivosCarpeta() {
     const btnVolver = document.getElementById('btnVolverACarpetas');
     if (btnVolver) {
@@ -125,6 +129,8 @@
   }
 
   function cargarContenidoCarpeta(idCarpeta, idArchivoResaltar) {
+    const idSolicitud = ++solicitudCarpetaActualId;
+
     estadoArchivosCarpeta.subcarpetas = [];
     estadoArchivosCarpeta.archivos = [];
     estadoArchivosCarpeta.cargando = true;
@@ -138,6 +144,9 @@
 
     google.script.run
       .withSuccessHandler(function (result) {
+        // Descartar respuestas de una carga anterior si el usuario ya navegó a otro lado.
+        if (idSolicitud !== solicitudCarpetaActualId || !estadoArchivosCarpeta.carpetaActual) return;
+
         estadoArchivosCarpeta.cargando = false;
         if (result && result.success) {
           estadoArchivosCarpeta.subcarpetas = result.subcarpetas || [];
@@ -158,6 +167,8 @@
         }
       })
       .withFailureHandler(function (error) {
+        if (idSolicitud !== solicitudCarpetaActualId) return;
+
         estadoArchivosCarpeta.cargando = false;
         console.error('Error cargarContenidoCarpeta:', error);
         showNotification('Error al cargar la carpeta', 'error', 3000);
