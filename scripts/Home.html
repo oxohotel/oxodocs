@@ -116,7 +116,8 @@
       homeContent.appendChild(contenedorDiv);
       carpetasContainer = contenedorDiv.querySelector('.hotel-carpetas-container');
     } else {
-      carpetasContainer.style.display = 'block';
+      // Debe ser 'flex' (no 'block'): el espaciado entre buscador y tarjetas es el gap del flex.
+      carpetasContainer.style.display = 'flex';
     }
 
     // Inicializar listeners si es la primera vez

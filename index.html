@@ -9229,7 +9229,8 @@ button, input, select, textarea {
       homeContent.appendChild(contenedorDiv);
       carpetasContainer = contenedorDiv.querySelector('.hotel-carpetas-container');
     } else {
-      carpetasContainer.style.display = 'block';
+      // Debe ser 'flex' (no 'block'): el espaciado entre buscador y tarjetas es el gap del flex.
+      carpetasContainer.style.display = 'flex';
     }
 
     // Inicializar listeners si es la primera vez
@@ -9950,9 +9951,11 @@ button, input, select, textarea {
     estadoSubida.origen = 'computadora';
     subiendoArchivosActivo = false;
     // Reiniciar estado de permisos para nuevo archivo
-    if (typeof estadoSeleccionPermisos_ !== 'undefined') {
-      estadoSeleccionPermisos_.usuariosRestringidos = [];
-      estadoSeleccionPermisos_.filtroActual = '';
+    if (typeof estadoPermisos_ !== 'undefined') {
+      estadoPermisos_.opcionSeleccionada = 'todos';
+      estadoPermisos_.usuariosExcluidos = [];
+      estadoPermisos_.grupoSeleccionado = null;
+      estadoPermisos_.filtroActual = '';
     }
     window.permisosArchivoSeleccionados = [];
     // Reiniciar texto del componente
@@ -10993,7 +10996,7 @@ function generarVistaExcluidos_() {
     </div>
     <div style="padding:16px 24px;border-top:1px solid #f0f0f0;display:flex;justify-content:space-between;align-items:center;background:#f8f9fa;">
       <div style="font-size:13px;color:#5f6368;font-weight:500;"><span class="contador-excluidos">${estadoPermisos_.usuariosExcluidos.length}</span> excluidos</div>
-      <button class="btn-volver" style="padding:10px 24px;background:#C1952B;color:white;border:none;border-radius:8px;cursor:pointer;font-weight:600;">Listo</button>
+      <button class="btn-listo-excluidos" style="padding:10px 24px;background:#C1952B;color:white;border:none;border-radius:8px;cursor:pointer;font-weight:600;">Listo</button>
     </div>
   `;
 }
@@ -11202,7 +11205,14 @@ function agregarEventListnersVista_() {
       estadoPermisos_.vistaActual = 'principal';
       renderizarModalPermisos_();
     });
-    
+
+    const btnListoExcluidos = modal.querySelector('.btn-listo-excluidos');
+    if (btnListoExcluidos) btnListoExcluidos.addEventListener('click', () => {
+      if (estadoPermisos_.usuariosExcluidos.length > 0) estadoPermisos_.opcionSeleccionada = 'excepto';
+      estadoPermisos_.vistaActual = 'principal';
+      renderizarModalPermisos_();
+    });
+
     const buscador = modal.querySelector('.input-buscador');
     buscador.value = estadoPermisos_.filtroActual;
     buscador.addEventListener('input', e => {
@@ -11407,10 +11417,14 @@ function confirmarYCalcularPermisos_() {
   } else {
     window.permisosArchivoSeleccionados = arrayParaBackend;
 
-    // Actualizar el Panel Lateral visualmente
-    const textoResumen = document.getElementById('textoResumenPermisos');
-    const containerBloqueados = document.getElementById('listaBloqueadosContainer');
-    const listaBloqueados = document.getElementById('listaBloqueados');
+    // Actualizar el Panel Lateral visualmente. El formulario "Nuevo Archivo" vive como plantilla
+    // oculta en el DOM y se COPIA dentro de #panelLateral, así que sus ids existen duplicados:
+    // document.getElementById devolvía la copia oculta (la plantilla) y el panel visible nunca
+    // se enteraba del cambio. Se busca dentro del panel.
+    const ambito = document.getElementById('panelLateral') || document;
+    const textoResumen = ambito.querySelector('#textoResumenPermisos');
+    const containerBloqueados = ambito.querySelector('#listaBloqueadosContainer');
+    const listaBloqueados = ambito.querySelector('#listaBloqueados');
 
     if (idsRestringidosFinal.length === 0) {
       if (textoResumen) textoResumen.innerHTML = '<span style="font-weight: 500;">Sin restricciones - Todos pueden ver</span>';

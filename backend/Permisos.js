@@ -110,21 +110,21 @@ function guardarPermisosArchivo(idArchivo, usuariosRestringidos) {
         usuariosMap[String(datosUsuarios[i][0])] = datosUsuarios[i][1];
       }
 
-      // Insertar nuevas restricciones
-      for (let i = 0; i < usuariosRestringidos.length; i++) {
-        const idUsuario = String(usuariosRestringidos[i]);
-        const nuevoId = hojaPermisos.getLastRow();
-        const nombreUsuario = usuariosMap[idUsuario] || 'Usuario desconocido';
-
-        hojaPermisos.appendRow([
-          nuevoId,
+      // Insertar nuevas restricciones en UNA sola escritura (un appendRow por usuario tardaba
+      // decenas de segundos con ~50 bloqueados y hacía fallar la subida del archivo).
+      const primeraFilaLibre = hojaPermisos.getLastRow() + 1;
+      const filasNuevas = usuariosRestringidos.map(function (id, i) {
+        const idUsuario = String(id);
+        return [
+          primeraFilaLibre - 1 + i,
           idArchivo,
           idUsuario,
-          nombreUsuario,
+          usuariosMap[idUsuario] || 'Usuario desconocido',
           fechaFormato,
           'Restricción manual'
-        ]);
-      }
+        ];
+      });
+      hojaPermisos.getRange(primeraFilaLibre, 1, filasNuevas.length, 6).setValues(filasNuevas);
     }
 
     Logger.log('✅ Permisos guardados para archivo: ' + idArchivo);
