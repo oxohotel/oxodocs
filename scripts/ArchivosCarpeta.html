@@ -84,8 +84,11 @@
     estadoArchivosCarpeta.usuarioActualId = idUsuarioActual;
   }
 
-  /** Punto de entrada: se llama al hacer clic en una tarjeta de área (scripts/HotelCarpetas.html). */
-  function abrirArchivosCarpeta(carpeta, hotel, idArchivoResaltar) {
+  /** Punto de entrada: se llama al hacer clic en una tarjeta de área (scripts/HotelCarpetas.html).
+   *  "rutaCompleta" es opcional: cuando se abre directo una subcarpeta anidada (favoritos,
+   *  recientes, búsqueda) trae la cadena de ancestros ya resuelta por obtenerRutaCarpeta, para
+   *  no perder los niveles intermedios en la miga de pan. */
+  function abrirArchivosCarpeta(carpeta, hotel, idArchivoResaltar, rutaCompleta) {
     const homeContent = document.querySelector('.home-content');
     if (!homeContent) return;
 
@@ -104,7 +107,9 @@
     }
 
     estadoArchivosCarpeta.hotelActual = hotel;
-    estadoArchivosCarpeta.ruta = [{ id: carpeta.id, nombre: carpeta.nombre }];
+    estadoArchivosCarpeta.ruta = (rutaCompleta && rutaCompleta.length)
+      ? rutaCompleta
+      : [{ id: carpeta.id, nombre: carpeta.nombre }];
 
     const breadcrumbHotel = document.getElementById('hotelNombreBreadcrumb');
     if (breadcrumbHotel) breadcrumbHotel.textContent = hotel.nombreHotel;

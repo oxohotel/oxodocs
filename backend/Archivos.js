@@ -104,13 +104,13 @@ function asegurarTamanoArchivo_(hoja, numeroFila, indexTamano, fila, encabezados
   }
 }
 
-function guardarArchivoEnDrive(idCarpeta, nombreArchivo, datosArchivo, mimeType, tipoDocumento, estadoDocumento, responsable, idUsuarioOToken, usuariosRestringidos) {
-  if (!usuarioTienePermiso(idUsuarioOToken, 'Subir_Documento')) {
+function guardarArchivoEnDrive(idCarpeta, nombreArchivo, datosArchivo, mimeType, tipoDocumento, estadoDocumento, responsable, idUsuarioOToken, usuariosRestringidos, idUsuarioFallback) {
+  if (!usuarioTienePermiso(idUsuarioOToken, 'Subir_Documento', idUsuarioFallback)) {
     return { success: false, message: 'No tienes permiso para subir archivos' };
   }
 
   const solicitante = typeof resolverUsuarioSolicitante_ === 'function'
-    ? resolverUsuarioSolicitante_(idUsuarioOToken)
+    ? resolverUsuarioSolicitante_(idUsuarioOToken, idUsuarioFallback)
     : null;
   const responsableFinal = (solicitante && solicitante.nombre) || responsable || 'Sistema';
 
@@ -305,19 +305,19 @@ function generarIdArchivo() {
   }
 }
 
-function validarPropiedadOAdmin_(idArchivoODriveId, idUsuarioOToken, esDriveId = false) {
+function validarPropiedadOAdmin_(idArchivoODriveId, idUsuarioOToken, esDriveId = false, idUsuarioFallback) {
   // 1. Es admin?
-  const esAdmin = usuarioTienePermiso(idUsuarioOToken, 'Gestionar_Hoteles_Carpetas');
+  const esAdmin = usuarioTienePermiso(idUsuarioOToken, 'Gestionar_Hoteles_Carpetas', idUsuarioFallback);
   if (esAdmin) return { autorizado: true };
 
   // 2. Resolver usuario
   const solicitante = typeof resolverUsuarioSolicitante_ === 'function'
-    ? resolverUsuarioSolicitante_(idUsuarioOToken)
+    ? resolverUsuarioSolicitante_(idUsuarioOToken, idUsuarioFallback)
     : null;
-  
+
   if (!solicitante || !solicitante.usuario) {
     // Fallback de seguridad
-    if (usuarioTienePermiso(idUsuarioOToken, 'Eliminar_Documentos')) return { autorizado: true };
+    if (usuarioTienePermiso(idUsuarioOToken, 'Eliminar_Documentos', idUsuarioFallback)) return { autorizado: true };
     return { autorizado: false, mensaje: 'No autorizado' };
   }
 
@@ -345,14 +345,14 @@ function validarPropiedadOAdmin_(idArchivoODriveId, idUsuarioOToken, esDriveId =
   return { autorizado: false, mensaje: 'Archivo no encontrado.' };
 }
 
-function eliminarArchivo(driveFileId, idUsuarioOToken) {
-  const auth = validarPropiedadOAdmin_(driveFileId, idUsuarioOToken, true);
+function eliminarArchivo(driveFileId, idUsuarioOToken, idUsuarioFallback) {
+  const auth = validarPropiedadOAdmin_(driveFileId, idUsuarioOToken, true, idUsuarioFallback);
   if (!auth.autorizado) {
     return { success: false, message: auth.mensaje };
   }
 
   const solicitante = typeof resolverUsuarioSolicitante_ === 'function'
-    ? resolverUsuarioSolicitante_(idUsuarioOToken)
+    ? resolverUsuarioSolicitante_(idUsuarioOToken, idUsuarioFallback)
     : { idUsuario: idUsuarioOToken };
 
   try {
@@ -386,14 +386,14 @@ function eliminarArchivo(driveFileId, idUsuarioOToken) {
 
 /** Renombra un archivo tanto en Drive como en la hoja "Archivos" — conserva la extensión
  *  original aunque quien escriba el nuevo nombre no la incluya. */
-function renombrarArchivo(idArchivo, nuevoNombre, idUsuarioOToken) {
-  const auth = validarPropiedadOAdmin_(idArchivo, idUsuarioOToken, false);
+function renombrarArchivo(idArchivo, nuevoNombre, idUsuarioOToken, idUsuarioFallback) {
+  const auth = validarPropiedadOAdmin_(idArchivo, idUsuarioOToken, false, idUsuarioFallback);
   if (!auth.autorizado) {
     return { success: false, message: auth.mensaje };
   }
 
   const solicitante = typeof resolverUsuarioSolicitante_ === 'function'
-    ? resolverUsuarioSolicitante_(idUsuarioOToken)
+    ? resolverUsuarioSolicitante_(idUsuarioOToken, idUsuarioFallback)
     : { idUsuario: idUsuarioOToken };
 
   try {

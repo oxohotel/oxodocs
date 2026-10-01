@@ -69,7 +69,26 @@
         // un nodo suelto (el explorador resuelve su nombre real al cargar su contenido).
         if (idCarpetaAutoAbrir) {
           const carpeta = estadoHotelCarpetas.carpetas.find(function (c) { return String(c.id) === String(idCarpetaAutoAbrir); });
-          abrirCarpeta(carpeta || { id: idCarpetaAutoAbrir, nombre: '' }, idArchivoResaltar);
+          if (carpeta) {
+            abrirCarpeta(carpeta, idArchivoResaltar);
+          } else {
+            // No es un área de nivel superior: es una subcarpeta anidada. Pedimos al backend la
+            // cadena completa de ancestros para no perder el/los nivel(es) intermedios en la
+            // miga de pan (ver backend/Carpetas.js: obtenerRutaCarpeta).
+            google.script.run
+              .withSuccessHandler(function (res) {
+                if (res && res.success && res.ruta && res.ruta.length) {
+                  const ultimo = res.ruta[res.ruta.length - 1];
+                  abrirCarpeta({ id: ultimo.id, nombre: ultimo.nombre }, idArchivoResaltar, res.ruta);
+                } else {
+                  abrirCarpeta({ id: idCarpetaAutoAbrir, nombre: '' }, idArchivoResaltar);
+                }
+              })
+              .withFailureHandler(function () {
+                abrirCarpeta({ id: idCarpetaAutoAbrir, nombre: '' }, idArchivoResaltar);
+              })
+              .obtenerRutaCarpeta(idCarpetaAutoAbrir);
+          }
         }
       } else {
         mostrarErrorCarpetas(result.message);
@@ -307,8 +326,8 @@
     renderizarCarpetas();
   }
 
-  function abrirCarpeta(carpeta, idArchivoResaltar) {
-    abrirArchivosCarpeta(carpeta, estadoHotelCarpetas.hotelActual, idArchivoResaltar);
+  function abrirCarpeta(carpeta, idArchivoResaltar, rutaCompleta) {
+    abrirArchivosCarpeta(carpeta, estadoHotelCarpetas.hotelActual, idArchivoResaltar, rutaCompleta);
 
     const user = getCurrentUserSession();
     if (user) registrarActividadSilenciosa(user.ID_Usuario, 'Carpeta', carpeta.id, 'Abrió');

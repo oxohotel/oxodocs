@@ -7707,7 +7707,7 @@ button, input, select, textarea {
           console.error('Error renombrarArchivo:', error);
           showNotification('Error al renombrar el archivo', 'error', 3000);
         })
-        .renombrarArchivo(archivo.id, nuevoNombre, token || (sesion ? sesion.ID_Usuario : null));
+        .renombrarArchivo(archivo.id, nuevoNombre, token, sesion ? sesion.ID_Usuario : null);
     }
   }
 
@@ -7731,7 +7731,7 @@ button, input, select, textarea {
             console.error('Error eliminarArchivo:', error);
             showNotification('Error al eliminar el archivo', 'error', 3000);
           })
-          .eliminarArchivo(archivo.driveFileId, token || (sesion ? sesion.ID_Usuario : null));
+          .eliminarArchivo(archivo.driveFileId, token, sesion ? sesion.ID_Usuario : null);
       }
     );
   }
@@ -9339,7 +9339,26 @@ button, input, select, textarea {
         // un nodo suelto (el explorador resuelve su nombre real al cargar su contenido).
         if (idCarpetaAutoAbrir) {
           const carpeta = estadoHotelCarpetas.carpetas.find(function (c) { return String(c.id) === String(idCarpetaAutoAbrir); });
-          abrirCarpeta(carpeta || { id: idCarpetaAutoAbrir, nombre: '' }, idArchivoResaltar);
+          if (carpeta) {
+            abrirCarpeta(carpeta, idArchivoResaltar);
+          } else {
+            // No es un área de nivel superior: es una subcarpeta anidada. Pedimos al backend la
+            // cadena completa de ancestros para no perder el/los nivel(es) intermedios en la
+            // miga de pan (ver backend/Carpetas.js: obtenerRutaCarpeta).
+            google.script.run
+              .withSuccessHandler(function (res) {
+                if (res && res.success && res.ruta && res.ruta.length) {
+                  const ultimo = res.ruta[res.ruta.length - 1];
+                  abrirCarpeta({ id: ultimo.id, nombre: ultimo.nombre }, idArchivoResaltar, res.ruta);
+                } else {
+                  abrirCarpeta({ id: idCarpetaAutoAbrir, nombre: '' }, idArchivoResaltar);
+                }
+              })
+              .withFailureHandler(function () {
+                abrirCarpeta({ id: idCarpetaAutoAbrir, nombre: '' }, idArchivoResaltar);
+              })
+              .obtenerRutaCarpeta(idCarpetaAutoAbrir);
+          }
         }
       } else {
         mostrarErrorCarpetas(result.message);
@@ -9577,8 +9596,8 @@ button, input, select, textarea {
     renderizarCarpetas();
   }
 
-  function abrirCarpeta(carpeta, idArchivoResaltar) {
-    abrirArchivosCarpeta(carpeta, estadoHotelCarpetas.hotelActual, idArchivoResaltar);
+  function abrirCarpeta(carpeta, idArchivoResaltar, rutaCompleta) {
+    abrirArchivosCarpeta(carpeta, estadoHotelCarpetas.hotelActual, idArchivoResaltar, rutaCompleta);
 
     const user = getCurrentUserSession();
     if (user) registrarActividadSilenciosa(user.ID_Usuario, 'Carpeta', carpeta.id, 'Abrió');
@@ -10154,6 +10173,7 @@ button, input, select, textarea {
 
     let indexActual = 0;
     let subidosExitosos = 0;
+    const erroresSubida = [];
 
     function subirSiguiente() {
       if (indexActual >= lista.length) {
@@ -10161,7 +10181,12 @@ button, input, select, textarea {
         if (progresoEl) progresoEl.style.display = 'none';
         if (btnEnviar) btnEnviar.disabled = false;
         cerrarPanelSubirArchivo();
-        showNotification('✅ ' + subidosExitosos + ' archivo(s) subido(s) con éxito', 'success', 3500);
+        if (subidosExitosos > 0) {
+          showNotification('✅ ' + subidosExitosos + ' archivo(s) subido(s) con éxito', 'success', 3500);
+        }
+        if (erroresSubida.length > 0) {
+          showNotification('❌ ' + erroresSubida.length + ' archivo(s) no se pudieron subir: ' + erroresSubida.join(', '), 'error', 5000);
+        }
         cargarContenidoCarpeta(idCarpetaActual);
         return;
       }
@@ -10189,12 +10214,14 @@ button, input, select, textarea {
               }
             } else {
               console.error('Error subiendo archivo ' + archivo.name + ':', res?.message);
+              erroresSubida.push(archivo.name);
             }
             indexActual++;
             subirSiguiente();
           })
           .withFailureHandler(function(err) {
             console.error('Fallo de red subiendo ' + archivo.name + ':', err);
+            erroresSubida.push(archivo.name);
             indexActual++;
             subirSiguiente();
           })
@@ -10206,8 +10233,9 @@ button, input, select, textarea {
             tipoDoc,
             undefined,
             responsable,
-            token || (user ? user.ID_Usuario : null),
-            window.permisosArchivoSeleccionados || []
+            token,
+            window.permisosArchivoSeleccionados || [],
+            user ? user.ID_Usuario : null
           );
       };
 
@@ -10505,8 +10533,11 @@ button, input, select, textarea {
     estadoArchivosCarpeta.usuarioActualId = idUsuarioActual;
   }
 
-  /** Punto de entrada: se llama al hacer clic en una tarjeta de área (scripts/HotelCarpetas.html). */
-  function abrirArchivosCarpeta(carpeta, hotel, idArchivoResaltar) {
+  /** Punto de entrada: se llama al hacer clic en una tarjeta de área (scripts/HotelCarpetas.html).
+   *  "rutaCompleta" es opcional: cuando se abre directo una subcarpeta anidada (favoritos,
+   *  recientes, búsqueda) trae la cadena de ancestros ya resuelta por obtenerRutaCarpeta, para
+   *  no perder los niveles intermedios en la miga de pan. */
+  function abrirArchivosCarpeta(carpeta, hotel, idArchivoResaltar, rutaCompleta) {
     const homeContent = document.querySelector('.home-content');
     if (!homeContent) return;
 
@@ -10525,7 +10556,9 @@ button, input, select, textarea {
     }
 
     estadoArchivosCarpeta.hotelActual = hotel;
-    estadoArchivosCarpeta.ruta = [{ id: carpeta.id, nombre: carpeta.nombre }];
+    estadoArchivosCarpeta.ruta = (rutaCompleta && rutaCompleta.length)
+      ? rutaCompleta
+      : [{ id: carpeta.id, nombre: carpeta.nombre }];
 
     const breadcrumbHotel = document.getElementById('hotelNombreBreadcrumb');
     if (breadcrumbHotel) breadcrumbHotel.textContent = hotel.nombreHotel;

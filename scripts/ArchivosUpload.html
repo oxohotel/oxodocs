@@ -315,6 +315,7 @@
 
     let indexActual = 0;
     let subidosExitosos = 0;
+    const erroresSubida = [];
 
     function subirSiguiente() {
       if (indexActual >= lista.length) {
@@ -322,7 +323,12 @@
         if (progresoEl) progresoEl.style.display = 'none';
         if (btnEnviar) btnEnviar.disabled = false;
         cerrarPanelSubirArchivo();
-        showNotification('✅ ' + subidosExitosos + ' archivo(s) subido(s) con éxito', 'success', 3500);
+        if (subidosExitosos > 0) {
+          showNotification('✅ ' + subidosExitosos + ' archivo(s) subido(s) con éxito', 'success', 3500);
+        }
+        if (erroresSubida.length > 0) {
+          showNotification('❌ ' + erroresSubida.length + ' archivo(s) no se pudieron subir: ' + erroresSubida.join(', '), 'error', 5000);
+        }
         cargarContenidoCarpeta(idCarpetaActual);
         return;
       }
@@ -350,12 +356,14 @@
               }
             } else {
               console.error('Error subiendo archivo ' + archivo.name + ':', res?.message);
+              erroresSubida.push(archivo.name);
             }
             indexActual++;
             subirSiguiente();
           })
           .withFailureHandler(function(err) {
             console.error('Fallo de red subiendo ' + archivo.name + ':', err);
+            erroresSubida.push(archivo.name);
             indexActual++;
             subirSiguiente();
           })
@@ -367,8 +375,9 @@
             tipoDoc,
             undefined,
             responsable,
-            token || (user ? user.ID_Usuario : null),
-            window.permisosArchivoSeleccionados || []
+            token,
+            window.permisosArchivoSeleccionados || [],
+            user ? user.ID_Usuario : null
           );
       };
 

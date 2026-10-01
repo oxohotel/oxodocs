@@ -5,6 +5,44 @@
  * puede tener subcarpetas Y archivos al mismo tiempo, en cualquier nivel.
  */
 
+/** Reconstruye la cadena completa de ancestros (área → ... → carpeta) de una carpeta anidada.
+ *  Necesaria para abrir el explorador directo en una subcarpeta (favoritos, recientes, búsqueda)
+ *  sin perder los niveles intermedios en la miga de pan. */
+function obtenerRutaCarpeta(idCarpeta) {
+  try {
+    const ss = SpreadsheetApp.openById(DRIVE_CONFIG.SPREADSHEET_ID);
+    const hoja = ss.getSheetByName('Carpetas');
+    if (!hoja) return { success: false, message: 'Hoja Carpetas no encontrada', ruta: [] };
+
+    const idx = indiceEncabezados_(hoja);
+    const datos = hoja.getDataRange().getValues();
+    const porId = {};
+    for (let i = 1; i < datos.length; i++) {
+      const id = String(datos[i][idx['ID_Carpeta']]);
+      porId[id] = {
+        id: id,
+        nombre: datos[i][idx['Nombre_Carpeta']] || '',
+        idPadre: datos[i][idx['ID_Padre']] ? String(datos[i][idx['ID_Padre']]) : null
+      };
+    }
+
+    const ruta = [];
+    let actual = porId[String(idCarpeta)];
+    let saltos = 0;
+    while (actual && saltos < 50) {
+      ruta.unshift({ id: actual.id, nombre: actual.nombre });
+      actual = actual.idPadre ? porId[actual.idPadre] : null;
+      saltos++;
+    }
+
+    if (ruta.length === 0) return { success: false, message: 'Carpeta no encontrada', ruta: [] };
+    return { success: true, ruta: ruta };
+  } catch (error) {
+    Logger.log('Error obtenerRutaCarpeta: ' + error);
+    return { success: false, message: error.toString(), ruta: [] };
+  }
+}
+
 /** Áreas (nivel superior, ID_Padre en blanco) de un hotel — lo que se ve al entrar a un hotel. */
 function obtenerCarpetasDelHotel(idHotel, idUsuarioOToken, idUsuarioFallback) {
   try {

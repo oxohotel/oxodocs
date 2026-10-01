@@ -271,7 +271,7 @@
           console.error('Error renombrarArchivo:', error);
           showNotification('Error al renombrar el archivo', 'error', 3000);
         })
-        .renombrarArchivo(archivo.id, nuevoNombre, token || (sesion ? sesion.ID_Usuario : null));
+        .renombrarArchivo(archivo.id, nuevoNombre, token, sesion ? sesion.ID_Usuario : null);
     }
   }
 
@@ -295,7 +295,7 @@
             console.error('Error eliminarArchivo:', error);
             showNotification('Error al eliminar el archivo', 'error', 3000);
           })
-          .eliminarArchivo(archivo.driveFileId, token || (sesion ? sesion.ID_Usuario : null));
+          .eliminarArchivo(archivo.driveFileId, token, sesion ? sesion.ID_Usuario : null);
       }
     );
   }
