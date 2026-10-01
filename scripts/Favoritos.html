@@ -196,13 +196,13 @@
 
     google.script.run
       .withSuccessHandler(function (result) {
-        if (!result.success) { revelarWidget('seccionFavoritos'); return; }
+        if (!result.success) { mostrarErrorWidget_('seccionFavoritos', 'No se pudieron cargar tus favoritos.'); return; }
         renderizarWidgetFavoritos_((result.favoritos || []).slice(0, 4));
         revelarWidget('seccionFavoritos');
       })
       .withFailureHandler(function (error) {
         console.error('Error cargando widget de favoritos:', error);
-        revelarWidget('seccionFavoritos');
+        mostrarErrorWidget_('seccionFavoritos', 'No se pudo conectar con el servidor.');
       })
       .obtenerFavoritosDetallados(user.ID_Usuario);
   }

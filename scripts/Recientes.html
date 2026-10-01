@@ -102,13 +102,13 @@
 
     google.script.run
       .withSuccessHandler(function (result) {
-        if (!result.success) { revelarWidget('seccionRecientes'); return; }
+        if (!result.success) { mostrarErrorWidget_('seccionRecientes', 'No se pudieron cargar tus documentos recientes.'); return; }
         renderizarWidgetRecientes_((result.actividad || []).slice(0, 4));
         revelarWidget('seccionRecientes');
       })
       .withFailureHandler(function (error) {
         console.error('Error cargando widget de recientes:', error);
-        revelarWidget('seccionRecientes');
+        mostrarErrorWidget_('seccionRecientes', 'No se pudo conectar con el servidor.');
       })
       .obtenerActividadReciente(user.ID_Usuario, 4);
   }

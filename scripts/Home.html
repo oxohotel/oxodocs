@@ -60,6 +60,19 @@
     contenedor.querySelectorAll("[data-widget-contenido]").forEach(el => el.classList.remove("oculto"));
   }
 
+  /** Igual que revelarWidget, pero además reemplaza el contenido por un aviso de error — evita
+   *  que, si falla la petición, se quede visible el HTML de maqueta/placeholder de la vista
+   *  (ver views/Home.html) como si fueran datos reales. */
+  function mostrarErrorWidget_(idSeccion, mensaje) {
+    const contenedor = document.getElementById(idSeccion);
+    if (contenedor) {
+      contenedor.querySelectorAll("[data-widget-contenido]").forEach(function (el) {
+        el.innerHTML = '<p class="apartado-widget-vacio">' + (mensaje || 'No se pudo cargar la información.') + '</p>';
+      });
+    }
+    revelarWidget(idSeccion);
+  }
+
   /** Acción real de cerrar sesión — la dispara showConfirmation() desde la navbar o desde Perfil,
    *  así que solo hay UN lugar que sabe cómo cerrar sesión (antes había dos, uno por cada sitio
    *  donde se podía pedir, y eso llevaba a que uno rompiera silenciosamente al otro). */
