@@ -240,7 +240,7 @@ function generarVistaGrupos_() {
       </button>
     </div>
     <div style="padding:16px 24px;border-top:1px solid #f0f0f0;display:flex;justify-content:flex-end;background:#f8f9fa;">
-      <button class="btn-volver" style="padding:10px 24px;background:#C1952B;color:white;border:none;border-radius:8px;cursor:pointer;font-weight:600;">Listo</button>
+      <button class="btn-listo-grupos" style="padding:10px 24px;background:#C1952B;color:white;border:none;border-radius:8px;cursor:pointer;font-weight:600;">Listo</button>
     </div>
   `;
 }
@@ -427,10 +427,18 @@ function agregarEventListnersVista_() {
       renderizarModalPermisos_();
     });
 
+    const btnListoGrupos = modal.querySelector('.btn-listo-grupos');
+    if (btnListoGrupos) btnListoGrupos.addEventListener('click', () => {
+      if (estadoPermisos_.grupoSeleccionado) estadoPermisos_.opcionSeleccionada = 'grupo';
+      estadoPermisos_.vistaActual = 'principal';
+      renderizarModalPermisos_();
+    });
+
     modal.querySelectorAll('.item-grupo').forEach(item => {
       item.addEventListener('click', (e) => {
         if (e.target.closest('.btn-eliminar-grupo')) return; // No seleccionar si se hace click en borrar
         estadoPermisos_.grupoSeleccionado = item.dataset.id;
+        estadoPermisos_.opcionSeleccionada = 'grupo';
         estadoPermisos_.vistaActual = 'principal';
         renderizarModalPermisos_();
       });
