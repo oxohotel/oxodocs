@@ -13736,20 +13736,37 @@ const GOOGLE_PICKER_CONFIG = {
    */
   function crearYMostrarPicker(token) {
     try {
-      // 1. Vista principal de Mi Unidad (admite todos los formatos y carpetas)
-      const allFilesView = new google.picker.DocsView()
-        .setIncludeFolders(true)
-        .setSelectFolderEnabled(false)
-        .setEnableDrives(true);
+      // Pestañas equivalentes a las del menú lateral de Google Drive que el Picker soporta
+      // (Mi unidad, Unidades compartidas, Compartido conmigo, Reciente, Destacados).
+      // Actividad, Espacios de trabajo, Ordenadores, Spam y Papelera no existen en el Picker API.
 
-      // 2. Vista de Compartidos conmigo
+      // 1. Mi unidad
+      const miUnidadView = new google.picker.DocsView()
+        .setOwnedByMe(true)
+        .setIncludeFolders(true)
+        .setSelectFolderEnabled(false);
+
+      // 2. Unidades compartidas (antes se activaba también en las otras vistas y la pestaña
+      // "Unidades compartidas" aparecía repetida)
+      const unidadesCompartidasView = new google.picker.DocsView()
+        .setEnableDrives(true)
+        .setIncludeFolders(true)
+        .setSelectFolderEnabled(false);
+
+      // 3. Compartido conmigo
       const sharedWithMeView = new google.picker.DocsView()
         .setOwnedByMe(false)
         .setIncludeFolders(true)
-        .setEnableDrives(true);
+        .setSelectFolderEnabled(false);
 
-      // 3. Vista de Archivos Recientes
+      // 4. Reciente
       const recentView = new google.picker.DocsView(google.picker.ViewId.RECENTLY_PICKED);
+
+      // 5. Destacados
+      const destacadosView = new google.picker.DocsView()
+        .setStarred(true)
+        .setIncludeFolders(true)
+        .setSelectFolderEnabled(false);
 
       // Dimensiones adaptativas amplias para experiencia moderna de pantalla completa
       const ancho = Math.round(Math.min(Math.max(window.innerWidth * 0.85, 850), 1180));
@@ -13757,9 +13774,11 @@ const GOOGLE_PICKER_CONFIG = {
 
       const builder = new google.picker.PickerBuilder()
         .setOAuthToken(token)
-        .addView(allFilesView)
+        .addView(miUnidadView)
+        .addView(unidadesCompartidasView)
         .addView(sharedWithMeView)
         .addView(recentView)
+        .addView(destacadosView)
         .enableFeature(google.picker.Feature.SUPPORT_DRIVES)
         .enableFeature(google.picker.Feature.MULTISELECT_ENABLED)
         .setSize(ancho, alto)
