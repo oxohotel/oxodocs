@@ -280,6 +280,6 @@
         console.error('Error crearSubcarpeta:', error);
         showNotification('Error al crear la carpeta', 'error', 3000);
       })
-      .crearSubcarpeta(idCarpetaActual, nombre, token || (user ? user.ID_Usuario : null));
+      .crearSubcarpeta(idCarpetaActual, nombre, token, user ? user.ID_Usuario : null);
   }
 </script>

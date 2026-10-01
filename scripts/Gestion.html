@@ -128,7 +128,7 @@
             console.error('Error renombrarCarpeta:', error);
             showNotification('Error al renombrar la carpeta', 'error', 3000);
           })
-          .renombrarCarpeta(idCarpeta, nuevoNombre, token || (sesion ? sesion.ID_Usuario : null));
+          .renombrarCarpeta(idCarpeta, nuevoNombre, token, sesion ? sesion.ID_Usuario : null);
     }
   }
 
@@ -152,7 +152,7 @@
             console.error('Error eliminarCarpeta:', error);
             showNotification('Error al eliminar la carpeta', 'error', 3000);
           })
-          .eliminarCarpeta(idCarpeta, token || (sesion ? sesion.ID_Usuario : null));
+          .eliminarCarpeta(idCarpeta, token, sesion ? sesion.ID_Usuario : null);
       }
     );
   }

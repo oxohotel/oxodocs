@@ -7554,7 +7554,7 @@ button, input, select, textarea {
             console.error('Error renombrarCarpeta:', error);
             showNotification('Error al renombrar la carpeta', 'error', 3000);
           })
-          .renombrarCarpeta(idCarpeta, nuevoNombre, token || (sesion ? sesion.ID_Usuario : null));
+          .renombrarCarpeta(idCarpeta, nuevoNombre, token, sesion ? sesion.ID_Usuario : null);
     }
   }
 
@@ -7578,7 +7578,7 @@ button, input, select, textarea {
             console.error('Error eliminarCarpeta:', error);
             showNotification('Error al eliminar la carpeta', 'error', 3000);
           })
-          .eliminarCarpeta(idCarpeta, token || (sesion ? sesion.ID_Usuario : null));
+          .eliminarCarpeta(idCarpeta, token, sesion ? sesion.ID_Usuario : null);
       }
     );
   }
@@ -10691,7 +10691,7 @@ button, input, select, textarea {
         console.error('Error crearSubcarpeta:', error);
         showNotification('Error al crear la carpeta', 'error', 3000);
       })
-      .crearSubcarpeta(idCarpetaActual, nombre, token || (user ? user.ID_Usuario : null));
+      .crearSubcarpeta(idCarpetaActual, nombre, token, user ? user.ID_Usuario : null);
   }
 </script>
 

@@ -173,13 +173,13 @@ function filtrarArchivosNoRestringidos_(archivos, idUsuario, ss) {
 
 /** Crea una subcarpeta real en Drive (dentro de la carpeta padre) y la registra en la hoja
  *  "Carpetas" enlazada por ID_Padre. Se puede anidar en cualquier profundidad. */
-function crearSubcarpeta(idCarpetaPadre, nombreCarpeta, idUsuarioOToken) {
-  if (!usuarioTienePermiso(idUsuarioOToken, 'Gestionar_Hoteles_Carpetas')) {
+function crearSubcarpeta(idCarpetaPadre, nombreCarpeta, idUsuarioOToken, idUsuarioFallback) {
+  if (!usuarioTienePermiso(idUsuarioOToken, 'Gestionar_Hoteles_Carpetas', idUsuarioFallback)) {
     return { success: false, message: 'No tienes permiso para crear carpetas' };
   }
 
   const solicitante = typeof resolverUsuarioSolicitante_ === 'function'
-    ? resolverUsuarioSolicitante_(idUsuarioOToken)
+    ? resolverUsuarioSolicitante_(idUsuarioOToken, idUsuarioFallback)
     : null;
 
   const lock = LockService.getScriptLock();
@@ -330,13 +330,13 @@ function crearArea(idHotel, nombreArea, idUsuarioOToken) {
 }
 
 /** Renombra una carpeta (área o subcarpeta) tanto en Drive como en la hoja "Carpetas". */
-function renombrarCarpeta(idCarpeta, nuevoNombre, idUsuarioOToken) {
-  if (!usuarioTienePermiso(idUsuarioOToken, 'Gestionar_Hoteles_Carpetas')) {
+function renombrarCarpeta(idCarpeta, nuevoNombre, idUsuarioOToken, idUsuarioFallback) {
+  if (!usuarioTienePermiso(idUsuarioOToken, 'Gestionar_Hoteles_Carpetas', idUsuarioFallback)) {
     return { success: false, message: 'No tienes permiso para renombrar carpetas' };
   }
 
   const solicitante = typeof resolverUsuarioSolicitante_ === 'function'
-    ? resolverUsuarioSolicitante_(idUsuarioOToken)
+    ? resolverUsuarioSolicitante_(idUsuarioOToken, idUsuarioFallback)
     : null;
 
   try {
@@ -406,13 +406,13 @@ function eliminarFilasPorIdsEnHojaLote_(hoja, nombreColumnaId, idsSet) {
 
 /** Elimina una carpeta (área o subcarpeta) Y TODA su subrama: subcarpetas descendientes y
  *  cualquier archivo dentro de cualquiera de ellas. Optimizado en lote para evitar timeouts. */
-function eliminarCarpeta(idCarpeta, idUsuarioOToken) {
-  if (!usuarioTienePermiso(idUsuarioOToken, 'Gestionar_Hoteles_Carpetas')) {
+function eliminarCarpeta(idCarpeta, idUsuarioOToken, idUsuarioFallback) {
+  if (!usuarioTienePermiso(idUsuarioOToken, 'Gestionar_Hoteles_Carpetas', idUsuarioFallback)) {
     return { success: false, message: 'No tienes permiso para eliminar carpetas' };
   }
 
   const solicitante = typeof resolverUsuarioSolicitante_ === 'function'
-    ? resolverUsuarioSolicitante_(idUsuarioOToken)
+    ? resolverUsuarioSolicitante_(idUsuarioOToken, idUsuarioFallback)
     : null;
 
   const lock = LockService.getScriptLock();
