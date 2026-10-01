@@ -11034,10 +11034,10 @@ function renderizarListaExcluidos_() {
   if (!contenedor) return;
   
   const filtro = estadoPermisos_.filtroActual.toLowerCase();
-  const idUsuarioActual = getCurrentUserSession()?.ID_Usuario;
+  const idUsuarioActual = String(getCurrentUserSession()?.ID_Usuario ?? '');
 
   const usuariosFiltrados = estadoPermisos_.usuariosDisponibles.filter(u =>
-    u.id !== idUsuarioActual && // El uploader nunca se puede excluir a sí mismo
+    String(u.id) !== idUsuarioActual && // El uploader nunca se puede excluir a sí mismo
     (u.nombre.toLowerCase().includes(filtro) || u.email.toLowerCase().includes(filtro))
   );
 
@@ -11073,10 +11073,10 @@ function renderizarListaCrearGrupo_() {
   if (!contenedor) return;
   
   const filtro = estadoPermisos_.filtroActual.toLowerCase();
-  const idUsuarioActual = getCurrentUserSession()?.ID_Usuario;
+  const idUsuarioActual = String(getCurrentUserSession()?.ID_Usuario ?? '');
 
   const usuariosFiltrados = estadoPermisos_.usuariosDisponibles.filter(u =>
-    u.id !== idUsuarioActual &&
+    String(u.id) !== idUsuarioActual &&
     (u.nombre.toLowerCase().includes(filtro) || u.email.toLowerCase().includes(filtro))
   );
 
@@ -11304,18 +11304,21 @@ function eliminarGrupo_(idGrupo) {
  */
 function confirmarYCalcularPermisos_() {
   const opcion = estadoPermisos_.opcionSeleccionada;
-  const idUsuarioActual = getCurrentUserSession()?.ID_Usuario;
+  const idUsuarioActual = String(getCurrentUserSession()?.ID_Usuario ?? '');
   let idsRestringidosFinal = [];
 
-  // Obtenemos todos los IDs de la empresa excepto el usuario actual
+  // Obtenemos todos los IDs de la empresa excepto el usuario actual (ambos lados forzados a
+  // String: ID_Usuario en sesión puede llegar como number desde la hoja de Sheets, mientras que
+  // usuariosDisponibles ya viene como string desde el backend — sin esto, el filtro nunca
+  // coincidía y el uploader quedaba incluido entre "los demás").
   const todosLosOtrosIds = estadoPermisos_.usuariosDisponibles
-    .map(u => u.id)
+    .map(u => String(u.id))
     .filter(id => id !== idUsuarioActual);
 
   if (opcion === 'todos') {
     // Nadie excluido
     idsRestringidosFinal = [];
-  } 
+  }
   else if (opcion === 'nadie') {
     // Todos excluidos excepto el uploader
     idsRestringidosFinal = todosLosOtrosIds;
@@ -11329,11 +11332,15 @@ function confirmarYCalcularPermisos_() {
       showNotification('Selecciona un grupo primero', 'warning', 2000);
       return;
     }
-    const g = estadoPermisos_.misGrupos.find(x => x.id === estadoPermisos_.grupoSeleccionado);
-    if (g) {
-      // Excluir a todos LOS DEMÁS (todos los otros IDs que NO estén en la lista de integrantes del grupo)
-      idsRestringidosFinal = todosLosOtrosIds.filter(id => !g.integrantes.includes(id));
+    const g = estadoPermisos_.misGrupos.find(x => String(x.id) === String(estadoPermisos_.grupoSeleccionado));
+    if (!g) {
+      showNotification('No se encontró el grupo seleccionado. Vuelve a elegirlo e inténtalo de nuevo.', 'error', 3500);
+      return;
     }
+    // Excluir a todos LOS DEMÁS (todos los otros IDs que NO estén en la lista de integrantes del
+    // grupo) — integrantes se normaliza a String por la misma razón que todosLosOtrosIds arriba.
+    const integrantesSet = new Set((g.integrantes || []).map(String));
+    idsRestringidosFinal = todosLosOtrosIds.filter(id => !integrantesSet.has(id));
   }
 
   // Guardamos en el objeto global que usa ArchivosUpload.js
