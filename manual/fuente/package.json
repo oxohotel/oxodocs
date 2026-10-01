@@ -1,0 +1,14 @@
+{
+  "name": "manual-oxo-docs",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Genera las capturas (datos ficticios) y el PDF del manual de usuario de OXO Docs",
+  "scripts": {
+    "capturas": "node capturar.js",
+    "pdf": "node generar-pdf.js ../Manual_de_Usuario_OXO_Docs.pdf"
+  },
+  "dependencies": {
+    "pdf-lib": "^1.17.1",
+    "puppeteer-core": "^24.0.0"
+  }
+}

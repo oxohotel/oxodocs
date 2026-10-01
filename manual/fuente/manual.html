@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Manual de Usuario - OXO Docs</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+
+  :root {
+    --oro: #C4972B;
+    --oro-claro: #F6EED8;
+    --verde: #3D5A4C;
+    --verde-claro: #E9EFEB;
+    --texto: #19211E;
+    --muted: #5F6B66;
+    --borde: #E4DFD4;
+    --fondo: #F7F5F0;
+  }
+
+  @page { size: A4; margin: 18mm 16mm 20mm 16mm; }
+  @page :first { margin: 0; }
+
+  * { box-sizing: border-box; }
+  html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body {
+    font-family: 'Plus Jakarta Sans', 'Segoe UI', Arial, sans-serif;
+    color: var(--texto);
+    font-size: 10.6pt;
+    line-height: 1.55;
+    margin: 0;
+  }
+
+  /* ---------- Portada ---------- */
+  .portada {
+    height: 297mm;
+    width: 210mm;
+    padding: 28mm 22mm 22mm;
+    background: linear-gradient(180deg, #fbf9f3 0%, #f1ecdd 100%);
+    position: relative;
+    page-break-after: always;
+    display: flex;
+    flex-direction: column;
+  }
+  .portada .franja {
+    position: absolute; left: 0; top: 0; bottom: 0; width: 9mm;
+    background: linear-gradient(180deg, var(--verde) 0%, #2b4136 100%);
+  }
+  .portada .franja::after {
+    content: ''; position: absolute; left: 9mm; top: 0; bottom: 0; width: 1.6mm; background: var(--oro);
+  }
+  .portada img.logo { width: 92mm; margin-top: 6mm; }
+  .portada h1 {
+    font-size: 40pt; line-height: 1.08; font-weight: 800; letter-spacing: -1px;
+    margin: 58mm 0 6mm; color: var(--texto);
+  }
+  .portada h1 span { color: var(--oro); }
+  .portada p.sub { font-size: 14pt; color: var(--muted); max-width: 120mm; margin: 0; }
+  .portada .pie { margin-top: auto; font-size: 10pt; color: var(--muted); border-top: 1px solid var(--borde); padding-top: 5mm; display: flex; justify-content: space-between; }
+
+  /* ---------- Contenido ---------- */
+  h2 {
+    font-size: 21pt; font-weight: 800; letter-spacing: -0.5px; margin: 11mm 0 4mm;
+    padding-bottom: 3mm; border-bottom: 3px solid var(--oro);
+    break-after: avoid;
+  }
+  h2.salto { page-break-before: always; margin-top: 0; }
+  h3 { break-after: avoid; }
+  h2.sin-salto { page-break-before: avoid; margin-top: 10mm; }
+  h2 .num { color: var(--oro); margin-right: 2mm; }
+  h3 { font-size: 13pt; font-weight: 700; margin: 7mm 0 2mm; color: var(--verde); }
+  p { margin: 0 0 3mm; orphans: 3; widows: 3; }
+  ul, ol { margin: 0 0 4mm; padding-left: 6mm; }
+  li { margin-bottom: 1.4mm; }
+  strong { font-weight: 700; }
+
+  .intro { font-size: 11.5pt; color: var(--muted); margin-bottom: 5mm; }
+
+  .nota, .consejo, .aviso {
+    border-radius: 3mm; padding: 3.2mm 4.5mm; margin: 4mm 0; font-size: 10pt;
+    break-inside: avoid;
+  }
+  .nota { background: var(--verde-claro); border-left: 1.4mm solid var(--verde); }
+  .consejo { background: var(--oro-claro); border-left: 1.4mm solid var(--oro); }
+  .aviso { background: #FBEAE6; border-left: 1.4mm solid #C0392B; }
+  .nota b.t, .consejo b.t, .aviso b.t { display: block; margin-bottom: 0.8mm; }
+
+  /* Pasos numerados */
+  ol.pasos { list-style: none; counter-reset: paso; padding-left: 0; }
+  ol.pasos > li {
+    counter-increment: paso; position: relative; padding-left: 9mm; margin-bottom: 2.6mm; break-inside: avoid;
+    min-height: 6.8mm; /* >= alto del círculo numerado: si no, el círculo se corta en el salto de página */
+  }
+  ol.pasos > li::before {
+    content: counter(paso); position: absolute; left: 0; top: 0.2mm;
+    width: 6.2mm; height: 6.2mm; border-radius: 50%; background: var(--verde); color: #fff;
+    font-size: 9pt; font-weight: 700; text-align: center; line-height: 6.2mm;
+  }
+
+  /* Figuras */
+  figure { margin: 4mm 0 5mm; break-inside: avoid; text-align: center; }
+  figure img {
+    max-width: 100%; max-height: 96mm; border: 1px solid var(--borde); border-radius: 2.5mm;
+    box-shadow: 0 1.2mm 4mm rgba(25,33,30,0.10);
+  }
+  figure.angosta img { max-width: 60%; }
+  figure.media img { max-width: 74%; }
+  figcaption { font-size: 9pt; color: var(--muted); margin-top: 2mm; }
+  figcaption b { color: var(--oro); }
+
+  /* Tablas */
+  table { width: 100%; border-collapse: collapse; margin: 3mm 0 5mm; font-size: 9.6pt; break-inside: avoid; }
+  th { background: var(--verde); color: #fff; text-align: left; padding: 2.4mm 3mm; font-weight: 700; }
+  td { padding: 2.4mm 3mm; border-bottom: 1px solid var(--borde); vertical-align: top; }
+  tr:nth-child(even) td { background: #fbfaf6; }
+  td.si { color: #2E7D32; font-weight: 700; text-align: center; }
+  td.no { color: #B0B7B3; text-align: center; }
+  th.c { text-align: center; }
+
+  /* Índice */
+  .indice { margin-top: 4mm; }
+  .indice div { display: flex; align-items: baseline; padding: 2.2mm 0; border-bottom: 1px dotted var(--borde); font-size: 11.5pt; }
+  .indice div span.n { color: var(--oro); font-weight: 800; width: 11mm; }
+  .indice div span.d { margin-left: auto; color: var(--muted); font-size: 9.5pt; }
+
+  .tarjetas { display: flex; gap: 4mm; margin: 4mm 0; }
+  .tarjetas > div { flex: 1; border: 1px solid var(--borde); border-radius: 3mm; padding: 4mm; background: #fffdf8; break-inside: avoid; }
+  .tarjetas h4 { margin: 0 0 1.5mm; font-size: 11pt; color: var(--verde); }
+  .tarjetas p { font-size: 9.6pt; margin: 0; color: var(--muted); }
+
+  kbd { background: #f1efe8; border: 1px solid var(--borde); border-bottom-width: 2px; border-radius: 1.2mm; padding: 0 1.6mm; font-size: 9pt; font-family: inherit; }
+  .btn { display: inline-block; background: var(--oro); color: #fff; font-weight: 700; padding: 0.4mm 2.4mm; border-radius: 1.6mm; font-size: 9.4pt; }
+  .btn.claro { background: #fff; color: var(--texto); border: 1px solid var(--borde); }
+</style>
+</head>
+<body>
+
+<!-- ======================== PORTADA ======================== -->
+<section class="portada">
+  <div class="franja"></div>
+  <img class="logo" src="logo.png" alt="OXO Docs">
+  <h1>Manual de<br><span>usuario</span></h1>
+  <p class="sub">Guía paso a paso para guardar, organizar y compartir los documentos de OxoHotel en el Repositorio de Documentos.</p>
+  <div class="pie">
+    <span>Repositorio de Documentos · OxoHotel</span>
+    <span>Versión 1.0 · Octubre 2026</span>
+  </div>
+</section>
+
+<!-- ======================== ÍNDICE ======================== -->
+<h2 class="sin-salto" style="margin-top:0;page-break-before:avoid;">Contenido</h2>
+<div class="indice">
+  <div><span class="n">1</span>¿Qué es OXO Docs y para qué sirve?</div>
+  <div><span class="n">2</span>Cómo ingresar y crear tu cuenta</div>
+  <div><span class="n">3</span>Conoce la pantalla principal</div>
+  <div><span class="n">4</span>Navegar por hoteles, áreas y carpetas</div>
+  <div><span class="n">5</span>Organizar: crear áreas y carpetas</div>
+  <div><span class="n">6</span>Subir documentos</div>
+  <div><span class="n">7</span>Decidir quién puede ver cada archivo</div>
+  <div><span class="n">8</span>Favoritos y recientes</div>
+  <div><span class="n">9</span>Administración de usuarios y registro de actividad</div>
+  <div><span class="n">10</span>Tu perfil y preferencias</div>
+  <div><span class="n">11</span>Buenas prácticas para organizar tu área</div>
+  <div><span class="n">12</span>Preguntas frecuentes</div>
+</div>
+
+<div class="nota" style="margin-top:10mm;">
+  <b class="t">¿Dónde encuentro este manual?</b>
+  En el aplicativo, abajo de la barra lateral izquierda, está el botón con el icono <b>(i)</b> llamado <b>Manual de usuario</b>. Al pulsarlo se abre este documento en una pestaña nueva.
+</div>
+<figure class="angosta">
+  <img src="capturas/21-boton-manual.png" alt="Botón del manual">
+  <figcaption><b>Figura 1.</b> Botón <b>Manual de usuario</b> en la parte inferior de la barra lateral.</figcaption>
+</figure>
+
+<!-- ======================== 1 ======================== -->
+<h2 class="salto"><span class="num">1</span>¿Qué es OXO Docs y para qué sirve?</h2>
+<p class="intro">OXO Docs es el repositorio central de documentos de OxoHotel: un solo lugar, ordenado por hotel y por área, donde se guardan los archivos importantes de la compañía.</p>
+
+<p>Cuando los documentos viven solo en un computador personal o en un correo, se pierden cuando la persona cambia de cargo o se retira. OXO Docs resuelve esto: cada persona sube a la carpeta de su área los documentos que maneja según su cargo y responsabilidad, y así la información queda disponible para el equipo, con el control de acceso que corresponda.</p>
+
+<div class="tarjetas">
+  <div><h4>Centralizado</h4><p>Todos los hoteles y el corporativo en un mismo lugar, con la misma estructura de navegación.</p></div>
+  <div><h4>Ordenado por área</h4><p>Cada área (Finanzas, IT, Jurídico, Operaciones…) organiza sus carpetas como mejor le funcione.</p></div>
+  <div><h4>Con control de acceso</h4><p>Quien sube un archivo decide si lo ve toda la empresa, solo un grupo o personas específicas.</p></div>
+</div>
+
+<h3>Cómo está organizado</h3>
+<ol>
+  <li><b>Módulos:</b> Hoteles en operación, Hoteles en pre-apertura, Hoteles en desarrollo y Corporativo.</li>
+  <li><b>Hotel:</b> cada hotel (o el Corporativo) tiene sus propias áreas.</li>
+  <li><b>Área:</b> departamento o proceso, por ejemplo Alimentos y Bebidas, CAF, IT, Jurídico.</li>
+  <li><b>Carpetas y subcarpetas:</b> la estructura interna que define cada líder de área.</li>
+  <li><b>Archivos:</b> los documentos (Excel, Word, PDF, PowerPoint, imágenes, etc.).</li>
+</ol>
+
+<h3>Roles</h3>
+<p>Lo que puedes hacer depende de tu rol, que asigna un administrador:</p>
+<table>
+  <tr><th>Acción</th><th class="c">Usuario</th><th class="c">Administrador</th><th class="c">Superadministrador</th></tr>
+  <tr><td>Ver y abrir documentos a los que tienes acceso</td><td class="si">Sí</td><td class="si">Sí</td><td class="si">Sí</td></tr>
+  <tr><td>Subir documentos</td><td class="si">Sí</td><td class="si">Sí</td><td class="si">Sí</td></tr>
+  <tr><td>Crear áreas y carpetas, renombrar y eliminar</td><td class="no">—</td><td class="si">Sí</td><td class="si">Sí</td></tr>
+  <tr><td>Gestionar usuarios y ver el registro de actividad</td><td class="no">—</td><td class="si">Sí</td><td class="si">Sí</td></tr>
+  <tr><td>Cambiar el rol de otras personas</td><td class="no">—</td><td class="no">—</td><td class="si">Sí</td></tr>
+</table>
+<div class="nota"><b class="t">Si no ves un botón</b>Algunos botones (como <i>Nueva Carpeta</i> o <i>Nueva Área</i>) solo aparecen según tu rol. Si necesitas usarlos, solicita el permiso a un administrador.</div>
+
+<!-- ======================== 2 ======================== -->
+<h2><span class="num">2</span>Cómo ingresar y crear tu cuenta</h2>
+<p class="intro">OXO Docs está disponible en la Intranet corporativa. Ábrelo desde el navegador de tu computador.</p>
+
+<h3>Iniciar sesión</h3>
+<ol class="pasos">
+  <li>Escribe tu <b>correo electrónico</b> corporativo (<i>@oxohotel.com</i>).</li>
+  <li>Escribe tu <b>contraseña</b>.</li>
+  <li>Pulsa <b>Iniciar Sesión</b>. Si marcas <i>Recuérdame</i>, la sesión se conserva en ese equipo.</li>
+</ol>
+<figure class="media">
+  <img src="capturas/01-login.png" alt="Inicio de sesión">
+  <figcaption><b>Figura 2.</b> Pantalla de inicio de sesión.</figcaption>
+</figure>
+
+<h3>Crear tu cuenta (primera vez)</h3>
+<ol class="pasos">
+  <li>En la pantalla de inicio, elige <b>Crear Cuenta</b>.</li>
+  <li>Completa tu nombre, tu correo corporativo y una contraseña de al menos 8 caracteres; repítela para confirmarla.</li>
+  <li>Te llegará un <b>código de verificación</b> por correo (vale 15 minutos). Escríbelo en el aplicativo para confirmar tu cuenta.</li>
+  <li>Un administrador revisará y <b>aprobará</b> tu acceso. Cuando esté aprobado podrás iniciar sesión.</li>
+</ol>
+<figure class="media">
+  <img src="capturas/02-registro.png" alt="Crear cuenta">
+  <figcaption><b>Figura 3.</b> Formulario para crear una cuenta.</figcaption>
+</figure>
+<div class="nota"><b class="t">Mensajes que puedes ver</b><i>“Debes verificar tu correo antes de iniciar sesión”</i>: falta ingresar el código recibido. <i>“Tu cuenta está pendiente de aprobación”</i>: espera a que un administrador te dé acceso.</div>
+
+<!-- ======================== 3 ======================== -->
+<h2><span class="num">3</span>Conoce la pantalla principal</h2>
+<p class="intro">Al iniciar sesión llegas al <b>Inicio</b>, con un resumen de lo que usas más.</p>
+<figure>
+  <img src="capturas/03-inicio.png" alt="Pantalla de inicio">
+  <figcaption><b>Figura 4.</b> Inicio: saludo, documentos <b>Recientes</b> y carpetas o archivos <b>Favoritos</b>.</figcaption>
+</figure>
+
+<h3>La barra lateral</h3>
+<p>Es el menú principal. Al pasar el cursor sobre ella se expande y muestra los nombres:</p>
+<ul>
+  <li><b>Inicio:</b> vuelve al resumen.</li>
+  <li><b>Hoteles en operación, pre-apertura, en desarrollo y Corporativo:</b> despliegan la lista de hoteles de cada módulo; pulsa un hotel para ver sus áreas.</li>
+  <li><b>Favoritos</b> y <b>Recientes:</b> accesos rápidos (ver sección 8).</li>
+  <li><b>Usuarios</b> y <b>Logs:</b> solo para administradores (ver sección 9).</li>
+  <li><b>Manual de usuario (i):</b> abre esta guía.</li>
+</ul>
+<figure class="angosta">
+  <img src="capturas/04-menu-lateral.png" alt="Barra lateral">
+  <figcaption><b>Figura 5.</b> Barra lateral expandida.</figcaption>
+</figure>
+
+<h3>La barra superior</h3>
+<ul>
+  <li><b>Buscador “Buscar hoteles, carpetas…”:</b> encuentra hoteles, carpetas y archivos desde cualquier pantalla.</li>
+  <li><b>Campana:</b> notificaciones.</li>
+  <li><b>Luna:</b> cambia entre modo claro y oscuro.</li>
+  <li><b>Tu inicial (círculo verde):</b> abre el menú de tu perfil y el cierre de sesión.</li>
+</ul>
+<figure>
+  <img src="capturas/19-busqueda.png" alt="Buscador global">
+  <figcaption><b>Figura 6.</b> Búsqueda desde la barra superior: escribe parte del nombre y elige el resultado.</figcaption>
+</figure>
+<figure class="media">
+  <img src="capturas/20-modo-oscuro.png" alt="Modo oscuro">
+  <figcaption><b>Figura 7.</b> El mismo Inicio en modo oscuro.</figcaption>
+</figure>
+
+<!-- ======================== 4 ======================== -->
+<h2><span class="num">4</span>Navegar por hoteles, áreas y carpetas</h2>
+<h3>Entrar a un hotel y ver sus áreas</h3>
+<ol class="pasos">
+  <li>En la barra lateral, abre el módulo (por ejemplo <i>Hoteles en operación</i>).</li>
+  <li>Pulsa el hotel que quieres consultar. Verás sus <b>áreas</b> como tarjetas.</li>
+  <li>Pulsa un área para entrar a sus carpetas y archivos.</li>
+</ol>
+<figure>
+  <img src="capturas/05-areas-hotel.png" alt="Áreas de un hotel">
+  <figcaption><b>Figura 8.</b> Áreas de un hotel. Usa <i>Buscar carpetas…</i> para filtrarlas y alterna entre vista de tarjetas y de filas.</figcaption>
+</figure>
+
+<h3>Dentro de una carpeta</h3>
+<ul>
+  <li>La <b>ruta de navegación</b> (Hotel / Área / Carpeta) te dice dónde estás. Pulsa cualquier nivel para volver a él, o usa la flecha <b>&lt;</b> para subir un nivel.</li>
+  <li>Pulsa una <b>subcarpeta</b> para entrar. Pulsa un <b>archivo</b> (o el icono de la esquina) para abrirlo en Google Drive.</li>
+  <li>La <b>estrella</b> marca la carpeta o el archivo como favorito.</li>
+  <li><i>Buscar archivos…</i> filtra lo que ves en la carpeta actual.</li>
+</ul>
+<figure>
+  <img src="capturas/06-explorador-carpeta.png" alt="Explorador de carpeta">
+  <figcaption><b>Figura 9.</b> Contenido de una carpeta con su ruta de navegación y los botones <b>Nueva Carpeta</b> y <b>Nuevo Archivo</b>.</figcaption>
+</figure>
+
+<!-- ======================== 5 ======================== -->
+<h2><span class="num">5</span>Organizar: crear áreas y carpetas</h2>
+<p class="intro">Cada líder de área define la estructura de carpetas de su área y es responsable de mantenerla ordenada. Estas acciones están disponibles para administradores.</p>
+
+<h3>Crear una carpeta o subcarpeta</h3>
+<ol class="pasos">
+  <li>Entra a la carpeta donde quieres crear la nueva.</li>
+  <li>Pulsa <span class="btn claro">Nueva Carpeta</span>.</li>
+  <li>Escribe el nombre (por ejemplo <i>Contratos 2026</i>) y pulsa <b>Crear</b>.</li>
+</ol>
+<figure class="media">
+  <img src="capturas/07-nueva-carpeta.png" alt="Nueva carpeta">
+  <figcaption><b>Figura 10.</b> Panel lateral para crear una carpeta.</figcaption>
+</figure>
+
+<h3>Crear un área nueva en un hotel</h3>
+<p>Desde la vista del hotel, pulsa <span class="btn">Nueva Área</span>, escribe el nombre (por ejemplo <i>Mantenimiento</i>) y confirma.</p>
+
+<h3>Renombrar o eliminar</h3>
+<p>Las tarjetas de carpeta muestran, para quien tiene permiso, botones de <b>renombrar</b> (lápiz) y <b>eliminar</b> (papelera).</p>
+<div class="aviso"><b class="t">Eliminar es definitivo</b>Al eliminar una carpeta se borra también todo lo que contiene (subcarpetas y archivos), tanto en el aplicativo como en Google Drive. Se pide confirmación antes de hacerlo.</div>
+
+<!-- ======================== 6 ======================== -->
+<h2 class="salto"><span class="num">6</span>Subir documentos</h2>
+<p class="intro">Puedes subir archivos desde tu computador o traerlos desde tu Google Drive. En ambos casos se guardan en la carpeta donde estás parado.</p>
+
+<h3>Desde tu computador</h3>
+<ol class="pasos">
+  <li>Entra a la carpeta de destino y pulsa <span class="btn">Nuevo Archivo</span>.</li>
+  <li>En <b>Desde Computadora</b>, arrastra los archivos al recuadro o haz clic para elegirlos. Puedes seleccionar varios (hasta <b>15 MB</b> cada uno) y usar <i>+ Agregar más</i> o <i>Quitar todos</i>.</li>
+  <li>Si quieres limitar quién lo ve, usa <b>Restringir Acceso</b> (sección 7). Si no, quedará visible para todos los que tengan acceso al hotel.</li>
+  <li>Pulsa <b>Subir Archivo(s)</b> y espera a que termine.</li>
+</ol>
+<figure class="media">
+  <img src="capturas/08-nuevo-archivo.png" alt="Nuevo archivo">
+  <figcaption><b>Figura 11.</b> Panel <b>Nuevo Archivo</b> con un archivo seleccionado.</figcaption>
+</figure>
+<div class="consejo"><b class="t">Mientras sube, no cierres la ventana</b>El panel se bloquea hasta que termina la subida, y el navegador te avisa si intentas cerrar o recargar la pestaña. Al finalizar verás un mensaje de confirmación; si algún archivo falla, se indica cuál.</div>
+
+<h3>Desde Google Drive</h3>
+<ol class="pasos">
+  <li>En <b>Nuevo Archivo</b>, abre la pestaña <b>Traer desde Google Drive</b>.</li>
+  <li>Pulsa <b>Abrir Explorador de Drive</b> y elige uno o varios archivos (Mi unidad, Unidades compartidas, Compartido conmigo, Reciente o Destacados). La primera vez te pedirá autorizar el acceso con tu cuenta de Google.</li>
+  <li>También puedes <b>pegar el enlace</b> de un archivo de Drive.</li>
+  <li>Define quién puede verlos en <b>Restringir Acceso</b> y pulsa <b>Migrar … Archivo(s) de Drive</b>.</li>
+</ol>
+<figure class="media">
+  <img src="capturas/13-traer-drive.png" alt="Traer desde Drive">
+  <figcaption><b>Figura 12.</b> Pestaña <b>Traer desde Google Drive</b>.</figcaption>
+</figure>
+<div class="nota"><b class="t">Se copia, no se mueve</b>Los archivos de Drive se <b>copian</b> a OXO Docs; el original sigue en tu Drive sin cambios.</div>
+
+<!-- ======================== 7 ======================== -->
+<h2 class="salto"><span class="num">7</span>Decidir quién puede ver cada archivo</h2>
+<p class="intro">Al subir un archivo, la sección <b>Restringir Acceso</b> te permite controlar quién lo puede ver. Por defecto dice <i>“Sin restricciones – Todos pueden ver”</i>.</p>
+
+<ol class="pasos">
+  <li>En el panel <b>Nuevo Archivo</b>, pulsa <b>+ Configurar</b>.</li>
+  <li>Elige una de las cuatro opciones de <b>Privacidad del archivo</b> y pulsa <b>Aplicar</b>.</li>
+</ol>
+<figure class="media">
+  <img src="capturas/09-permisos-opciones.png" alt="Opciones de privacidad">
+  <figcaption><b>Figura 13.</b> Opciones de privacidad.</figcaption>
+</figure>
+<table>
+  <tr><th style="width:34%">Opción</th><th>Qué significa</th></tr>
+  <tr><td><b>Todos en la empresa</b></td><td>Cualquier usuario con acceso al sistema puede ver el archivo.</td></tr>
+  <tr><td><b>Solo yo</b></td><td>Ningún otro usuario podrá verlo.</td></tr>
+  <tr><td><b>Todos, excepto…</b></td><td>Lo ven todos menos las personas que marques.</td></tr>
+  <tr><td><b>Seleccionar grupo…</b></td><td>Lo ve únicamente el grupo que elijas (por ejemplo, <i>Dirección IT</i>).</td></tr>
+</table>
+
+<h3>Usar un grupo</h3>
+<p>Un grupo es una lista de personas que defines una vez y reutilizas. En <b>Seleccionar grupo…</b> pulsa <i>Cambiar</i>: verás <b>Mis Grupos</b>. Elige uno de la lista o crea uno con <b>Crear nuevo grupo</b> (nombre y personas que lo integran). La papelera elimina un grupo.</p>
+<figure class="media">
+  <img src="capturas/10-permisos-grupos.png" alt="Mis grupos">
+  <figcaption><b>Figura 14.</b> <b>Mis Grupos</b>: selecciona un grupo para darle acceso exclusivo.</figcaption>
+</figure>
+
+<h3>Excluir personas específicas</h3>
+<p>En <b>Todos, excepto…</b> pulsa <i>Editar</i>, marca a quienes <b>no</b> podrán ver el archivo (puedes buscar por nombre o correo) y pulsa <b>Listo</b>.</p>
+<figure class="media">
+  <img src="capturas/11-permisos-excluir.png" alt="Excluir usuarios">
+  <figcaption><b>Figura 15.</b> <b>Excluir usuarios</b>: marca quiénes no podrán ver el archivo.</figcaption>
+</figure>
+
+<h3>Confirmar</h3>
+<p>Al pulsar <b>Aplicar</b>, el panel <b>Nuevo Archivo</b> muestra el resumen de la restricción (por ejemplo <i>“Solo el grupo: Dirección IT”</i>) y la lista de personas sin acceso. Revísalo antes de subir.</p>
+<figure class="media">
+  <img src="capturas/12-restriccion-aplicada.png" alt="Restricción aplicada">
+  <figcaption><b>Figura 16.</b> Resumen de la restricción aplicada.</figcaption>
+</figure>
+<div class="consejo"><b class="t">Quién siempre lo ve</b>La persona que sube el archivo siempre tiene acceso a él. Las restricciones se aplican de inmediato: quien está excluido no verá el archivo al entrar a la carpeta.</div>
+
+<!-- ======================== 8 ======================== -->
+<h2><span class="num">8</span>Favoritos y recientes</h2>
+<h3>Favoritos</h3>
+<p>Marca con la <b>estrella</b> las carpetas o archivos que usas con frecuencia (en una tarjeta de carpeta, en un archivo o en la propia lista de favoritos). Aparecen en el apartado <b>Favoritos</b> de la barra lateral y en el widget del Inicio. Pulsa una tarjeta para abrirla directamente en su ubicación; para quitarla, vuelve a pulsar la estrella.</p>
+<figure>
+  <img src="capturas/14-favoritos.png" alt="Favoritos">
+  <figcaption><b>Figura 17.</b> Apartado <b>Favoritos</b>.</figcaption>
+</figure>
+<h3>Recientes</h3>
+<p><b>Recientes</b> lista lo último que abriste o subiste, para retomar tu trabajo sin buscar de nuevo. Pulsa un elemento para ir a él.</p>
+<figure>
+  <img src="capturas/15-recientes.png" alt="Recientes">
+  <figcaption><b>Figura 18.</b> Apartado <b>Recientes</b>.</figcaption>
+</figure>
+
+<!-- ======================== 9 ======================== -->
+<h2 class="salto"><span class="num">9</span>Administración de usuarios y registro de actividad</h2>
+<p class="intro">Estos apartados aparecen en la barra lateral solo para administradores y superadministradores.</p>
+
+<h3>Usuarios</h3>
+<p>Muestra quiénes tienen acceso, su correo, rol, estado y a qué hoteles pueden entrar. Desde aquí un administrador puede:</p>
+<ul>
+  <li><b>Aprobar</b> cuentas nuevas pendientes de aprobación.</li>
+  <li><b>Crear un usuario</b> con el botón <span class="btn">Nuevo Usuario</span>.</li>
+  <li><b>Asignar hoteles:</b> definir a qué hoteles tiene acceso cada persona (o todos).</li>
+  <li><b>Cambiar el rol</b> (solo el Superadministrador).</li>
+  <li><b>Restablecer la contraseña</b> (icono de llave) y <b>activar o desactivar</b> una cuenta (icono de encendido).</li>
+  <li><b>Buscar</b> por nombre o correo con el buscador de la parte superior.</li>
+</ul>
+<figure>
+  <img src="capturas/16-usuarios.png" alt="Usuarios">
+  <figcaption><b>Figura 19.</b> Apartado <b>Usuarios</b>.</figcaption>
+</figure>
+
+<h3>Logs</h3>
+<p>Es el registro de auditoría: qué acciones se hicieron, quién las hizo y cuándo (inicios de sesión, subidas, cambios). Sirve para revisiones y seguimiento. Tiene buscador para filtrar por usuario, acción o fecha.</p>
+<figure>
+  <img src="capturas/17-logs.png" alt="Logs">
+  <figcaption><b>Figura 20.</b> Apartado <b>Logs</b>.</figcaption>
+</figure>
+
+<!-- ======================== 10 ======================== -->
+<h2><span class="num">10</span>Tu perfil y preferencias</h2>
+<p>Pulsa tu inicial en la esquina superior derecha y entra a <b>Mi Perfil</b>. Allí puedes:</p>
+<ul>
+  <li>Ver tu información personal (nombre, correo y fecha de registro) y <b>editar tu nombre</b>.</li>
+  <li><b>Cambiar tu contraseña</b>: escribe la actual, la nueva y confírmala.</li>
+  <li>Ajustar tus <b>preferencias de notificaciones</b>.</li>
+</ul>
+<p>Para salir, usa <b>Cerrar sesión</b> en el mismo menú, sobre todo si compartes el equipo.</p>
+<figure>
+  <img src="capturas/18-perfil.png" alt="Mi perfil">
+  <figcaption><b>Figura 21.</b> Mi Perfil.</figcaption>
+</figure>
+
+<!-- ======================== 11 ======================== -->
+<h2><span class="num">11</span>Buenas prácticas para organizar tu área</h2>
+<p class="intro">La utilidad de OXO Docs depende de que cada área mantenga su espacio completo y ordenado.</p>
+<ol>
+  <li><b>Define una estructura propia y simple.</b> Cada líder de área decide cómo organizar sus carpetas (por proceso, por año, por proveedor, etc.) y la comparte con su equipo.</li>
+  <li><b>Hazte responsable de mantenerla.</b> Designa quién sube qué, y revisa periódicamente que no haya archivos sueltos o duplicados.</li>
+  <li><b>Sube lo importante según tu cargo.</b> Contratos, presupuestos, informes, políticas, actas y todo documento que otra persona necesitaría si tú no estuvieras.</li>
+  <li><b>Usa nombres claros.</b> Incluye tema, año y versión: <i>Presupuesto_2027_v2.xlsx</i> es mejor que <i>Nuevo (3).xlsx</i>.</li>
+  <li><b>Restringe solo lo necesario.</b> Usa grupos para documentos sensibles; evita bloquear lo que el equipo necesita consultar.</li>
+  <li><b>Sube al terminar el trabajo, no “después”.</b> Un documento que queda en tu computador es un documento en riesgo.</li>
+  <li><b>Al cambiar de cargo o retirarte,</b> verifica que tus documentos vigentes estén en la carpeta de tu área y avisa a quien te reemplaza dónde están.</li>
+</ol>
+
+<!-- ======================== 12 ======================== -->
+<h2><span class="num">12</span>Preguntas frecuentes</h2>
+
+<h3>No veo el botón “Nueva Carpeta” o “Nueva Área”.</h3>
+<p>Esos botones aparecen según tu rol. Solicita a un administrador el permiso de gestión de carpetas.</p>
+
+<h3>Me aparece “No tienes permiso…” aunque sí debería tenerlo.</h3>
+<p>Probablemente tu sesión lleva mucho tiempo abierta. Cierra sesión y vuelve a iniciar para renovarla.</p>
+
+<h3>Subí un archivo y no lo veo en la carpeta.</h3>
+<p>Recarga la carpeta o vuelve a entrar. Si quedó restringido, solo lo verán las personas con acceso. Revisa también en <b>Recientes</b> si se registró la subida.</p>
+
+<h3>Aparece un mensaje de error de conexión.</h3>
+<p>Ocurre a veces de forma momentánea con el servidor. Espera unos segundos y repite la acción; si persiste, recarga la página (<kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>R</kbd>).</p>
+
+<h3>¿Qué tamaño y tipos de archivo puedo subir?</h3>
+<p>Hasta 15 MB por archivo desde el computador, en los formatos habituales (Excel, Word, PDF, PowerPoint, imágenes, etc.). Para archivos más grandes, súbelos a Google Drive y tráelos con la opción <b>Traer desde Google Drive</b>.</p>
+
+<h3>¿Puedo recuperar un archivo o carpeta eliminado?</h3>
+<p>La eliminación en OXO Docs es definitiva. Por eso solo la realizan los administradores y se pide confirmación. Consulta con Tecnología (IT) si ocurrió por error.</p>
+
+<h3>¿A quién acudo si necesito ayuda?</h3>
+<p>Contacta al área de Tecnología (IT) de OxoHotel. También puedes volver a este manual desde el botón <b>(i)</b> de la barra lateral.</p>
+
+</body>
+</html>
