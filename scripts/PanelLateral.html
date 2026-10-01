@@ -77,7 +77,37 @@
     overlay.classList.add('active');
   }
 
+  var _panelLateralBloqueado = false;
+
+  function _avisarSalidaDuranteBloqueo(e) {
+    e.preventDefault();
+    e.returnValue = '';
+  }
+
+  /** Impide cerrar el panel (X, clic fuera, Escape) y recargar la pestaña sin aviso mientras
+   *  haya una operación en curso, como una subida de archivos. */
+  function bloquearPanelLateral() {
+    _panelLateralBloqueado = true;
+    const overlay = document.getElementById('panelLateralOverlay');
+    if (overlay) overlay.classList.add('bloqueado');
+    window.addEventListener('beforeunload', _avisarSalidaDuranteBloqueo);
+  }
+
+  function desbloquearPanelLateral() {
+    _panelLateralBloqueado = false;
+    const overlay = document.getElementById('panelLateralOverlay');
+    if (overlay) overlay.classList.remove('bloqueado');
+    window.removeEventListener('beforeunload', _avisarSalidaDuranteBloqueo);
+  }
+
   function cerrarPanelLateral() {
+    if (_panelLateralBloqueado) {
+      if (typeof showNotification === 'function') {
+        showNotification('Espera a que termine la subida antes de cerrar.', 'info', 2200);
+      }
+      return;
+    }
+
     const overlay = document.getElementById('panelLateralOverlay');
     if (overlay) overlay.classList.remove('active');
 

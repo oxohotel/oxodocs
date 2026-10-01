@@ -4544,6 +4544,15 @@ button, input, select, textarea {
   transform: scale(0.92);
 }
 
+.panel-lateral-overlay.bloqueado .panel-lateral-cerrar {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.panel-lateral-overlay.bloqueado {
+  cursor: progress;
+}
+
 .panel-lateral-body {
   flex: 1;
   overflow-y: auto;
@@ -7446,7 +7455,37 @@ button, input, select, textarea {
     overlay.classList.add('active');
   }
 
+  var _panelLateralBloqueado = false;
+
+  function _avisarSalidaDuranteBloqueo(e) {
+    e.preventDefault();
+    e.returnValue = '';
+  }
+
+  /** Impide cerrar el panel (X, clic fuera, Escape) y recargar la pestaña sin aviso mientras
+   *  haya una operación en curso, como una subida de archivos. */
+  function bloquearPanelLateral() {
+    _panelLateralBloqueado = true;
+    const overlay = document.getElementById('panelLateralOverlay');
+    if (overlay) overlay.classList.add('bloqueado');
+    window.addEventListener('beforeunload', _avisarSalidaDuranteBloqueo);
+  }
+
+  function desbloquearPanelLateral() {
+    _panelLateralBloqueado = false;
+    const overlay = document.getElementById('panelLateralOverlay');
+    if (overlay) overlay.classList.remove('bloqueado');
+    window.removeEventListener('beforeunload', _avisarSalidaDuranteBloqueo);
+  }
+
   function cerrarPanelLateral() {
+    if (_panelLateralBloqueado) {
+      if (typeof showNotification === 'function') {
+        showNotification('Espera a que termine la subida antes de cerrar.', 'info', 2200);
+      }
+      return;
+    }
+
     const overlay = document.getElementById('panelLateralOverlay');
     if (overlay) overlay.classList.remove('active');
 
@@ -9950,6 +9989,7 @@ button, input, select, textarea {
     estadoSubida.archivosDrive = [];
     estadoSubida.origen = 'computadora';
     subiendoArchivosActivo = false;
+    if (typeof desbloquearPanelLateral === 'function') desbloquearPanelLateral();
     // Reiniciar estado de permisos para nuevo archivo
     if (typeof estadoPermisos_ !== 'undefined') {
       estadoPermisos_.opcionSeleccionada = 'todos';
@@ -10207,13 +10247,16 @@ button, input, select, textarea {
     }
 
     subiendoArchivosActivo = true;
+    bloquearPanelLateral();
     const panel = document.getElementById('panelLateral');
     const scope = panel || document;
 
     const btnEnviar = scope.querySelector('#btnEnviarArchivo');
+    const btnCancelar = scope.querySelector('#btnCancelarModalSubir');
     const progresoEl = scope.querySelector('#indicadorProgresoSubida');
 
     if (btnEnviar) btnEnviar.disabled = true;
+    if (btnCancelar) btnCancelar.disabled = true;
     if (progresoEl) {
       progresoEl.style.display = 'block';
       progresoEl.textContent = 'Preparando subida...';
@@ -10230,8 +10273,10 @@ button, input, select, textarea {
     function subirSiguiente() {
       if (indexActual >= lista.length) {
         subiendoArchivosActivo = false;
+        desbloquearPanelLateral();
         if (progresoEl) progresoEl.style.display = 'none';
         if (btnEnviar) btnEnviar.disabled = false;
+        if (btnCancelar) btnCancelar.disabled = false;
         cerrarPanelSubirArchivo();
         if (subidosExitosos > 0) {
           showNotification('✅ ' + subidosExitosos + ' archivo(s) subido(s) con éxito', 'success', 3500);
@@ -10430,11 +10475,14 @@ button, input, select, textarea {
     }
 
     subiendoArchivosActivo = true;
+    bloquearPanelLateral();
     const panel = document.getElementById('panelLateral');
     const scope = panel || document;
     const btnEnviar = scope.querySelector('#btnEnviarArchivo');
+    const btnCancelar = scope.querySelector('#btnCancelarModalSubir');
     const progresoEl = scope.querySelector('#indicadorProgresoSubida');
 
+    if (btnCancelar) btnCancelar.disabled = true;
     if (btnEnviar) {
       btnEnviar.disabled = true;
       btnEnviar.textContent = 'Migrando desde Drive...';
@@ -10450,8 +10498,10 @@ button, input, select, textarea {
     google.script.run
       .withSuccessHandler(function(res) {
         subiendoArchivosActivo = false;
+        desbloquearPanelLateral();
         if (progresoEl) progresoEl.style.display = 'none';
         if (btnEnviar) btnEnviar.disabled = false;
+        if (btnCancelar) btnCancelar.disabled = false;
 
         if (res && res.success) {
           cerrarPanelSubirArchivo();
@@ -10467,8 +10517,10 @@ button, input, select, textarea {
       })
       .withFailureHandler(function(err) {
         subiendoArchivosActivo = false;
+        desbloquearPanelLateral();
         if (progresoEl) progresoEl.style.display = 'none';
         if (btnEnviar) btnEnviar.disabled = false;
+        if (btnCancelar) btnCancelar.disabled = false;
         console.error('Error migrando desde Drive:', err);
         showNotification('Error de conexión con Google Drive', 'error', 3500);
         renderizarListaArchivosDrive();

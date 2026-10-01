@@ -42,6 +42,7 @@
     estadoSubida.archivosDrive = [];
     estadoSubida.origen = 'computadora';
     subiendoArchivosActivo = false;
+    if (typeof desbloquearPanelLateral === 'function') desbloquearPanelLateral();
     // Reiniciar estado de permisos para nuevo archivo
     if (typeof estadoPermisos_ !== 'undefined') {
       estadoPermisos_.opcionSeleccionada = 'todos';
@@ -299,13 +300,16 @@
     }
 
     subiendoArchivosActivo = true;
+    bloquearPanelLateral();
     const panel = document.getElementById('panelLateral');
     const scope = panel || document;
 
     const btnEnviar = scope.querySelector('#btnEnviarArchivo');
+    const btnCancelar = scope.querySelector('#btnCancelarModalSubir');
     const progresoEl = scope.querySelector('#indicadorProgresoSubida');
 
     if (btnEnviar) btnEnviar.disabled = true;
+    if (btnCancelar) btnCancelar.disabled = true;
     if (progresoEl) {
       progresoEl.style.display = 'block';
       progresoEl.textContent = 'Preparando subida...';
@@ -322,8 +326,10 @@
     function subirSiguiente() {
       if (indexActual >= lista.length) {
         subiendoArchivosActivo = false;
+        desbloquearPanelLateral();
         if (progresoEl) progresoEl.style.display = 'none';
         if (btnEnviar) btnEnviar.disabled = false;
+        if (btnCancelar) btnCancelar.disabled = false;
         cerrarPanelSubirArchivo();
         if (subidosExitosos > 0) {
           showNotification('✅ ' + subidosExitosos + ' archivo(s) subido(s) con éxito', 'success', 3500);
@@ -522,11 +528,14 @@
     }
 
     subiendoArchivosActivo = true;
+    bloquearPanelLateral();
     const panel = document.getElementById('panelLateral');
     const scope = panel || document;
     const btnEnviar = scope.querySelector('#btnEnviarArchivo');
+    const btnCancelar = scope.querySelector('#btnCancelarModalSubir');
     const progresoEl = scope.querySelector('#indicadorProgresoSubida');
 
+    if (btnCancelar) btnCancelar.disabled = true;
     if (btnEnviar) {
       btnEnviar.disabled = true;
       btnEnviar.textContent = 'Migrando desde Drive...';
@@ -542,8 +551,10 @@
     google.script.run
       .withSuccessHandler(function(res) {
         subiendoArchivosActivo = false;
+        desbloquearPanelLateral();
         if (progresoEl) progresoEl.style.display = 'none';
         if (btnEnviar) btnEnviar.disabled = false;
+        if (btnCancelar) btnCancelar.disabled = false;
 
         if (res && res.success) {
           cerrarPanelSubirArchivo();
@@ -559,8 +570,10 @@
       })
       .withFailureHandler(function(err) {
         subiendoArchivosActivo = false;
+        desbloquearPanelLateral();
         if (progresoEl) progresoEl.style.display = 'none';
         if (btnEnviar) btnEnviar.disabled = false;
+        if (btnCancelar) btnCancelar.disabled = false;
         console.error('Error migrando desde Drive:', err);
         showNotification('Error de conexión con Google Drive', 'error', 3500);
         renderizarListaArchivosDrive();
