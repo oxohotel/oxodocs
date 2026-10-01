@@ -64,6 +64,20 @@ function generateApiBridgeScript() {
       if (!window.google) window.google = {};
       if (!window.google.script) window.google.script = {};
 
+      // Apps Script (plan gratuito) rechaza intermitentemente alguna petición cuando llegan
+      // varias casi al mismo tiempo (ver OXODOCS: ráfagas de google.script.run al cargar el
+      // Home). Reintentar automáticamente es seguro SOLO para lecturas (nombradas "obtenerX"
+      // por convención en todo el backend) — nunca para escrituras (crear/guardar/eliminar/...),
+      // porque reintentar una escritura cuyo request sí llegó pero cuya respuesta se perdió
+      // duplicaría la acción (ej. subir el mismo archivo dos veces).
+      function esLecturaReintentable_(nombreAccion) {
+        return /^obtener/i.test(nombreAccion);
+      }
+
+      function esperar_(ms) {
+        return new Promise(function (resolve) { setTimeout(resolve, ms); });
+      }
+
       function createRunner(successCallback, failureCallback) {
         var runnerObj = {
           withSuccessHandler: function(cb) {
@@ -85,47 +99,57 @@ function generateApiBridgeScript() {
 
             return async function() {
               var args = Array.prototype.slice.call(arguments);
-              try {
-                var response = await fetch(APPS_SCRIPT_API_URL, {
-                  method: 'POST',
-                  redirect: 'follow',
-                  headers: {
-                    'Content-Type': 'text/plain;charset=utf-8'
-                  },
-                  body: JSON.stringify({
-                    action: prop,
-                    args: args
-                  })
-                });
+              var intentosMax = esLecturaReintentable_(prop) ? 2 : 1;
 
-                if (!response.ok) {
-                  throw new Error('HTTP ' + response.status + ': ' + response.statusText);
-                }
+              for (var intento = 1; intento <= intentosMax; intento++) {
+                try {
+                  var response = await fetch(APPS_SCRIPT_API_URL, {
+                    method: 'POST',
+                    redirect: 'follow',
+                    headers: {
+                      'Content-Type': 'text/plain;charset=utf-8'
+                    },
+                    body: JSON.stringify({
+                      action: prop,
+                      args: args
+                    })
+                  });
 
-                var resJson = await response.json();
-                if (resJson && resJson.success) {
-                  if (typeof successCallback === 'function') {
-                    successCallback(resJson.data);
+                  if (!response.ok) {
+                    throw new Error('HTTP ' + response.status + ': ' + response.statusText);
                   }
-                } else {
-                  var errMsg = resJson ? resJson.message : 'Error desconocido en backend';
-                  var errorObj = new Error(errMsg);
-                  if (typeof failureCallback === 'function') {
-                    failureCallback(errorObj);
+
+                  var resJson = await response.json();
+                  if (resJson && resJson.success) {
+                    if (typeof successCallback === 'function') {
+                      successCallback(resJson.data);
+                    }
                   } else {
-                    console.error('❌ Error API (' + prop + '):', errMsg);
-                    if (typeof showNotification === 'function') {
-                      showNotification(errMsg, 'error', 4500);
+                    var errMsg = resJson ? resJson.message : 'Error desconocido en backend';
+                    var errorObj = new Error(errMsg);
+                    if (typeof failureCallback === 'function') {
+                      failureCallback(errorObj);
+                    } else {
+                      console.error('❌ Error API (' + prop + '):', errMsg);
+                      if (typeof showNotification === 'function') {
+                        showNotification(errMsg, 'error', 4500);
+                      }
                     }
                   }
-                }
-              } catch (networkError) {
-                console.error('❌ Fallo de red (' + prop + '):', networkError);
-                if (typeof failureCallback === 'function') {
-                  failureCallback(networkError);
-                } else {
-                  if (typeof showNotification === 'function') {
-                    showNotification('Error de conexión con el servidor Apps Script.', 'error', 4500);
+                  return;
+                } catch (networkError) {
+                  if (intento < intentosMax) {
+                    console.warn('⚠️ Fallo de red (' + prop + '), reintentando (' + intento + '/' + intentosMax + ')...', networkError);
+                    await esperar_(400 * intento);
+                    continue;
+                  }
+                  console.error('❌ Fallo de red (' + prop + '):', networkError);
+                  if (typeof failureCallback === 'function') {
+                    failureCallback(networkError);
+                  } else {
+                    if (typeof showNotification === 'function') {
+                      showNotification('Error de conexión con el servidor Apps Script.', 'error', 4500);
+                    }
                   }
                 }
               }
