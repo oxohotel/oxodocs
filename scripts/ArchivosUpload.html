@@ -578,7 +578,13 @@
         showNotification('Error de conexión con Google Drive', 'error', 3500);
         renderizarListaArchivosDrive();
       })
-      .guardarArchivosMultiplesDesdeDrive(idCarpetaActual, lista, token || (user ? user.ID_Usuario : null));
+      .guardarArchivosMultiplesDesdeDrive(
+        idCarpetaActual,
+        lista,
+        token,
+        window.permisosArchivoSeleccionados || [],
+        user ? user.ID_Usuario : null
+      );
   }
 
   // ==================== Integración con Google Picker API ====================

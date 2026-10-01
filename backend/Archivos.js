@@ -498,9 +498,23 @@ function buscarArchivosEnGoogleDrive(termino, limite) {
 /**
  * Migra/Copia múltiples archivos de Drive hacia la carpeta destino de OxoHotel en una sola operación.
  */
-function guardarArchivosMultiplesDesdeDrive(idCarpeta, arrayItems, idUsuarioOToken) {
+function guardarArchivosMultiplesDesdeDrive(idCarpeta, arrayItems, idUsuarioOToken, usuariosRestringidos, idUsuarioFallback) {
   if (!Array.isArray(arrayItems) || arrayItems.length === 0) {
     return { success: false, message: 'No se recibieron archivos para migrar' };
+  }
+
+  if (!usuarioTienePermiso(idUsuarioOToken, 'Subir_Documento', idUsuarioFallback)) {
+    return { success: false, message: 'No tienes permiso para subir archivos' };
+  }
+
+  // Antes se pasaba el token de sesión como "usuario" y terminaba guardado en la columna
+  // Responsable; se resuelve el usuario real y su nombre.
+  const solicitante = resolverUsuarioSolicitante_(idUsuarioOToken, idUsuarioFallback);
+  const idUsuarioReal = solicitante ? solicitante.idUsuario : '';
+  let nombreResponsable = solicitante && solicitante.nombre;
+  if (!nombreResponsable && idUsuarioReal && typeof obtenerPerfilUsuario === 'function') {
+    const perfil = obtenerPerfilUsuario(idUsuarioReal);
+    if (perfil && perfil.success && perfil.usuario) nombreResponsable = perfil.usuario.Nombre_Completo;
   }
 
   const exitosos = [];
@@ -514,7 +528,7 @@ function guardarArchivosMultiplesDesdeDrive(idCarpeta, arrayItems, idUsuarioOTok
     const tipoDoc = typeof item === 'object' ? item.tipoDocumento : null;
 
     try {
-      const res = guardarArchivoDesdePreview(idCarpeta, fileId, nombre, mime, tipoDoc, idUsuarioOToken);
+      const res = guardarArchivoDesdePreview(idCarpeta, fileId, nombre, mime, tipoDoc, idUsuarioReal, usuariosRestringidos, nombreResponsable);
       if (res && res.success) {
         exitosos.push(res.archivo);
       } else {
@@ -577,7 +591,7 @@ function obtenerArchivoPorIdOUrl(idOUrl) {
   }
 }
 
-function guardarArchivoDesdePreview(idCarpeta, fileId, nombreArchivo, mimeType, tipoDocumento, idUsuario, usuariosRestringidos) {
+function guardarArchivoDesdePreview(idCarpeta, fileId, nombreArchivo, mimeType, tipoDocumento, idUsuario, usuariosRestringidos, nombreResponsable) {
   try {
     if (idCarpeta === null || idCarpeta === undefined || String(idCarpeta).trim() === '') {
       return { success: false, message: 'No se especificó una carpeta de destino' };
@@ -658,7 +672,7 @@ function guardarArchivoDesdePreview(idCarpeta, fileId, nombreArchivo, mimeType, 
       extension,
       tipoFinal,
       'Activo',
-      idUsuario || '',
+      nombreResponsable || idUsuario || '',
       realMime,
       'https://drive.google.com/file/d/' + nuevoFileId + '/view',
       ahora,

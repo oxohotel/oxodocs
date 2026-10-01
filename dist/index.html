@@ -10525,7 +10525,13 @@ button, input, select, textarea {
         showNotification('Error de conexión con Google Drive', 'error', 3500);
         renderizarListaArchivosDrive();
       })
-      .guardarArchivosMultiplesDesdeDrive(idCarpetaActual, lista, token || (user ? user.ID_Usuario : null));
+      .guardarArchivosMultiplesDesdeDrive(
+        idCarpetaActual,
+        lista,
+        token,
+        window.permisosArchivoSeleccionados || [],
+        user ? user.ID_Usuario : null
+      );
   }
 
   // ==================== Integración con Google Picker API ====================
@@ -13828,13 +13834,26 @@ const GOOGLE_PICKER_CONFIG = {
   async function procesarDocumentosSeleccionados(docs) {
     const total = docs.length;
 
-    // 1. Cerrar inmediatamente el panel lateral para evitar solapamientos visuales
-    if (typeof cerrarPanelLateral === 'function') {
-      cerrarPanelLateral();
-    } else if (typeof cerrarPanelSubirArchivo === 'function') {
-      cerrarPanelSubirArchivo();
+    // Con el formulario "Nuevo Archivo" abierto, los archivos elegidos solo se AGREGAN a su lista
+    // de Drive: así el usuario puede definir quién los ve (Restringir Acceso) y confirmar con
+    // "Migrar" (subirArchivosDriveLote). Antes se copiaban de inmediato, sin poder elegir permisos.
+    if (typeof agregarArchivoDrive === 'function' && document.getElementById('panelLateral')
+        && document.getElementById('panelLateralOverlay')?.classList.contains('active')) {
+      docs.forEach(function(doc) {
+        agregarArchivoDrive({
+          id: doc[google.picker.Document.ID],
+          nombre: doc[google.picker.Document.NAME] || 'Archivo_Drive',
+          mimeType: doc[google.picker.Document.MIME_TYPE] || 'application/octet-stream',
+          tamano: doc[google.picker.Document.SIZE_BYTES] || 0
+        });
+      });
+      if (typeof showNotification === 'function') {
+        showNotification(total + ' archivo(s) añadido(s). Define quién puede verlos y pulsa "Migrar".', 'success', 3500);
+      }
+      return;
     }
 
+    // Respaldo (sin formulario abierto): copiar de inmediato, sin restricciones.
     // 2. Obtener el ID de la carpeta actual activa en OxoHotel
     const idCarpetaActual = (typeof estadoArchivosCarpeta !== 'undefined' && estadoArchivosCarpeta.ruta && estadoArchivosCarpeta.ruta.length)
       ? estadoArchivosCarpeta.ruta[estadoArchivosCarpeta.ruta.length - 1].id
