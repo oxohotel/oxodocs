@@ -7,6 +7,11 @@
 // antes de tocar la hoja "Usuarios".
 const DOMINIO_CORREO_PERMITIDO = '@oxohotel.com';
 
+// Identidad de los correos automáticos. MailApp no deja elegir la dirección "De" (siempre es la
+// cuenta que ejecuta el script), pero sí el nombre visible y la dirección de respuesta.
+const CORREO_REMITENTE = 'developersit@oxohotel.com';
+const NOMBRE_REMITENTE_CORREOS = 'OXO Docs';
+
 // ==================== Funciones Criptográficas y de Salting ====================
 
 function generarSalt_() {
@@ -286,6 +291,8 @@ function enviarCodigoVerificacion(email, idUsuario) {
 
     MailApp.sendEmail({
       to: email,
+      name: NOMBRE_REMITENTE_CORREOS,
+      replyTo: CORREO_REMITENTE,
       subject: 'Tu código de verificación - Repositorio de Documentos',
       htmlBody:
         '<p>Hola,</p>' +
@@ -600,7 +607,8 @@ function solicitarCodigoRecuperacion(email) {
     const nombreDestinatario = usuarioEncontrado.nombre ? usuarioEncontrado.nombre.split(' ')[0] : 'Usuario';
     MailApp.sendEmail({
       to: emailNormalizado,
-      name: 'Repositorio OxoHotel',
+      name: NOMBRE_REMITENTE_CORREOS,
+      replyTo: CORREO_REMITENTE,
       subject: 'Tu código de recuperación de contraseña - OxoHotel',
       htmlBody:
         '<div style="font-family: \'Segoe UI\', Roboto, Arial, sans-serif; max-width: 540px; margin: 0 auto; padding: 28px; background-color: #FCFBF9; border: 1px solid #E8E3DA; border-radius: 16px; color: #19211E;">' +
