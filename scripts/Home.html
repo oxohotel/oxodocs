@@ -14,10 +14,14 @@
     mostrarSkeletonWidgets();
     if (typeof revelarNavsDeAdministracionSiCorresponde === "function") revelarNavsDeAdministracionSiCorresponde();
 
+    // Escalonado a propósito: disparar estas 4 llamadas en paralelo exactas (más la auditoría
+    // del login, si se acaba de iniciar sesión) satura momentáneamente el Web App de Apps
+    // Script y alguna puede rebotar con un error de red/CORS sin dejar rastro en "Ejecuciones"
+    // (ni siquiera llega a correr). Un pequeño desfase evita la ráfaga simultánea.
     cargarHotelesSidebar();
-    if (typeof refrescarCacheFavoritos === "function") refrescarCacheFavoritos();
-    if (typeof cargarWidgetRecientes === "function") cargarWidgetRecientes();
-    if (typeof cargarWidgetFavoritos === "function") cargarWidgetFavoritos();
+    setTimeout(function () { if (typeof refrescarCacheFavoritos === "function") refrescarCacheFavoritos(); }, 120);
+    setTimeout(function () { if (typeof cargarWidgetRecientes === "function") cargarWidgetRecientes(); }, 240);
+    setTimeout(function () { if (typeof cargarWidgetFavoritos === "function") cargarWidgetFavoritos(); }, 360);
     inicializarAtajosWidgets();
   }
 
