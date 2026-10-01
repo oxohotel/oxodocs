@@ -150,6 +150,16 @@
   font-size: 12px;
 }
 
+/* #rutaCarpetasBreadcrumb inyecta sus propios items/separadores como un bloque de texto
+   plano (ver scripts/ArchivosCarpeta.html:renderizarBreadcrumb), así que necesita su propio
+   gap para mantener el mismo espaciado que el resto de .breadcrumb (botón volver + hotel). */
+#rutaCarpetasBreadcrumb {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
 .archivos-titulo {
   font-size: 28px;
   font-weight: 800;
