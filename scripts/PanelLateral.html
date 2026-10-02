@@ -11,6 +11,8 @@
   var _panelLateralNodoPadreOriginal = null;
   var _panelLateralNodoSiguienteOriginal = null;
   var _panelLateralOnClose = null;
+  // Mensaje de un panel "protegido": cerrarlo (X, clic fuera, Escape) pide confirmación antes de descartarlo.
+  var _panelLateralProtegido = null;
 
   function _obtenerPanelLateral() {
     let overlay = document.getElementById('panelLateralOverlay');
@@ -35,6 +37,9 @@
       if (e.target === overlay) cerrarPanelLateral();
     });
     document.getElementById('btnCerrarPanelLateral').addEventListener('click', cerrarPanelLateral);
+    window.addEventListener('beforeunload', function (e) {
+      if (_panelLateralProtegido && overlay.classList.contains('active')) { e.preventDefault(); e.returnValue = ''; }
+    });
     document.addEventListener('keydown', function (e) {
       if (e.key === 'Escape' && overlay.classList.contains('active')) cerrarPanelLateral();
     });
@@ -49,6 +54,7 @@
     document.getElementById('panelLateralBody').innerHTML = opciones.html || '';
     document.getElementById('panelLateral').classList.toggle('panel-lateral-grande', opciones.ancho === 'grande');
     _panelLateralOnClose = typeof opciones.onClose === 'function' ? opciones.onClose : null;
+    _panelLateralProtegido = opciones.protegido || null;
     overlay.classList.add('active');
     if (typeof opciones.onAbrir === 'function') {
       try { opciones.onAbrir(document.getElementById('panelLateral')); } catch (e) { console.error('Error en onAbrir panel lateral:', e); }
@@ -74,6 +80,7 @@
     }
 
     _panelLateralOnClose = typeof opciones.onClose === 'function' ? opciones.onClose : null;
+    _panelLateralProtegido = opciones.protegido || null;
     overlay.classList.add('active');
   }
 
@@ -82,6 +89,12 @@
   function _avisarSalidaDuranteBloqueo(e) {
     e.preventDefault();
     e.returnValue = '';
+  }
+
+  /** true si hay algo que no se debe interrumpir: una operación bloqueada a mano (subida de archivos)
+   *  o cualquier escritura al servidor en curso (ver el puente google.script.run en build.js). */
+  function hayOperacionEnCurso() {
+    return _panelLateralBloqueado || (typeof window.oxoEscrituraEnCurso === 'function' && window.oxoEscrituraEnCurso());
   }
 
   /** Impide cerrar el panel (X, clic fuera, Escape) y recargar la pestaña sin aviso mientras
@@ -100,13 +113,22 @@
     window.removeEventListener('beforeunload', _avisarSalidaDuranteBloqueo);
   }
 
-  function cerrarPanelLateral() {
-    if (_panelLateralBloqueado) {
+  /** "forzar" debe ser exactamente true (los listeners de clic reciben el evento como 1er argumento). */
+  function cerrarPanelLateral(forzar) {
+    if (hayOperacionEnCurso()) {
       if (typeof showNotification === 'function') {
-        showNotification('Espera a que termine la subida antes de cerrar.', 'info', 2200);
+        showNotification('Espera a que termine la operación en curso antes de cerrar.', 'info', 2200);
       }
       return;
     }
+
+    if (_panelLateralProtegido && forzar !== true) {
+      if (typeof showConfirmation === 'function') {
+        showConfirmation(_panelLateralProtegido, '¿Cerrar sin terminar?', function () { cerrarPanelLateral(true); });
+      }
+      return;
+    }
+    _panelLateralProtegido = null;
 
     const overlay = document.getElementById('panelLateralOverlay');
     if (overlay) overlay.classList.remove('active');

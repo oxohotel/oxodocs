@@ -7,6 +7,7 @@
   function abrirPanelVerificacion(email) {
     abrirPanelLateral({
       titulo: 'Verifica tu correo',
+      protegido: 'Aún no has verificado tu correo, así que todavía no puedes entrar al sistema. Si cierras esta ventana, podrás verificarlo después: al iniciar sesión te la volveremos a abrir y podrás pedir un código nuevo.',
       html:
         '<div class="nueva-carpeta-form">' +
           '<p class="verificacion-texto">Enviamos un código de 6 dígitos a <strong>' + escaparHtml(email) + '</strong>. Ingrésalo para confirmar tu cuenta.</p>' +
@@ -39,7 +40,7 @@
       .withSuccessHandler(function (result) {
         btn.disabled = false;
         if (result.success) {
-          cerrarPanelLateral();
+          cerrarPanelLateral(true);
           showNotification(result.message, 'success', 4000);
           if (typeof switchForm === 'function') switchForm('login');
           if (typeof setInputValue === 'function') setInputValue('loginEmail', email);

@@ -672,6 +672,7 @@ function confirmarYCalcularPermisos_() {
 }
 
 function cerrarModalPermisos_() {
+  if (typeof escrituraEnCursoBloquea_ === 'function' && escrituraEnCursoBloquea_()) return;
   estadoPermisos_.modoEdicion = false;
   estadoPermisos_.archivoEdicion = null;
   const overlay = document.getElementById('overlayPermisosArchivo');

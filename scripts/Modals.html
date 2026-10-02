@@ -10,6 +10,15 @@
     if (modal) modal.classList.remove("active");
   }
 
+  /** true (y avisa) si hay una escritura al servidor en curso: los modales no deben cerrarse a mitad. */
+  function escrituraEnCursoBloquea_() {
+    if (typeof window.oxoEscrituraEnCurso === "function" && window.oxoEscrituraEnCurso()) {
+      showNotification("Espera a que termine la operación en curso antes de cerrar.", "info", 2200);
+      return true;
+    }
+    return false;
+  }
+
   function showNotification(message, type = "info", duration = 3000) {
     const notification = document.createElement("div");
     notification.className = `notification ${type}`;

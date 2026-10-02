@@ -23,6 +23,18 @@
         return /^obtener/i.test(nombreAccion);
       }
 
+      // Escrituras en curso: mientras haya una (guardar, crear, subir, verificar código...) los paneles y
+      // modales se niegan a cerrarse y el navegador avisa antes de cerrar/recargar la pestaña, para no
+      // perder datos ni dejar una operación a medias. Las lecturas y las tareas de fondo no cuentan.
+      var escriturasEnCurso_ = 0;
+      function cuentaComoEscritura_(nombreAccion) {
+        return !/^(obtener|registrarAuditoria|registrarActividad|cerrarSesionUsuario|validarCredenciales|verificarEmailExistente)/i.test(nombreAccion);
+      }
+      window.oxoEscrituraEnCurso = function () { return escriturasEnCurso_ > 0; };
+      window.addEventListener('beforeunload', function (e) {
+        if (escriturasEnCurso_ > 0) { e.preventDefault(); e.returnValue = ''; }
+      });
+
       function esperar_(ms) {
         return new Promise(function (resolve) { setTimeout(resolve, ms); });
       }
@@ -49,6 +61,12 @@
             return async function() {
               var args = Array.prototype.slice.call(arguments);
               var intentosMax = esLecturaReintentable_(prop) ? 2 : 1;
+              var esEscritura = cuentaComoEscritura_(prop);
+              if (esEscritura) escriturasEnCurso_++;
+              // Se libera ANTES de llamar los callbacks: así un callback que cierra su panel al terminar no es rechazado.
+              var liberada = false;
+              function liberar() { if (esEscritura && !liberada) { liberada = true; escriturasEnCurso_--; } }
+              try {
 
               for (var intento = 1; intento <= intentosMax; intento++) {
                 try {
@@ -69,6 +87,7 @@
                   }
 
                   var resJson = await response.json();
+                  liberar();
                   if (resJson && resJson.success) {
                     if (typeof successCallback === 'function') {
                       successCallback(resJson.data);
@@ -87,6 +106,7 @@
                   }
                   return;
                 } catch (networkError) {
+                  if (intento >= intentosMax) liberar();
                   if (intento < intentosMax) {
                     console.warn('⚠️ Fallo de red (' + prop + '), reintentando (' + intento + '/' + intentosMax + ')...', networkError);
                     await esperar_(400 * intento);
@@ -101,6 +121,9 @@
                     }
                   }
                 }
+              }
+              } finally {
+                liberar();
               }
             };
           }
@@ -7535,6 +7558,15 @@ button, input, select, textarea {
     if (modal) modal.classList.remove("active");
   }
 
+  /** true (y avisa) si hay una escritura al servidor en curso: los modales no deben cerrarse a mitad. */
+  function escrituraEnCursoBloquea_() {
+    if (typeof window.oxoEscrituraEnCurso === "function" && window.oxoEscrituraEnCurso()) {
+      showNotification("Espera a que termine la operación en curso antes de cerrar.", "info", 2200);
+      return true;
+    }
+    return false;
+  }
+
   function showNotification(message, type = "info", duration = 3000) {
     const notification = document.createElement("div");
     notification.className = `notification ${type}`;
@@ -7607,6 +7639,8 @@ button, input, select, textarea {
   var _panelLateralNodoPadreOriginal = null;
   var _panelLateralNodoSiguienteOriginal = null;
   var _panelLateralOnClose = null;
+  // Mensaje de un panel "protegido": cerrarlo (X, clic fuera, Escape) pide confirmación antes de descartarlo.
+  var _panelLateralProtegido = null;
 
   function _obtenerPanelLateral() {
     let overlay = document.getElementById('panelLateralOverlay');
@@ -7631,6 +7665,9 @@ button, input, select, textarea {
       if (e.target === overlay) cerrarPanelLateral();
     });
     document.getElementById('btnCerrarPanelLateral').addEventListener('click', cerrarPanelLateral);
+    window.addEventListener('beforeunload', function (e) {
+      if (_panelLateralProtegido && overlay.classList.contains('active')) { e.preventDefault(); e.returnValue = ''; }
+    });
     document.addEventListener('keydown', function (e) {
       if (e.key === 'Escape' && overlay.classList.contains('active')) cerrarPanelLateral();
     });
@@ -7645,6 +7682,7 @@ button, input, select, textarea {
     document.getElementById('panelLateralBody').innerHTML = opciones.html || '';
     document.getElementById('panelLateral').classList.toggle('panel-lateral-grande', opciones.ancho === 'grande');
     _panelLateralOnClose = typeof opciones.onClose === 'function' ? opciones.onClose : null;
+    _panelLateralProtegido = opciones.protegido || null;
     overlay.classList.add('active');
     if (typeof opciones.onAbrir === 'function') {
       try { opciones.onAbrir(document.getElementById('panelLateral')); } catch (e) { console.error('Error en onAbrir panel lateral:', e); }
@@ -7670,6 +7708,7 @@ button, input, select, textarea {
     }
 
     _panelLateralOnClose = typeof opciones.onClose === 'function' ? opciones.onClose : null;
+    _panelLateralProtegido = opciones.protegido || null;
     overlay.classList.add('active');
   }
 
@@ -7678,6 +7717,12 @@ button, input, select, textarea {
   function _avisarSalidaDuranteBloqueo(e) {
     e.preventDefault();
     e.returnValue = '';
+  }
+
+  /** true si hay algo que no se debe interrumpir: una operación bloqueada a mano (subida de archivos)
+   *  o cualquier escritura al servidor en curso (ver el puente google.script.run en build.js). */
+  function hayOperacionEnCurso() {
+    return _panelLateralBloqueado || (typeof window.oxoEscrituraEnCurso === 'function' && window.oxoEscrituraEnCurso());
   }
 
   /** Impide cerrar el panel (X, clic fuera, Escape) y recargar la pestaña sin aviso mientras
@@ -7696,13 +7741,22 @@ button, input, select, textarea {
     window.removeEventListener('beforeunload', _avisarSalidaDuranteBloqueo);
   }
 
-  function cerrarPanelLateral() {
-    if (_panelLateralBloqueado) {
+  /** "forzar" debe ser exactamente true (los listeners de clic reciben el evento como 1er argumento). */
+  function cerrarPanelLateral(forzar) {
+    if (hayOperacionEnCurso()) {
       if (typeof showNotification === 'function') {
-        showNotification('Espera a que termine la subida antes de cerrar.', 'info', 2200);
+        showNotification('Espera a que termine la operación en curso antes de cerrar.', 'info', 2200);
       }
       return;
     }
+
+    if (_panelLateralProtegido && forzar !== true) {
+      if (typeof showConfirmation === 'function') {
+        showConfirmation(_panelLateralProtegido, '¿Cerrar sin terminar?', function () { cerrarPanelLateral(true); });
+      }
+      return;
+    }
+    _panelLateralProtegido = null;
 
     const overlay = document.getElementById('panelLateralOverlay');
     if (overlay) overlay.classList.remove('active');
@@ -8236,6 +8290,7 @@ button, input, select, textarea {
   function abrirPanelVerificacion(email) {
     abrirPanelLateral({
       titulo: 'Verifica tu correo',
+      protegido: 'Aún no has verificado tu correo, así que todavía no puedes entrar al sistema. Si cierras esta ventana, podrás verificarlo después: al iniciar sesión te la volveremos a abrir y podrás pedir un código nuevo.',
       html:
         '<div class="nueva-carpeta-form">' +
           '<p class="verificacion-texto">Enviamos un código de 6 dígitos a <strong>' + escaparHtml(email) + '</strong>. Ingrésalo para confirmar tu cuenta.</p>' +
@@ -8268,7 +8323,7 @@ button, input, select, textarea {
       .withSuccessHandler(function (result) {
         btn.disabled = false;
         if (result.success) {
-          cerrarPanelLateral();
+          cerrarPanelLateral(true);
           showNotification(result.message, 'success', 4000);
           if (typeof switchForm === 'function') switchForm('login');
           if (typeof setInputValue === 'function') setInputValue('loginEmail', email);
@@ -11785,6 +11840,7 @@ function confirmarYCalcularPermisos_() {
 }
 
 function cerrarModalPermisos_() {
+  if (typeof escrituraEnCursoBloquea_ === 'function' && escrituraEnCursoBloquea_()) return;
   estadoPermisos_.modoEdicion = false;
   estadoPermisos_.archivoEdicion = null;
   const overlay = document.getElementById('overlayPermisosArchivo');
@@ -12117,6 +12173,7 @@ function mostrarModalSinPermisos_(razon) {
   }
 
   function cerrarModal(modal) {
+    if (escrituraEnCursoBloquea_()) return;
     if (modal) {
       modal.classList.remove('active');
       setTimeout(() => {

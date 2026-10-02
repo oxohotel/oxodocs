@@ -298,6 +298,7 @@
   }
 
   function cerrarModal(modal) {
+    if (escrituraEnCursoBloquea_()) return;
     if (modal) {
       modal.classList.remove('active');
       setTimeout(() => {

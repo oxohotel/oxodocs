@@ -74,6 +74,18 @@ function generateApiBridgeScript() {
         return /^obtener/i.test(nombreAccion);
       }
 
+      // Escrituras en curso: mientras haya una (guardar, crear, subir, verificar código...) los paneles y
+      // modales se niegan a cerrarse y el navegador avisa antes de cerrar/recargar la pestaña, para no
+      // perder datos ni dejar una operación a medias. Las lecturas y las tareas de fondo no cuentan.
+      var escriturasEnCurso_ = 0;
+      function cuentaComoEscritura_(nombreAccion) {
+        return !/^(obtener|registrarAuditoria|registrarActividad|cerrarSesionUsuario|validarCredenciales|verificarEmailExistente)/i.test(nombreAccion);
+      }
+      window.oxoEscrituraEnCurso = function () { return escriturasEnCurso_ > 0; };
+      window.addEventListener('beforeunload', function (e) {
+        if (escriturasEnCurso_ > 0) { e.preventDefault(); e.returnValue = ''; }
+      });
+
       function esperar_(ms) {
         return new Promise(function (resolve) { setTimeout(resolve, ms); });
       }
@@ -100,6 +112,12 @@ function generateApiBridgeScript() {
             return async function() {
               var args = Array.prototype.slice.call(arguments);
               var intentosMax = esLecturaReintentable_(prop) ? 2 : 1;
+              var esEscritura = cuentaComoEscritura_(prop);
+              if (esEscritura) escriturasEnCurso_++;
+              // Se libera ANTES de llamar los callbacks: así un callback que cierra su panel al terminar no es rechazado.
+              var liberada = false;
+              function liberar() { if (esEscritura && !liberada) { liberada = true; escriturasEnCurso_--; } }
+              try {
 
               for (var intento = 1; intento <= intentosMax; intento++) {
                 try {
@@ -120,6 +138,7 @@ function generateApiBridgeScript() {
                   }
 
                   var resJson = await response.json();
+                  liberar();
                   if (resJson && resJson.success) {
                     if (typeof successCallback === 'function') {
                       successCallback(resJson.data);
@@ -138,6 +157,7 @@ function generateApiBridgeScript() {
                   }
                   return;
                 } catch (networkError) {
+                  if (intento >= intentosMax) liberar();
                   if (intento < intentosMax) {
                     console.warn('⚠️ Fallo de red (' + prop + '), reintentando (' + intento + '/' + intentosMax + ')...', networkError);
                     await esperar_(400 * intento);
@@ -152,6 +172,9 @@ function generateApiBridgeScript() {
                     }
                   }
                 }
+              }
+              } finally {
+                liberar();
               }
             };
           }
