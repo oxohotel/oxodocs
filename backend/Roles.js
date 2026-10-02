@@ -197,29 +197,12 @@ function obtenerRolDeUsuario_(idUsuario) {
   if (idUsuario === null || idUsuario === undefined || idUsuario === '') return null;
 
   try {
-    const ss = obtenerSpreadsheet_();
-    const hoja = ss.getSheetByName('Usuarios');
-    if (!hoja) return null;
-
-    const datos = hoja.getDataRange().getValues();
-    if (datos.length < 2) return null;
-
-    const encabezados = datos[0];
-    let indexId = encabezados.findIndex(function (h) {
-      const norm = String(h || '').trim().toLowerCase().replace(/[\s_]+/g, '');
-      return norm === 'idusuario' || norm === 'id' || norm === 'usuarioid';
-    });
-    if (indexId === -1) indexId = 0;
-
-    let indexRol = encabezados.findIndex(function (h) {
-      const norm = String(h || '').trim().toLowerCase().replace(/[\s_]+/g, '');
-      return norm === 'rol' || norm === 'idrol' || norm === 'rolid';
-    });
-    if (indexRol === -1) indexRol = 4;
-
-    for (let i = 1; i < datos.length; i++) {
-      if (String(datos[i][indexId]).trim() === String(idUsuario).trim()) {
-        const val = datos[i][indexRol];
+    // Lectura con caché (ver backend/Cache.js): se llama en casi cada petición para saber el rol de quien pregunta.
+    const buscado = String(idUsuario).trim();
+    const usuarios = obtenerUsuariosLite_().usuarios;
+    for (let i = 0; i < usuarios.length; i++) {
+      if (usuarios[i].id === buscado) {
+        const val = usuarios[i].rol;
         return (val !== null && val !== undefined && val !== '') ? val : 1;
       }
     }
@@ -522,6 +505,7 @@ function cambiarEstadoUsuario(idUsuarioObjetivo, nuevoEstado, idUsuarioSolicitan
       if (String(datos[i][colId]).trim() === String(idUsuarioObjetivo).trim()) {
         const estadoAnterior = datos[i][colEstado];
         hoja.getRange(i + 1, colEstado + 1).setValue(nuevoEstado);
+        invalidarCacheUsuarios_();
 
         registrarAuditoriaSimple_(solicitante.idUsuario, 'CAMBIO_ESTADO_USUARIO',
           'Cambió el estado de ' + datos[i][colEmail] + ' de "' + estadoAnterior + '" a "' + nuevoEstado + '"', 'Usuario');
@@ -608,6 +592,7 @@ function cambiarRolUsuario(idUsuarioObjetivo, nuevoRolIdONombre, idUsuarioSolici
 
     // Guardar el ID_Rol numérico en la columna Rol de la hoja Usuarios
     hoja.getRange(filaObjetivo, colRol + 1).setValue(nuevoInfoRol.id);
+    invalidarCacheUsuarios_();
 
     const emailObjetivo = datos[filaObjetivo - 1][colEmail];
     registrarAuditoriaSimple_(solicitante.idUsuario, 'CAMBIO_ROL',
@@ -674,6 +659,7 @@ function asignarHotelesAUsuario(idUsuarioObjetivo, arrayHotelesIds, idUsuarioSol
 
     const valorHoteles = asignables.valor;
     hoja.getRange(filaObjetivo, idxHoteles + 1).setValue(valorHoteles);
+    invalidarCacheUsuarios_();
 
     const emailObjetivo = datos[filaObjetivo - 1][colEmail];
     registrarAuditoriaSimple_(solicitante.idUsuario, 'GESTION_ACCESOS',
@@ -809,6 +795,7 @@ function crearUsuarioPorAdmin(datos, idUsuarioSolicitanteOToken, idUsuarioFallba
     }
 
     hojaUsuarios.appendRow(nuevaFila);
+    invalidarCacheUsuarios_();
 
     registrarAuditoriaSimple_(solicitante.idUsuario, 'CREACION_USUARIO_ADMIN',
       'Creó el usuario ' + emailNormalizado + ' (' + nombre + ') con rol ' + infoNuevoRol.nombre + ' y estado ' + estado, 'Usuario');
@@ -914,6 +901,7 @@ function asignarSuperadminsIniciales() {
     for (let i = 1; i < datos.length; i++) {
       if (String(datos[i][indexEmail]).toLowerCase() === correo.toLowerCase()) {
         hoja.getRange(i + 1, indexRol + 1).setValue(3);
+        invalidarCacheUsuarios_();
         Logger.log('✅ ' + correo + ' ahora tiene ID_Rol = 3 (Superadministrador)');
         encontrado = true;
         break;

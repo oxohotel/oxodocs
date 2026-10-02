@@ -4,10 +4,10 @@
  * Solo Superadministradores (rol 3) siempre tienen acceso a todos los hoteles.
  */
 function obtenerModulosConHoteles(idUsuarioOToken, idUsuarioFallback) {
-  const ss = obtenerSpreadsheet_();
-  const hojaModulos = ss.getSheetByName('Modulos');
-  const hojaHoteles = ss.getSheetByName('Hoteles');
-  if (!hojaModulos || !hojaHoteles) return [];
+  // Hoteles y módulos cambian poco: se leen con caché (backend/Cache.js) y se invalidan al crear/editar/eliminar hoteles.
+  const valoresModulos = leerHojaConCache_('Modulos');
+  const valoresHoteles = leerHojaConCache_('Hoteles');
+  if (!valoresModulos || !valoresHoteles) return [];
 
   // 1. Resolver usuario solicitante (token, idUsuario directo o fallback)
   let solicitante = null;
@@ -31,46 +31,31 @@ function obtenerModulosConHoteles(idUsuarioOToken, idUsuarioFallback) {
     const esSuperadmin = (infoRol && String(infoRol.id) === '3');
     if (!esSuperadmin) {
       tieneRestriccion = true;
-      const hojaUsuarios = ss.getSheetByName('Usuarios');
-      if (hojaUsuarios) {
-        const datosU = hojaUsuarios.getDataRange().getValues();
-        const encabezadosU = datosU[0];
-
-        const idxIdU = encabezadosU.findIndex(function (h) {
-          const norm = String(h || '').trim().toLowerCase().replace(/[\s_]+/g, '');
-          return norm === 'idusuario' || norm === 'id';
-        });
-        const idxHoteles = encabezadosU.findIndex(function (h) {
-          const norm = String(h || '').trim().toLowerCase().replace(/[\s_]+/g, '');
-          return norm === 'hotelespermitidos' || norm === 'hoteles';
-        });
-
-        if (idxIdU !== -1 && idxHoteles !== -1) {
-          for (let i = 1; i < datosU.length; i++) {
-            if (String(datosU[i][idxIdU]).trim() === String(solicitante.idUsuario).trim()) {
-              const val = String(datosU[i][idxHoteles] || '').trim();
-              if (val === '*' || val.toUpperCase() === 'TODOS') {
-                tieneRestriccion = false; // Acceso explícito a todos
-              } else if (val) {
-                hotelesPermitidosSet = new Set(
-                  val.split(',')
-                    .map(function (s) { return String(s).trim(); })
-                    .filter(function (s) { return s.length > 0; })
-                );
-              } else {
-                // Usuario o Administrador sin hoteles asignados -> lista vacía
-                hotelesPermitidosSet = new Set();
-              }
-              break;
-            }
+      const lite = obtenerUsuariosLite_();
+      if (lite.hayHoteles) {
+        const idBuscado = String(solicitante.idUsuario).trim();
+        const yo = lite.usuarios.filter(function (u) { return u.id === idBuscado; })[0];
+        if (yo) {
+          const val = yo.hoteles;
+          if (val === '*' || val.toUpperCase() === 'TODOS') {
+            tieneRestriccion = false; // Acceso explícito a todos
+          } else if (val) {
+            hotelesPermitidosSet = new Set(
+              val.split(',')
+                .map(function (s) { return String(s).trim(); })
+                .filter(function (s) { return s.length > 0; })
+            );
+          } else {
+            // Usuario o Administrador sin hoteles asignados -> lista vacía
+            hotelesPermitidosSet = new Set();
           }
         }
       }
     }
   }
 
-  const filasModulos = hojaModulos.getDataRange().getValues().slice(1).filter(function (f) { return f[0]; });
-  const filasHoteles = hojaHoteles.getDataRange().getValues().slice(1).filter(function (f) { return f[0]; });
+  const filasModulos = valoresModulos.slice(1).filter(function (f) { return f[0]; });
+  const filasHoteles = valoresHoteles.slice(1).filter(function (f) { return f[0]; });
 
   const modulos = filasModulos
     .map(function (f) {

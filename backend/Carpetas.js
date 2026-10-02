@@ -71,27 +71,19 @@ function obtenerCarpetasDelHotel(idHotel, idUsuarioOToken, idUsuarioFallback) {
         const esSuperadmin = (infoRol && String(infoRol.id) === '3');
 
         if (!esSuperadmin) {
-          const hojaUsuarios = ss.getSheetByName('Usuarios');
-          if (hojaUsuarios) {
-            const datosU = hojaUsuarios.getDataRange().getValues();
-            const encabezadosU = datosU[0];
-            const idxIdU = encabezadosU.findIndex(h => String(h || '').trim().toLowerCase().replace(/[\s_]+/g, '') === 'idusuario' || String(h || '').trim().toLowerCase().replace(/[\s_]+/g, '') === 'id');
-            const idxHoteles = encabezadosU.findIndex(h => String(h || '').trim().toLowerCase().replace(/[\s_]+/g, '') === 'hotelespermitidos' || String(h || '').trim().toLowerCase().replace(/[\s_]+/g, '') === 'hoteles');
-
-            if (idxIdU !== -1 && idxHoteles !== -1) {
-              for (let i = 1; i < datosU.length; i++) {
-                if (String(datosU[i][idxIdU]).trim() === String(solicitante.idUsuario).trim()) {
-                  const val = String(datosU[i][idxHoteles] || '').trim();
-                  if (val && val !== '*' && val.toUpperCase() !== 'TODOS') {
-                    const permitidos = new Set(val.split(',').map(s => String(s).trim()));
-                    if (!permitidos.has(String(idHotel).trim())) {
-                      return { success: false, message: 'No tienes acceso a los proyectos de este hotel', carpetas: [] };
-                    }
-                  } else if (!val) {
-                    return { success: false, message: 'No tienes hoteles asignados para consultar', carpetas: [] };
-                  }
-                  break;
+          const lite = obtenerUsuariosLite_(); // con caché (backend/Cache.js)
+          if (lite.hayHoteles) {
+            const idBuscado = String(solicitante.idUsuario).trim();
+            const yo = lite.usuarios.filter(function (u) { return u.id === idBuscado; })[0];
+            if (yo) {
+              const val = yo.hoteles;
+              if (val && val !== '*' && val.toUpperCase() !== 'TODOS') {
+                const permitidos = new Set(val.split(',').map(s => String(s).trim()));
+                if (!permitidos.has(String(idHotel).trim())) {
+                  return { success: false, message: 'No tienes acceso a los proyectos de este hotel', carpetas: [] };
                 }
+              } else if (!val) {
+                return { success: false, message: 'No tienes hoteles asignados para consultar', carpetas: [] };
               }
             }
           }

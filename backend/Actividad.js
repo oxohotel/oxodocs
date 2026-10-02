@@ -4,7 +4,10 @@
  * al vuelo con resolverRecurso_ (backend/Recursos.js).
  */
 
-const ACTIVIDAD_LIMITE_FILAS = 300; // recorta filas viejas para que la hoja no crezca sin límite
+// Límite TOTAL de la hoja (todas las personas juntas). Antes eran 300: con cientos de usuarios, cada quien conservaba
+// menos de una fila y "Recientes" quedaba vacío. Al pasarse del límite se recorta de un golpe hasta (límite - holgura).
+const ACTIVIDAD_LIMITE_FILAS = 3000;
+const ACTIVIDAD_HOLGURA_FILAS = 300;
 
 function registrarActividad(idUsuarioOToken, tipoRecurso, idRecurso, tipoInteraccion) {
   let idUsuario = idUsuarioOToken;
@@ -13,24 +16,31 @@ function registrarActividad(idUsuarioOToken, tipoRecurso, idRecurso, tipoInterac
     if (userSesion && userSesion.idUsuario) idUsuario = userSesion.idUsuario;
   }
 
-  const lock = LockService.getScriptLock();
   try {
-    lock.waitLock(10000);
     const ss = obtenerSpreadsheet_();
     const hoja = ss.getSheetByName('Actividad_Reciente');
     if (!hoja) return { success: false, message: 'Hoja Actividad_Reciente no encontrada' };
 
+    // appendRow es atómico: ya no hace falta el candado global en cada registro (serializaba a todos los usuarios).
     const idActividad = 'ACT-' + new Date().getTime();
     hoja.appendRow([idActividad, idUsuario, tipoRecurso, idRecurso, tipoInteraccion, new Date()]);
 
-    if (hoja.getLastRow() > ACTIVIDAD_LIMITE_FILAS + 1) {
-      hoja.deleteRow(2); // fila más antigua (justo debajo del encabezado)
-    }
+    if (hoja.getLastRow() > ACTIVIDAD_LIMITE_FILAS + 1) recortarActividad_(hoja);
 
     return { success: true };
   } catch (error) {
     Logger.log('Error registrarActividad: ' + error);
     return { success: false, message: error.toString() };
+  }
+}
+
+/** Borra de un golpe las filas más antiguas; el candado solo se toma aquí (y rara vez), no en cada registro. */
+function recortarActividad_(hoja) {
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(3000)) return; // otra ejecución ya lo está recortando
+  try {
+    const exceso = hoja.getLastRow() - 1 - (ACTIVIDAD_LIMITE_FILAS - ACTIVIDAD_HOLGURA_FILAS);
+    if (exceso > 0) hoja.deleteRows(2, exceso); // desde la fila 2: justo debajo del encabezado
   } finally {
     try { lock.releaseLock(); } catch (e) {}
   }

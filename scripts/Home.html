@@ -18,10 +18,26 @@
     } catch (e) { return null; }
   }
 
+  // Tope para que las copias nunca llenen el almacenamiento del navegador (la sesión también vive ahí).
+  const CACHE_VISTA_MAX_ENTRADAS = 40;
+  const CACHE_VISTA_MAX_CARACTERES = 150000;
+
   function guardarCacheVista_(nombre, valor) {
     try {
       const k = claveCacheVista_(nombre);
-      if (k) localStorage.setItem(k, JSON.stringify(valor));
+      if (!k) return;
+      const texto = JSON.stringify(valor);
+      if (texto.length > CACHE_VISTA_MAX_CARACTERES) { localStorage.removeItem(k); return; }
+      try { localStorage.setItem(k, texto); } catch (e) { limpiarCachesVista_(); return; } // sin espacio: se borran las copias
+
+      // Índice de entradas (la más vieja sale primero cuando se pasa del tope)
+      const kIdx = k.replace(":" + nombre + ":", ":idx:");
+      let indice = [];
+      try { indice = JSON.parse(localStorage.getItem(kIdx)) || []; } catch (e) {}
+      indice = indice.filter(function (n) { return n !== nombre; });
+      indice.push(nombre);
+      while (indice.length > CACHE_VISTA_MAX_ENTRADAS) localStorage.removeItem(claveCacheVista_(indice.shift()));
+      localStorage.setItem(kIdx, JSON.stringify(indice));
     } catch (e) {}
   }
 
@@ -98,6 +114,12 @@
     const favoritosGuardados = leerCacheVista_("favoritos");
     if (Array.isArray(favoritosGuardados)) { renderizarWidgetFavoritos_(favoritosGuardados); revelarWidget("seccionFavoritos"); }
 
+    // Si ya se pintó una copia guardada, la petición al servidor puede esperar un momento aleatorio (0-0,7 s) sin que nadie
+    // lo note: así, cuando muchas personas entran a la misma hora (p. ej. a las 8:00), no llegan todas en el mismo instante.
+    const hayCopia = Array.isArray(modulosGuardados) || Array.isArray(recientesGuardados) || Array.isArray(favoritosGuardados);
+    setTimeout(pedirTodo_, hayCopia ? Math.floor(Math.random() * 700) : 0);
+
+    function pedirTodo_() {
     google.script.run
       .withSuccessHandler(function (datos) {
         if (!datos || typeof datos !== "object") { respaldo_(); return; }
@@ -111,6 +133,7 @@
         respaldo_();
       })
       .obtenerDatosInicio(token, idUsuario);
+    }
   }
 
   /** Los "Ver todos" de los widgets del dashboard abren el apartado completo correspondiente. */
@@ -230,7 +253,7 @@
     if (archivosContainerPrevio) archivosContainerPrevio.style.display = 'none';
 
     // Cargar las carpetas del hotel
-    cargarCarpetasDelHotel(idHotel, nombreHotel, idCarpetaAutoAbrir, idArchivoResaltar);
+    cargarCarpetasDelHotel(idHotel, nombreHotel, idCarpetaAutoAbrir, idArchivoResaltar, true);
 
     // Hacer scroll al apartado
     carpetasContainer.scrollIntoView({ behavior: 'smooth' });

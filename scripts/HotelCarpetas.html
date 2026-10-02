@@ -36,7 +36,9 @@
     });
   }
 
-  async function cargarCarpetasDelHotel(idHotel, nombreHotel, idCarpetaAutoAbrir, idArchivoResaltar) {
+  /** "usarCopia": al NAVEGAR se muestra al instante lo guardado de la última vez y se refresca por detrás; tras crear
+   *  o cambiar algo se pide siempre el dato fresco (así no reaparece por un momento lo que se acaba de borrar). */
+  async function cargarCarpetasDelHotel(idHotel, nombreHotel, idCarpetaAutoAbrir, idArchivoResaltar, usarCopia) {
     estadoHotelCarpetas.hotelActual = { idHotel, nombreHotel };
 
     const tituloCarpetas = document.getElementById('hotelCarpetasTitulo');
@@ -44,7 +46,14 @@
       tituloCarpetas.textContent = nombreHotel + ' - Repositorio de Documentos';
     }
 
-    mostrarLoadingCarpetas();
+    const claveCopia = 'carpetas_' + idHotel;
+    const copia = usarCopia && typeof leerCacheVista_ === 'function' ? leerCacheVista_(claveCopia) : null;
+    if (Array.isArray(copia)) {
+      estadoHotelCarpetas.carpetas = copia;
+      renderizarCarpetas();
+    } else {
+      mostrarLoadingCarpetas();
+    }
 
     try {
       const sesionCarp = typeof getCurrentUserSession === 'function' ? getCurrentUserSession() : null;
@@ -58,8 +67,12 @@
           .obtenerCarpetasDelHotel(idHotel, tokenCarp, idUsuarioCarp);
       });
 
+      // El usuario pudo cambiar de hotel mientras esperaba: esa respuesta ya no corresponde a lo que está viendo.
+      if (!estadoHotelCarpetas.hotelActual || String(estadoHotelCarpetas.hotelActual.idHotel) !== String(idHotel)) return;
+
       if (result.success) {
         estadoHotelCarpetas.carpetas = result.carpetas || [];
+        if (typeof guardarCacheVista_ === 'function') guardarCacheVista_(claveCopia, estadoHotelCarpetas.carpetas);
         renderizarCarpetas();
 
         // Favoritos/Recientes pueden llegar aquí pidiendo abrir directo una carpeta puntual
@@ -95,7 +108,7 @@
       }
     } catch (error) {
       console.error('Error al cargar carpetas:', error);
-      mostrarErrorCarpetas('Error al cargar las carpetas. Intenta de nuevo.');
+      if (!Array.isArray(copia)) mostrarErrorCarpetas('Error al cargar las carpetas. Intenta de nuevo.');
     }
   }
 

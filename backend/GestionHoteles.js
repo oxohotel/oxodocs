@@ -87,7 +87,7 @@ function maximoIdNumerico_(filas) {
  * en "Hoteles" y "Carpetas". Primero se crea todo en Drive y solo al final se escribe en las hojas,
  * para que un fallo a mitad de camino no deje un hotel a medias en el sistema.
  */
-function crearHotel(nombreHotel, idModulo, idUsuarioOToken, idUsuarioFallback) {
+function crearHotelImpl_(nombreHotel, idModulo, idUsuarioOToken, idUsuarioFallback) {
   const solicitante = exigirSuperadmin_(idUsuarioOToken, idUsuarioFallback);
   if (!solicitante) return { success: false, message: 'Solo un Superadministrador puede gestionar hoteles' };
 
@@ -162,7 +162,7 @@ function crearHotel(nombreHotel, idModulo, idUsuarioOToken, idUsuarioFallback) {
  * Renombra un hotel y/o lo mueve a otro módulo (de los tres módulos de hoteles). Primero se cambia
  * Drive y luego la hoja; si la hoja falla, se deshace lo hecho en Drive.
  */
-function editarHotel(idHotel, nuevoNombre, idModuloDestino, idUsuarioOToken, idUsuarioFallback) {
+function editarHotelImpl_(idHotel, nuevoNombre, idModuloDestino, idUsuarioOToken, idUsuarioFallback) {
   const solicitante = exigirSuperadmin_(idUsuarioOToken, idUsuarioFallback);
   if (!solicitante) return { success: false, message: 'Solo un Superadministrador puede gestionar hoteles' };
 
@@ -253,7 +253,7 @@ function eliminarFilasSi_(hoja, debeEliminar) {
  * actividad, notificaciones y su acceso en los usuarios). La carpeta de Drive va a la PAPELERA
  * (recuperable 30 días). Exige escribir el nombre exacto del hotel como confirmación.
  */
-function eliminarHotel(idHotel, nombreConfirmacion, idUsuarioOToken, idUsuarioFallback) {
+function eliminarHotelImpl_(idHotel, nombreConfirmacion, idUsuarioOToken, idUsuarioFallback) {
   const solicitante = exigirSuperadmin_(idUsuarioOToken, idUsuarioFallback);
   if (!solicitante) return { success: false, message: 'Solo un Superadministrador puede gestionar hoteles' };
 
@@ -361,5 +361,35 @@ function quitarHotelDeAccesosDeUsuarios_(ss, idHotelStr) {
     const partes = valor.split(',').map(function (s) { return s.trim(); }).filter(Boolean);
     const nuevas = partes.filter(function (p) { return p !== idHotelStr; });
     if (nuevas.length !== partes.length) hoja.getRange(i + 1, col + 1).setValue(nuevas.join(','));
+  }
+  invalidarCacheUsuarios_();
+}
+
+// ---- Envolturas: pase lo que pase (éxito, error o salida temprana) se invalida el caché de lectura (backend/Cache.js)
+
+function crearHotel(nombreHotel, idModulo, idUsuarioOToken, idUsuarioFallback) {
+  try {
+    return crearHotelImpl_(nombreHotel, idModulo, idUsuarioOToken, idUsuarioFallback);
+  } finally {
+    invalidarCacheHoteles_();
+    invalidarCacheUsuarios_();
+  }
+}
+
+function editarHotel(idHotel, nuevoNombre, idModuloDestino, idUsuarioOToken, idUsuarioFallback) {
+  try {
+    return editarHotelImpl_(idHotel, nuevoNombre, idModuloDestino, idUsuarioOToken, idUsuarioFallback);
+  } finally {
+    invalidarCacheHoteles_();
+    invalidarCacheUsuarios_();
+  }
+}
+
+function eliminarHotel(idHotel, nombreConfirmacion, idUsuarioOToken, idUsuarioFallback) {
+  try {
+    return eliminarHotelImpl_(idHotel, nombreConfirmacion, idUsuarioOToken, idUsuarioFallback);
+  } finally {
+    invalidarCacheHoteles_();
+    invalidarCacheUsuarios_();
   }
 }

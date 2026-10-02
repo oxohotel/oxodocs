@@ -109,7 +109,7 @@
                   if (intento >= intentosMax) liberar();
                   if (intento < intentosMax) {
                     console.warn('⚠️ Fallo de red (' + prop + '), reintentando (' + intento + '/' + intentosMax + ')...', networkError);
-                    await esperar_(400 * intento);
+                    await esperar_(400 * intento + Math.floor(Math.random() * 300)); // algo de azar: que los reintentos de muchos usuarios no coincidan
                     continue;
                   }
                   console.error('❌ Fallo de red (' + prop + '):', networkError);
@@ -9503,10 +9503,26 @@ button, input, select, textarea {
     } catch (e) { return null; }
   }
 
+  // Tope para que las copias nunca llenen el almacenamiento del navegador (la sesión también vive ahí).
+  const CACHE_VISTA_MAX_ENTRADAS = 40;
+  const CACHE_VISTA_MAX_CARACTERES = 150000;
+
   function guardarCacheVista_(nombre, valor) {
     try {
       const k = claveCacheVista_(nombre);
-      if (k) localStorage.setItem(k, JSON.stringify(valor));
+      if (!k) return;
+      const texto = JSON.stringify(valor);
+      if (texto.length > CACHE_VISTA_MAX_CARACTERES) { localStorage.removeItem(k); return; }
+      try { localStorage.setItem(k, texto); } catch (e) { limpiarCachesVista_(); return; } // sin espacio: se borran las copias
+
+      // Índice de entradas (la más vieja sale primero cuando se pasa del tope)
+      const kIdx = k.replace(":" + nombre + ":", ":idx:");
+      let indice = [];
+      try { indice = JSON.parse(localStorage.getItem(kIdx)) || []; } catch (e) {}
+      indice = indice.filter(function (n) { return n !== nombre; });
+      indice.push(nombre);
+      while (indice.length > CACHE_VISTA_MAX_ENTRADAS) localStorage.removeItem(claveCacheVista_(indice.shift()));
+      localStorage.setItem(kIdx, JSON.stringify(indice));
     } catch (e) {}
   }
 
@@ -9583,6 +9599,12 @@ button, input, select, textarea {
     const favoritosGuardados = leerCacheVista_("favoritos");
     if (Array.isArray(favoritosGuardados)) { renderizarWidgetFavoritos_(favoritosGuardados); revelarWidget("seccionFavoritos"); }
 
+    // Si ya se pintó una copia guardada, la petición al servidor puede esperar un momento aleatorio (0-0,7 s) sin que nadie
+    // lo note: así, cuando muchas personas entran a la misma hora (p. ej. a las 8:00), no llegan todas en el mismo instante.
+    const hayCopia = Array.isArray(modulosGuardados) || Array.isArray(recientesGuardados) || Array.isArray(favoritosGuardados);
+    setTimeout(pedirTodo_, hayCopia ? Math.floor(Math.random() * 700) : 0);
+
+    function pedirTodo_() {
     google.script.run
       .withSuccessHandler(function (datos) {
         if (!datos || typeof datos !== "object") { respaldo_(); return; }
@@ -9596,6 +9618,7 @@ button, input, select, textarea {
         respaldo_();
       })
       .obtenerDatosInicio(token, idUsuario);
+    }
   }
 
   /** Los "Ver todos" de los widgets del dashboard abren el apartado completo correspondiente. */
@@ -9715,7 +9738,7 @@ button, input, select, textarea {
     if (archivosContainerPrevio) archivosContainerPrevio.style.display = 'none';
 
     // Cargar las carpetas del hotel
-    cargarCarpetasDelHotel(idHotel, nombreHotel, idCarpetaAutoAbrir, idArchivoResaltar);
+    cargarCarpetasDelHotel(idHotel, nombreHotel, idCarpetaAutoAbrir, idArchivoResaltar, true);
 
     // Hacer scroll al apartado
     carpetasContainer.scrollIntoView({ behavior: 'smooth' });
@@ -9827,7 +9850,9 @@ button, input, select, textarea {
     });
   }
 
-  async function cargarCarpetasDelHotel(idHotel, nombreHotel, idCarpetaAutoAbrir, idArchivoResaltar) {
+  /** "usarCopia": al NAVEGAR se muestra al instante lo guardado de la última vez y se refresca por detrás; tras crear
+   *  o cambiar algo se pide siempre el dato fresco (así no reaparece por un momento lo que se acaba de borrar). */
+  async function cargarCarpetasDelHotel(idHotel, nombreHotel, idCarpetaAutoAbrir, idArchivoResaltar, usarCopia) {
     estadoHotelCarpetas.hotelActual = { idHotel, nombreHotel };
 
     const tituloCarpetas = document.getElementById('hotelCarpetasTitulo');
@@ -9835,7 +9860,14 @@ button, input, select, textarea {
       tituloCarpetas.textContent = nombreHotel + ' - Repositorio de Documentos';
     }
 
-    mostrarLoadingCarpetas();
+    const claveCopia = 'carpetas_' + idHotel;
+    const copia = usarCopia && typeof leerCacheVista_ === 'function' ? leerCacheVista_(claveCopia) : null;
+    if (Array.isArray(copia)) {
+      estadoHotelCarpetas.carpetas = copia;
+      renderizarCarpetas();
+    } else {
+      mostrarLoadingCarpetas();
+    }
 
     try {
       const sesionCarp = typeof getCurrentUserSession === 'function' ? getCurrentUserSession() : null;
@@ -9849,8 +9881,12 @@ button, input, select, textarea {
           .obtenerCarpetasDelHotel(idHotel, tokenCarp, idUsuarioCarp);
       });
 
+      // El usuario pudo cambiar de hotel mientras esperaba: esa respuesta ya no corresponde a lo que está viendo.
+      if (!estadoHotelCarpetas.hotelActual || String(estadoHotelCarpetas.hotelActual.idHotel) !== String(idHotel)) return;
+
       if (result.success) {
         estadoHotelCarpetas.carpetas = result.carpetas || [];
+        if (typeof guardarCacheVista_ === 'function') guardarCacheVista_(claveCopia, estadoHotelCarpetas.carpetas);
         renderizarCarpetas();
 
         // Favoritos/Recientes pueden llegar aquí pidiendo abrir directo una carpeta puntual
@@ -9886,7 +9922,7 @@ button, input, select, textarea {
       }
     } catch (error) {
       console.error('Error al cargar carpetas:', error);
-      mostrarErrorCarpetas('Error al cargar las carpetas. Intenta de nuevo.');
+      if (!Array.isArray(copia)) mostrarErrorCarpetas('Error al cargar las carpetas. Intenta de nuevo.');
     }
   }
 
@@ -11109,31 +11145,41 @@ button, input, select, textarea {
     if (carpetasContainer) carpetasContainer.style.display = 'none';
     archivosContainer.style.display = 'flex';
 
-    cargarContenidoCarpeta(carpeta.id, idArchivoResaltar);
+    cargarContenidoCarpeta(carpeta.id, idArchivoResaltar, true);
   }
 
   /** Entra a una subcarpeta (clic sobre su tarjeta dentro del explorador). */
   function entrarSubcarpeta(carpeta) {
     estadoArchivosCarpeta.ruta.push({ id: carpeta.id, nombre: carpeta.nombre });
-    cargarContenidoCarpeta(carpeta.id);
+    cargarContenidoCarpeta(carpeta.id, undefined, true);
   }
 
   /** Salta a un nivel intermedio de la ruta (clic en un segmento del breadcrumb). */
   function irANivelRuta(indice) {
     estadoArchivosCarpeta.ruta = estadoArchivosCarpeta.ruta.slice(0, indice + 1);
-    cargarContenidoCarpeta(estadoArchivosCarpeta.ruta[indice].id);
+    cargarContenidoCarpeta(estadoArchivosCarpeta.ruta[indice].id, undefined, true);
   }
 
-  function cargarContenidoCarpeta(idCarpeta, idArchivoResaltar) {
+  /** "usarCopia": al NAVEGAR se muestra al instante lo guardado de la última vez y se refresca por detrás; tras subir,
+   *  crear, renombrar o borrar se pide siempre el dato fresco (así no reaparece por un momento lo que se acaba de quitar). */
+  function cargarContenidoCarpeta(idCarpeta, idArchivoResaltar, usarCopia) {
     const idSolicitud = ++solicitudCarpetaActualId;
+    const claveCopia = 'contenido_' + idCarpeta;
+    const copia = usarCopia && typeof leerCacheVista_ === 'function' ? leerCacheVista_(claveCopia) : null;
+    const hayCopia = !!(copia && Array.isArray(copia.subcarpetas) && Array.isArray(copia.archivos));
 
-    estadoArchivosCarpeta.subcarpetas = [];
-    estadoArchivosCarpeta.archivos = [];
-    estadoArchivosCarpeta.cargando = true;
+    estadoArchivosCarpeta.subcarpetas = hayCopia ? copia.subcarpetas : [];
+    estadoArchivosCarpeta.archivos = hayCopia ? copia.archivos : [];
+    estadoArchivosCarpeta.cargando = !hayCopia;
     estadoArchivosCarpeta.carpetaActual = { id: idCarpeta };
+    if (hayCopia && copia.nombre) {
+      const ultimoCopia = estadoArchivosCarpeta.ruta[estadoArchivosCarpeta.ruta.length - 1];
+      if (ultimoCopia && !ultimoCopia.nombre) ultimoCopia.nombre = copia.nombre;
+      estadoArchivosCarpeta.carpetaActual.nombre = copia.nombre;
+    }
 
     renderizarBreadcrumb();
-    mostrarLoadingArchivos();
+    if (hayCopia) renderizarContenidoCarpeta(); else mostrarLoadingArchivos();
 
     const usuarioActual = getCurrentUserSession();
     const idUsuario = usuarioActual ? usuarioActual.ID_Usuario : null;
@@ -11147,6 +11193,13 @@ button, input, select, textarea {
         if (result && result.success) {
           estadoArchivosCarpeta.subcarpetas = result.subcarpetas || [];
           estadoArchivosCarpeta.archivos = result.archivos || [];
+          if (typeof guardarCacheVista_ === 'function') {
+            guardarCacheVista_(claveCopia, {
+              subcarpetas: estadoArchivosCarpeta.subcarpetas,
+              archivos: estadoArchivosCarpeta.archivos,
+              nombre: result.carpetaActual ? result.carpetaActual.nombre : ''
+            });
+          }
 
           if (result.carpetaActual) {
             const ultimo = estadoArchivosCarpeta.ruta[estadoArchivosCarpeta.ruta.length - 1];
@@ -11167,6 +11220,7 @@ button, input, select, textarea {
 
         estadoArchivosCarpeta.cargando = false;
         console.error('Error cargarContenidoCarpeta:', error);
+        if (hayCopia) return; // se queda lo que ya se está mostrando
         showNotification('Error al cargar la carpeta', 'error', 3000);
         mostrarVacioArchivos();
       })

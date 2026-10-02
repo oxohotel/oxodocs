@@ -228,6 +228,7 @@ function registrarUsuario(nombre, email, password) {
     const fechaRegistro = Utilities.formatDate(hoy, "GMT-5", "yyyy-MM-dd");
 
     hojaUsuarios.appendRow([nuevoId, nombre, emailNormalizado, passwordHashConSalt, "Usuario", "Pendiente_Verificacion", fechaRegistro]);
+    invalidarCacheUsuarios_();
 
     const envio = enviarCodigoVerificacion(emailNormalizado, nuevoId);
     if (!envio.success) {
@@ -345,6 +346,7 @@ function verificarCodigoRegistro(email, codigo) {
     if (filaUsuario === -1) return { success: false, message: 'Usuario no encontrado' };
 
     hojaUsuarios.getRange(filaUsuario, 6).setValue('Pendiente_Aprobacion'); // columna F = Estado
+    invalidarCacheUsuarios_();
 
     return {
       success: true,
@@ -477,7 +479,7 @@ function verificarEmailExistente(email) {
 
 function registrarAuditoria(actionData) {
   try {
-    const spreadsheet = SpreadsheetApp.openById(DRIVE_CONFIG.SPREADSHEET_ID);
+    const spreadsheet = obtenerSpreadsheet_();
     const hojaAuditoria = spreadsheet.getSheetByName("Auditoria");
 
     if (!hojaAuditoria) {
@@ -485,17 +487,7 @@ function registrarAuditoria(actionData) {
       return { success: false };
     }
 
-    const datos = hojaAuditoria.getDataRange().getValues();
-    let nuevoId = 1;
-
-    if (datos.length > 1) {
-      for (let i = 1; i < datos.length; i++) {
-        const idActual = parseInt(datos[i][0]);
-        if (idActual >= nuevoId) {
-          nuevoId = idActual + 1;
-        }
-      }
-    }
+    const nuevoId = siguienteIdAuditoria_(hojaAuditoria);
 
     const ahora = new Date();
     const fechaHora = Utilities.formatDate(ahora, "GMT-5", "yyyy-MM-dd HH:mm:ss");

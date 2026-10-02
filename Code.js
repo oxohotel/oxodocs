@@ -6,7 +6,17 @@
  *   hacia las funciones de backend (Auth, Carpetas, Archivos, Drive, etc.).
  */
 
+/**
+ * Las funciones cuyo nombre termina en guion bajo (`_`) son auxiliares internas (crear sesiones, calcular hashes, escribir
+ * en las hojas...). Nunca deben poder invocarse desde fuera: el despachador las trata como si no existieran.
+ */
+function accionPermitida_(nombre) {
+  return typeof nombre === 'string' && nombre.length > 0 && nombre.slice(-1) !== '_';
+}
+
 function doPost(e) {
+  const inicioMs = Date.now();
+  let accionMedida = '';
   try {
     let payload = {};
     if (e && e.postData && e.postData.contents) {
@@ -20,6 +30,7 @@ function doPost(e) {
     }
 
     const action = payload.action;
+    accionMedida = action;
     const args = Array.isArray(payload.args) ? payload.args : [];
 
     if (!action) {
@@ -30,12 +41,14 @@ function doPost(e) {
     }
 
     const globalScope = this;
-    if (typeof globalScope[action] === 'function') {
+    if (accionPermitida_(action) && typeof globalScope[action] === 'function') {
       const result = globalScope[action].apply(null, args);
-      return ContentService.createTextOutput(JSON.stringify({
+      const salida = ContentService.createTextOutput(JSON.stringify({
         success: true,
         data: result
       })).setMimeType(ContentService.MimeType.JSON);
+      registrarMetrica_(action, Date.now() - inicioMs, null); // solo guarda si fue lenta (backend/Metricas.js)
+      return salida;
     } else {
       return ContentService.createTextOutput(JSON.stringify({
         success: false,
@@ -44,6 +57,7 @@ function doPost(e) {
     }
   } catch (error) {
     Logger.log('Error en doPost API: ' + error);
+    registrarMetrica_(accionMedida, Date.now() - inicioMs, (error && error.message) || String(error));
     return ContentService.createTextOutput(JSON.stringify({
       success: false,
       message: 'Error interno en el servidor: ' + (error.message || error.toString())
@@ -57,7 +71,7 @@ function doGet(e) {
     try {
       const action = e.parameter.action;
       const globalScope = this;
-      if (typeof globalScope[action] === 'function') {
+      if (accionPermitida_(action) && typeof globalScope[action] === 'function') {
         const result = globalScope[action].apply(null);
         return ContentService.createTextOutput(JSON.stringify({
           success: true,

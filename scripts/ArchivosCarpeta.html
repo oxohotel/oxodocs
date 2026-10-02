@@ -118,31 +118,41 @@
     if (carpetasContainer) carpetasContainer.style.display = 'none';
     archivosContainer.style.display = 'flex';
 
-    cargarContenidoCarpeta(carpeta.id, idArchivoResaltar);
+    cargarContenidoCarpeta(carpeta.id, idArchivoResaltar, true);
   }
 
   /** Entra a una subcarpeta (clic sobre su tarjeta dentro del explorador). */
   function entrarSubcarpeta(carpeta) {
     estadoArchivosCarpeta.ruta.push({ id: carpeta.id, nombre: carpeta.nombre });
-    cargarContenidoCarpeta(carpeta.id);
+    cargarContenidoCarpeta(carpeta.id, undefined, true);
   }
 
   /** Salta a un nivel intermedio de la ruta (clic en un segmento del breadcrumb). */
   function irANivelRuta(indice) {
     estadoArchivosCarpeta.ruta = estadoArchivosCarpeta.ruta.slice(0, indice + 1);
-    cargarContenidoCarpeta(estadoArchivosCarpeta.ruta[indice].id);
+    cargarContenidoCarpeta(estadoArchivosCarpeta.ruta[indice].id, undefined, true);
   }
 
-  function cargarContenidoCarpeta(idCarpeta, idArchivoResaltar) {
+  /** "usarCopia": al NAVEGAR se muestra al instante lo guardado de la última vez y se refresca por detrás; tras subir,
+   *  crear, renombrar o borrar se pide siempre el dato fresco (así no reaparece por un momento lo que se acaba de quitar). */
+  function cargarContenidoCarpeta(idCarpeta, idArchivoResaltar, usarCopia) {
     const idSolicitud = ++solicitudCarpetaActualId;
+    const claveCopia = 'contenido_' + idCarpeta;
+    const copia = usarCopia && typeof leerCacheVista_ === 'function' ? leerCacheVista_(claveCopia) : null;
+    const hayCopia = !!(copia && Array.isArray(copia.subcarpetas) && Array.isArray(copia.archivos));
 
-    estadoArchivosCarpeta.subcarpetas = [];
-    estadoArchivosCarpeta.archivos = [];
-    estadoArchivosCarpeta.cargando = true;
+    estadoArchivosCarpeta.subcarpetas = hayCopia ? copia.subcarpetas : [];
+    estadoArchivosCarpeta.archivos = hayCopia ? copia.archivos : [];
+    estadoArchivosCarpeta.cargando = !hayCopia;
     estadoArchivosCarpeta.carpetaActual = { id: idCarpeta };
+    if (hayCopia && copia.nombre) {
+      const ultimoCopia = estadoArchivosCarpeta.ruta[estadoArchivosCarpeta.ruta.length - 1];
+      if (ultimoCopia && !ultimoCopia.nombre) ultimoCopia.nombre = copia.nombre;
+      estadoArchivosCarpeta.carpetaActual.nombre = copia.nombre;
+    }
 
     renderizarBreadcrumb();
-    mostrarLoadingArchivos();
+    if (hayCopia) renderizarContenidoCarpeta(); else mostrarLoadingArchivos();
 
     const usuarioActual = getCurrentUserSession();
     const idUsuario = usuarioActual ? usuarioActual.ID_Usuario : null;
@@ -156,6 +166,13 @@
         if (result && result.success) {
           estadoArchivosCarpeta.subcarpetas = result.subcarpetas || [];
           estadoArchivosCarpeta.archivos = result.archivos || [];
+          if (typeof guardarCacheVista_ === 'function') {
+            guardarCacheVista_(claveCopia, {
+              subcarpetas: estadoArchivosCarpeta.subcarpetas,
+              archivos: estadoArchivosCarpeta.archivos,
+              nombre: result.carpetaActual ? result.carpetaActual.nombre : ''
+            });
+          }
 
           if (result.carpetaActual) {
             const ultimo = estadoArchivosCarpeta.ruta[estadoArchivosCarpeta.ruta.length - 1];
@@ -176,6 +193,7 @@
 
         estadoArchivosCarpeta.cargando = false;
         console.error('Error cargarContenidoCarpeta:', error);
+        if (hayCopia) return; // se queda lo que ya se está mostrando
         showNotification('Error al cargar la carpeta', 'error', 3000);
         mostrarVacioArchivos();
       })

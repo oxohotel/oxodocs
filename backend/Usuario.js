@@ -70,6 +70,7 @@ function actualizarNombreUsuario(idOUsuarioOToken, nuevoNombre) {
     for (let i = 1; i < datos.length; i++) {
       if (String(datos[i][indexId]) === String(idUsuario)) {
         hoja.getRange(i + 1, indexNombre + 1).setValue(nombreLimpio);
+        invalidarCacheUsuarios_();
         registrarAuditoriaSimple_(idUsuario, 'ACTUALIZAR_PERFIL', 'Usuario actualizó su nombre a "' + nombreLimpio + '"', 'Usuario');
         Logger.log('✅ Nombre actualizado para usuario ' + idUsuario);
         return { success: true, message: 'Nombre actualizado correctamente' };
@@ -182,18 +183,22 @@ function guardarPreferenciasNotificaciones(idUsuario, prefs) {
  * junta todos los .js en un solo scope global, así que dos funciones con el mismo nombre pero
  * distinta firma se pisan entre sí y la que sobrevive rompe silenciosamente a la otra.
  */
+/** ID siguiente de la hoja Auditoria leyendo solo la última fila (antes se releía la hoja entera en cada acción, y la hoja
+ *  solo crece). Los IDs son consecutivos, así que "último + 1" equivale al máximo + 1 de antes. */
+function siguienteIdAuditoria_(hoja) {
+  const ultima = hoja.getLastRow();
+  if (ultima <= 1) return 1;
+  const n = parseInt(hoja.getRange(ultima, 1).getValue(), 10);
+  return isNaN(n) ? ultima : n + 1;
+}
+
 function registrarAuditoriaSimple_(idUsuario, tipoAccion, descripcion, entidadAfectada) {
   try {
-    const ss = SpreadsheetApp.openById(DRIVE_CONFIG.SPREADSHEET_ID);
+    const ss = obtenerSpreadsheet_();
     const hojaAuditoria = ss.getSheetByName('Auditoria');
     if (!hojaAuditoria) return;
 
-    const datos = hojaAuditoria.getDataRange().getValues();
-    let nuevoId = 1;
-    for (let i = 1; i < datos.length; i++) {
-      const idActual = parseInt(datos[i][0]);
-      if (idActual >= nuevoId) nuevoId = idActual + 1;
-    }
+    const nuevoId = siguienteIdAuditoria_(hojaAuditoria);
 
     hojaAuditoria.appendRow([
       nuevoId,

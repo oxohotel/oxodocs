@@ -160,7 +160,7 @@ function generateApiBridgeScript() {
                   if (intento >= intentosMax) liberar();
                   if (intento < intentosMax) {
                     console.warn('⚠️ Fallo de red (' + prop + '), reintentando (' + intento + '/' + intentosMax + ')...', networkError);
-                    await esperar_(400 * intento);
+                    await esperar_(400 * intento + Math.floor(Math.random() * 300)); // algo de azar: que los reintentos de muchos usuarios no coincidan
                     continue;
                   }
                   console.error('❌ Fallo de red (' + prop + '):', networkError);

@@ -28,31 +28,11 @@ function normalizarEncabezado_(h) {
 
 /** Lee la hoja Usuarios una vez: [{id, email, rolId, hoteles}] */
 function leerUsuariosParaAlcance_(ss) {
-  const hoja = ss.getSheetByName('Usuarios');
-  if (!hoja) return [];
-  const datos = hoja.getDataRange().getValues();
-  const enc = datos[0].map(normalizarEncabezado_);
-  const buscar = function (nombres, porDefecto) {
-    const i = enc.findIndex(function (n) { return nombres.indexOf(n) !== -1; });
-    return i !== -1 ? i : porDefecto;
-  };
-  const cId = buscar(['idusuario', 'id'], 0);
-  const cEmail = buscar(['email', 'correo'], 2);
-  const cRol = buscar(['rol', 'idrol'], 4);
-  const cHot = buscar(['hotelespermitidos', 'hoteles'], -1);
-
-  const usuarios = [];
-  for (let i = 1; i < datos.length; i++) {
-    const id = String(datos[i][cId]).trim();
-    if (!id) continue;
-    usuarios.push({
-      id: id,
-      email: String(datos[i][cEmail] || '').trim().toLowerCase(),
-      rolId: String(obtenerInfoRol_(datos[i][cRol]).id),
-      hoteles: cHot !== -1 ? String(datos[i][cHot] == null ? '' : datos[i][cHot]).trim() : ''
+  return obtenerUsuariosLite_().usuarios
+    .filter(function (u) { return u.id; })
+    .map(function (u) {
+      return { id: u.id, email: u.email.toLowerCase(), rolId: String(obtenerInfoRol_(u.rol).id), hoteles: u.hoteles };
     });
-  }
-  return usuarios;
 }
 
 function calcularAlcanceGestion_(usuarios, idSolicitante) {
