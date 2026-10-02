@@ -223,8 +223,13 @@
       delete grupo.dataset.hotelUnicoId;
       delete grupo.dataset.hotelUnicoNombre;
 
-      if (!modulo.hoteles || !modulo.hoteles.length) {
-        submenu.innerHTML = '<span class="sidebar-subitem sidebar-subitem-vacio">Sin hoteles registrados</span>';
+      // Un módulo en el que el usuario no tiene hoteles (p. ej. Corporativo, pre-apertura, desarrollo) no se
+      // muestra en el menú: no hay nada que desplegar. El servidor ya devuelve solo los hoteles permitidos.
+      const tieneHoteles = !!(modulo.hoteles && modulo.hoteles.length);
+      grupo.classList.toggle("oculto", !tieneHoteles);
+      if (!tieneHoteles) {
+        grupo.classList.remove("abierto");
+        submenu.innerHTML = "";
         return;
       }
 
@@ -256,6 +261,12 @@
           if (user) registrarActividadSilenciosa(user.ID_Usuario, 'Hotel', idHotel, 'Abrió');
         });
       });
+    });
+
+    // Cualquier grupo del menú que el servidor no haya devuelto tampoco se muestra.
+    const ordenesRecibidos = new Set(modulos.map(function (m) { return String(m.orden); }));
+    document.querySelectorAll('.sidebar-group[data-orden]').forEach(function (g) {
+      if (!ordenesRecibidos.has(g.dataset.orden)) g.classList.add("oculto");
     });
 
     if (typeof refrescarPanelGestionHoteles_ === 'function') refrescarPanelGestionHoteles_();

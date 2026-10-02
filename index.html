@@ -9155,8 +9155,13 @@ button, input, select, textarea {
       delete grupo.dataset.hotelUnicoId;
       delete grupo.dataset.hotelUnicoNombre;
 
-      if (!modulo.hoteles || !modulo.hoteles.length) {
-        submenu.innerHTML = '<span class="sidebar-subitem sidebar-subitem-vacio">Sin hoteles registrados</span>';
+      // Un módulo en el que el usuario no tiene hoteles (p. ej. Corporativo, pre-apertura, desarrollo) no se
+      // muestra en el menú: no hay nada que desplegar. El servidor ya devuelve solo los hoteles permitidos.
+      const tieneHoteles = !!(modulo.hoteles && modulo.hoteles.length);
+      grupo.classList.toggle("oculto", !tieneHoteles);
+      if (!tieneHoteles) {
+        grupo.classList.remove("abierto");
+        submenu.innerHTML = "";
         return;
       }
 
@@ -9188,6 +9193,12 @@ button, input, select, textarea {
           if (user) registrarActividadSilenciosa(user.ID_Usuario, 'Hotel', idHotel, 'Abrió');
         });
       });
+    });
+
+    // Cualquier grupo del menú que el servidor no haya devuelto tampoco se muestra.
+    const ordenesRecibidos = new Set(modulos.map(function (m) { return String(m.orden); }));
+    document.querySelectorAll('.sidebar-group[data-orden]').forEach(function (g) {
+      if (!ordenesRecibidos.has(g.dataset.orden)) g.classList.add("oculto");
     });
 
     if (typeof refrescarPanelGestionHoteles_ === 'function') refrescarPanelGestionHoteles_();
@@ -12691,16 +12702,21 @@ function mostrarModalSinPermisos_(razon) {
         '</span>';
       } else {
         const valHoteles = String(u.hoteles_permitidos || '').trim();
-        const esTodos = (!valHoteles || valHoteles === '*' || valHoteles.toUpperCase() === 'TODOS');
+        // Vacío = SIN acceso (así lo interpreta el backend: Hoteles.js y Carpetas.js). Solo "*" o "TODOS"
+        // significan todos los hoteles, incluidos los que se creen después.
+        // Los superadministradores (rol 3) siempre ven todos los hoteles, sin importar este campo (el backend
+        // los exime de la restricción en Hoteles.js y Carpetas.js); no hay nada que configurar para ellos.
+        const esFilaSuperadmin = String(u.rol_id || u.id_rol || '') === '3';
+        const esTodos = esFilaSuperadmin || valHoteles === '*' || valHoteles.toUpperCase() === 'TODOS';
         if (esTodos) {
-          if (esSuperadmin) {
+          if (esSuperadmin && !esFilaSuperadmin) {
             hotelesCelda = '<button type="button" class="btn-hoteles-permisos btn-config-hoteles" data-id-usuario="' + u.id + '" title="Acceso a todos los hoteles. Clic para personalizar.">' +
               '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18M3 7v14M21 7v14M6 21V11M10 21V11M14 21V11M18 21V11M9 3h6v4H9z"/></svg>' +
               '<span>Todos los hoteles</span>' +
               '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="opacity: 0.45;"><path d="M9 18l6-6-6-6"/></svg>' +
             '</button>';
           } else {
-            hotelesCelda = '<span class="badge-hoteles-info" title="Acceso a todos los hoteles del sistema">' +
+            hotelesCelda = '<span class="badge-hoteles-info" title="' + (esFilaSuperadmin ? 'Los superadministradores siempre tienen acceso a todos los hoteles' : 'Acceso a todos los hoteles del sistema') + '">' +
               '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18M3 7v14M21 7v14M6 21V11M10 21V11M14 21V11M18 21V11M9 3h6v4H9z"/></svg>' +
               '<span>Todos los hoteles</span>' +
             '</span>';
@@ -12869,7 +12885,8 @@ function mostrarModalSinPermisos_(razon) {
 
   function abrirModalAsignarHoteles_(usuario) {
     const valHoteles = String(usuario.hoteles_permitidos || '').trim();
-    const esTodosInicial = (!valHoteles || valHoteles === '*' || valHoteles.toUpperCase() === 'TODOS');
+    // Vacío = sin acceso (igual que el backend); antes se mostraba como "Todos" y nunca se guardaba.
+    const esTodosInicial = (valHoteles === '*' || valHoteles.toUpperCase() === 'TODOS');
     const setSeleccionados = new Set(esTodosInicial ? [] : valHoteles.split(',').map(s => s.trim()));
 
     // Iniciales para el avatar
