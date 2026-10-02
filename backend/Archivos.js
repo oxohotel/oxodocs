@@ -60,7 +60,7 @@ function construirObjetoArchivo(fila, encabezados, tamanoOverride) {
   return {
     id: fila[indices.id],
     idCarpeta: fila[indices.carpeta],
-    nombre: fila[indices.nombre],
+    nombre: String(fila[indices.nombre] === undefined || fila[indices.nombre] === null ? '' : fila[indices.nombre]),
     extension: fila[indices.extension],
     tipo: fila[indices.tipo],
     estado: fila[indices.estado],

@@ -9988,7 +9988,7 @@ button, input, select, textarea {
     if (!grid) return;
 
     const carpetasFiltradas = estadoHotelCarpetas.carpetas.filter(carpeta => {
-      return carpeta.nombre.toLowerCase().includes(estadoHotelCarpetas.filtro);
+      return String(carpeta.nombre).toLowerCase().includes(estadoHotelCarpetas.filtro);
     });
 
     if (carpetasFiltradas.length === 0) {
@@ -10222,10 +10222,10 @@ button, input, select, textarea {
 
     const filtro = (estadoArchivosCarpeta.filtro || '').toLowerCase();
     const subcarpetasFiltradas = estadoArchivosCarpeta.subcarpetas.filter(function (c) {
-      return c.nombre.toLowerCase().includes(filtro);
+      return String(c.nombre).toLowerCase().includes(filtro);
     });
     const archivosFiltrados = estadoArchivosCarpeta.archivos.filter(function (archivo) {
-      return archivo.nombre.toLowerCase().includes(filtro);
+      return String(archivo.nombre).toLowerCase().includes(filtro);
     });
 
     if (subcarpetasFiltradas.length === 0 && archivosFiltrados.length === 0) {

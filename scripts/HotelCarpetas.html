@@ -197,7 +197,7 @@
     if (!grid) return;
 
     const carpetasFiltradas = estadoHotelCarpetas.carpetas.filter(carpeta => {
-      return carpeta.nombre.toLowerCase().includes(estadoHotelCarpetas.filtro);
+      return String(carpeta.nombre).toLowerCase().includes(estadoHotelCarpetas.filtro);
     });
 
     if (carpetasFiltradas.length === 0) {

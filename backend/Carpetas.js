@@ -21,7 +21,7 @@ function obtenerRutaCarpeta(idCarpeta) {
       const id = String(datos[i][idx['ID_Carpeta']]);
       porId[id] = {
         id: id,
-        nombre: datos[i][idx['Nombre_Carpeta']] || '',
+        nombre: String(datos[i][idx['Nombre_Carpeta']] || ''),
         idPadre: datos[i][idx['ID_Padre']] ? String(datos[i][idx['ID_Padre']]) : null
       };
     }
@@ -528,7 +528,7 @@ function construirObjetoCarpeta_(row, idx, resumenArchivosPorCarpeta) {
     id: idCarpeta,
     idHotel: row[idx['ID_Hotel']],
     idPadre: row[idx['ID_Padre']] ? String(row[idx['ID_Padre']]) : null,
-    nombre: row[idx['Nombre_Carpeta']] || '',
+    nombre: String(row[idx['Nombre_Carpeta']] || ''),
     cantidad: (resumen && resumen.cantidad) || 0,
     tamanoTotal: (resumen && resumen.tamanoTotal) || 0,
     fechaUltimaActividad: (resumen && resumen.fechaUltima) ? resumen.fechaUltima.toString() : null,
