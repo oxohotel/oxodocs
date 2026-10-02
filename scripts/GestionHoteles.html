@@ -1,0 +1,317 @@
+<script>
+  // ==========================================================================
+  // GestionHoteles.html - Panel "Gestionar hoteles" (solo Superadministrador, rol 3)
+  // Agregar, renombrar, mover entre módulos y eliminar hoteles. El botón (+) vive en la barra lateral
+  // (components/Sidebar.html) y se revela en scripts/Sidebar.html. El permiso real lo verifica siempre
+  // el backend (backend/GestionHoteles.js); esto solo es la interfaz.
+  // Los datos salen de _modulosHotelesCache (scripts/Sidebar.html), que se vuelve a llenar tras cada cambio.
+  // ==========================================================================
+
+  var GH_MODULOS_GESTIONABLES = ['Hoteles en operación', 'Hoteles en pre-apertura', 'Hoteles en desarrollo'];
+  var _ghAbierto = false;
+  var _ghOcupado = false;
+
+  function ghModulos_() {
+    return (typeof _modulosHotelesCache !== 'undefined' ? _modulosHotelesCache : []).filter(function (m) {
+      return GH_MODULOS_GESTIONABLES.indexOf(m.nombre) !== -1;
+    });
+  }
+
+  /** Mismo criterio que el backend: sin mayúsculas, tildes ni espacios repetidos. */
+  function ghClave_(texto) {
+    return String(texto == null ? '' : texto).trim().replace(/\s+/g, ' ').toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  }
+
+  function ghHotelPorId_(idHotel) {
+    var encontrado = null;
+    ghModulos_().forEach(function (m) {
+      (m.hoteles || []).forEach(function (h) {
+        if (String(h.idHotel) === String(idHotel)) encontrado = { hotel: h, modulo: m };
+      });
+    });
+    return encontrado;
+  }
+
+  function ghNombreYaExiste_(nombre, idHotelExcluido) {
+    var clave = ghClave_(nombre);
+    var existe = false;
+    (_modulosHotelesCache || []).forEach(function (m) {
+      (m.hoteles || []).forEach(function (h) {
+        if (idHotelExcluido != null && String(h.idHotel) === String(idHotelExcluido)) return;
+        if (ghClave_(h.nombre) === clave) existe = true;
+      });
+    });
+    return existe;
+  }
+
+  function ghOpcionesModulos_(idSeleccionado) {
+    return ghModulos_().map(function (m) {
+      var sel = String(m.idModulo) === String(idSeleccionado) ? ' selected' : '';
+      return '<option value="' + m.idModulo + '"' + sel + '>' + escaparHtml(m.nombre) + '</option>';
+    }).join('');
+  }
+
+  function ghListaHtml_() {
+    var modulos = ghModulos_();
+    if (!modulos.length) return '<p class="gh-ayuda">Aún no se han cargado los hoteles.</p>';
+
+    return modulos.map(function (m) {
+      var hoteles = (m.hoteles || []);
+      var filas = hoteles.length ? hoteles.map(function (h) {
+        return (
+          '<div class="gh-hotel" data-id-hotel="' + h.idHotel + '">' +
+            '<div class="gh-hotel-fila">' +
+              '<span class="gh-hotel-nombre">' + escaparHtml(h.nombre) + '</span>' +
+              '<span class="gh-acciones">' +
+                '<button type="button" class="gh-icono" data-accion="editar" title="Editar o mover" aria-label="Editar o mover">' +
+                  '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>' +
+                '</button>' +
+                '<button type="button" class="gh-icono gh-icono-peligro" data-accion="eliminar" title="Eliminar" aria-label="Eliminar">' +
+                  '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>' +
+                '</button>' +
+              '</span>' +
+            '</div>' +
+            '<div class="gh-detalle" hidden></div>' +
+          '</div>'
+        );
+      }).join('') : '<p class="gh-vacio">Sin hoteles en este módulo</p>';
+
+      return (
+        '<div class="gh-modulo">' +
+          '<div class="gh-modulo-titulo"><span>' + escaparHtml(m.nombre) + '</span><span class="gh-contador">' + hoteles.length + '</span></div>' +
+          filas +
+        '</div>'
+      );
+    }).join('');
+  }
+
+  function ghHtml_() {
+    return (
+      '<div class="gh-panel">' +
+        '<div id="ghEstado" class="gh-estado" hidden></div>' +
+        '<section class="gh-agregar">' +
+          '<h4>Agregar hotel</h4>' +
+          '<label for="ghNombreNuevo">Nombre del hotel</label>' +
+          '<input type="text" id="ghNombreNuevo" class="campo-input" placeholder="Ej. Hotel Pop Art Tocancipá" maxlength="120" autocomplete="off">' +
+          '<label for="ghModuloNuevo">Módulo</label>' +
+          '<select id="ghModuloNuevo" class="campo-input">' + ghOpcionesModulos_() + '</select>' +
+          '<button type="button" id="ghBtnAgregar" class="btn-enviar gh-btn-agregar">+ Agregar hotel</button>' +
+          '<p class="gh-ayuda">Se crean automáticamente las áreas estándar del hotel (Alimentos y Bebidas, CAF, IT, Jurídico…).</p>' +
+        '</section>' +
+        '<section class="gh-seccion"><h4>Hoteles por módulo</h4><div id="ghLista">' + ghListaHtml_() + '</div></section>' +
+      '</div>'
+    );
+  }
+
+  function abrirPanelGestionHoteles() {
+    abrirPanelLateral({
+      titulo: 'Gestionar hoteles',
+      ancho: 'medio',
+      html: ghHtml_(),
+      onAbrir: ghEnlazar_,
+      onClose: function () { _ghAbierto = false; }
+    });
+    _ghAbierto = true;
+  }
+
+  /** Lo llama renderizarHotelesSidebar (scripts/Sidebar.html) cada vez que llegan datos nuevos. */
+  function refrescarPanelGestionHoteles_() {
+    if (!_ghAbierto) return;
+    var lista = document.getElementById('ghLista');
+    var selector = document.getElementById('ghModuloNuevo');
+    if (lista) lista.innerHTML = ghListaHtml_();
+    if (selector) {
+      var actual = selector.value;
+      selector.innerHTML = ghOpcionesModulos_(actual);
+    }
+  }
+
+  // -------------------- Interacción --------------------
+
+  function ghEstado_(mensaje, esError) {
+    var caja = document.getElementById('ghEstado');
+    if (!caja) return;
+    caja.hidden = !mensaje;
+    caja.textContent = mensaje || '';
+    caja.classList.toggle('gh-estado-error', !!esError);
+  }
+
+  function ghDeshabilitar_(deshabilitar) {
+    var cuerpo = document.querySelector('.gh-panel');
+    if (!cuerpo) return;
+    cuerpo.querySelectorAll('button, input, select').forEach(function (el) { el.disabled = deshabilitar; });
+    cuerpo.classList.toggle('gh-ocupado', deshabilitar);
+  }
+
+  /** Ejecuta una operación del backend bloqueando el panel mientras dura (una a la vez). */
+  function ghEjecutar_(mensajeEnCurso, invocar, alExito, mensajeExito) {
+    if (_ghOcupado) return;
+    var sesion = getCurrentUserSession();
+    var token = getCurrentUserToken();
+    var idUsuario = sesion ? sesion.ID_Usuario : null;
+
+    _ghOcupado = true;
+    ghEstado_(mensajeEnCurso, false);
+    ghDeshabilitar_(true);
+    bloquearPanelLateral();
+
+    function terminar() {
+      _ghOcupado = false;
+      desbloquearPanelLateral();
+      ghDeshabilitar_(false);
+    }
+
+    invocar(
+      function (res) {
+        terminar();
+        if (res && res.success) {
+          ghEstado_('', false);
+          showNotification(mensajeExito, 'success', 3500);
+          if (alExito) alExito(res);
+        } else {
+          var msg = (res && res.message) || 'No se pudo completar la operación';
+          ghEstado_(msg, true);
+          showNotification(msg, 'error', 5000);
+        }
+        cargarHotelesSidebar(); // refleja siempre el estado real (también tras un error)
+      },
+      function (error) {
+        terminar();
+        console.error('Error en gestión de hoteles:', error);
+        ghEstado_('Error de conexión. Revisa la lista antes de reintentar: el cambio pudo haberse aplicado.', true);
+        showNotification('Error de conexión con el servidor', 'error', 5000);
+        cargarHotelesSidebar();
+      },
+      token,
+      idUsuario
+    );
+  }
+
+  function ghAgregar_() {
+    var nombre = document.getElementById('ghNombreNuevo').value.trim();
+    var idModulo = document.getElementById('ghModuloNuevo').value;
+    if (!nombre) { ghEstado_('Escribe el nombre del hotel', true); return; }
+    if (ghNombreYaExiste_(nombre, null)) { ghEstado_('Ya existe un hotel con ese nombre', true); return; }
+
+    ghEjecutar_(
+      'Creando el hotel y sus áreas… esto puede tardar unos segundos.',
+      function (ok, fallo, token, idUsuario) {
+        google.script.run.withSuccessHandler(ok).withFailureHandler(fallo).crearHotel(nombre, idModulo, token, idUsuario);
+      },
+      function () { document.getElementById('ghNombreNuevo').value = ''; },
+      'Hotel agregado'
+    );
+  }
+
+  function ghCerrarDetalles_() {
+    document.querySelectorAll('#ghLista .gh-detalle').forEach(function (d) { d.hidden = true; d.innerHTML = ''; });
+  }
+
+  function ghAbrirEditar_(contenedor, idHotel) {
+    var info = ghHotelPorId_(idHotel);
+    if (!info) return;
+    var detalle = contenedor.querySelector('.gh-detalle');
+    ghCerrarDetalles_();
+    detalle.hidden = false;
+    detalle.dataset.modo = 'editar';
+    detalle.innerHTML =
+      '<label>Nombre</label>' +
+      '<input type="text" class="campo-input gh-in-nombre" value="' + escaparHtml(info.hotel.nombre).replace(/"/g, '&quot;') + '" maxlength="120" autocomplete="off">' +
+      '<label>Módulo</label>' +
+      '<select class="campo-input gh-in-modulo">' + ghOpcionesModulos_(info.modulo.idModulo) + '</select>' +
+      '<p class="gh-ayuda">Mover un hotel no afecta sus carpetas ni archivos: todo se mueve con él.</p>' +
+      '<div class="gh-botones">' +
+        '<button type="button" class="btn-cancelar" data-accion="cancelar">Cancelar</button>' +
+        '<button type="button" class="btn-enviar" data-accion="guardar">Guardar cambios</button>' +
+      '</div>';
+  }
+
+  function ghAbrirEliminar_(contenedor, idHotel) {
+    var info = ghHotelPorId_(idHotel);
+    if (!info) return;
+    var detalle = contenedor.querySelector('.gh-detalle');
+    ghCerrarDetalles_();
+    detalle.hidden = false;
+    detalle.dataset.modo = 'eliminar';
+    detalle.innerHTML =
+      '<p class="gh-alerta">Se eliminará <b>' + escaparHtml(info.hotel.nombre) + '</b> con todas sus áreas, carpetas y archivos. ' +
+      'La carpeta de Drive va a la papelera (se puede recuperar durante 30 días).</p>' +
+      '<label>Escribe el nombre exacto del hotel para confirmar</label>' +
+      '<input type="text" class="campo-input gh-in-confirmacion" placeholder="' + escaparHtml(info.hotel.nombre).replace(/"/g, '&quot;') + '" autocomplete="off">' +
+      '<div class="gh-botones">' +
+        '<button type="button" class="btn-cancelar" data-accion="cancelar">Cancelar</button>' +
+        '<button type="button" class="gh-btn-peligro" data-accion="confirmar-eliminar" disabled>Eliminar hotel</button>' +
+      '</div>';
+  }
+
+  function ghGuardarEdicion_(contenedor, idHotel) {
+    var info = ghHotelPorId_(idHotel);
+    if (!info) return;
+    var nombre = contenedor.querySelector('.gh-in-nombre').value.trim();
+    var idModulo = contenedor.querySelector('.gh-in-modulo').value;
+    if (!nombre) { ghEstado_('El nombre no puede estar vacío', true); return; }
+    if (ghNombreYaExiste_(nombre, idHotel)) { ghEstado_('Ya existe un hotel con ese nombre', true); return; }
+    if (nombre === info.hotel.nombre && String(idModulo) === String(info.modulo.idModulo)) { ghCerrarDetalles_(); return; }
+
+    ghEjecutar_(
+      'Guardando cambios…',
+      function (ok, fallo, token, idUsuario) {
+        google.script.run.withSuccessHandler(ok).withFailureHandler(fallo).editarHotel(idHotel, nombre, idModulo, token, idUsuario);
+      },
+      null,
+      'Hotel actualizado'
+    );
+  }
+
+  function ghConfirmarEliminar_(contenedor, idHotel) {
+    var confirmacion = contenedor.querySelector('.gh-in-confirmacion').value;
+    ghEjecutar_(
+      'Eliminando el hotel…',
+      function (ok, fallo, token, idUsuario) {
+        google.script.run.withSuccessHandler(ok).withFailureHandler(fallo).eliminarHotel(idHotel, confirmacion, token, idUsuario);
+      },
+      null,
+      'Hotel eliminado'
+    );
+  }
+
+  function ghEnlazar_(panel) {
+    var raiz = panel.querySelector('.gh-panel');
+    if (!raiz) return;
+
+    raiz.querySelector('#ghBtnAgregar').addEventListener('click', ghAgregar_);
+    raiz.querySelector('#ghNombreNuevo').addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') { e.preventDefault(); ghAgregar_(); }
+    });
+
+    // Delegación: la lista se vuelve a pintar tras cada cambio
+    raiz.addEventListener('click', function (e) {
+      var boton = e.target.closest('button[data-accion]');
+      if (!boton || _ghOcupado) return;
+      var hotel = boton.closest('.gh-hotel');
+      var idHotel = hotel ? hotel.dataset.idHotel : null;
+      switch (boton.dataset.accion) {
+        case 'editar': ghAbrirEditar_(hotel, idHotel); break;
+        case 'eliminar': ghAbrirEliminar_(hotel, idHotel); break;
+        case 'cancelar': ghCerrarDetalles_(); ghEstado_('', false); break;
+        case 'guardar': ghGuardarEdicion_(hotel, idHotel); break;
+        case 'confirmar-eliminar': ghConfirmarEliminar_(hotel, idHotel); break;
+      }
+    });
+
+    // El botón de eliminar solo se habilita cuando el nombre escrito coincide
+    raiz.addEventListener('input', function (e) {
+      if (!e.target.classList.contains('gh-in-confirmacion')) return;
+      var hotel = e.target.closest('.gh-hotel');
+      var info = ghHotelPorId_(hotel.dataset.idHotel);
+      var boton = hotel.querySelector('[data-accion="confirmar-eliminar"]');
+      if (info && boton) boton.disabled = ghClave_(e.target.value) !== ghClave_(info.hotel.nombre);
+    });
+  }
+
+  (function () {
+    var boton = document.getElementById('btnGestionHoteles');
+    if (boton) boton.addEventListener('click', function (e) { e.preventDefault(); abrirPanelGestionHoteles(); });
+  })();
+</script>

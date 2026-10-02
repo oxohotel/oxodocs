@@ -22,6 +22,11 @@
       <button type="button" id="btnExpandirColapsarTodo" class="sidebar-toolbar-btn" title="Expandir/colapsar todo">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 5l5 4 5-4"/><path d="M7 10l5 4 5-4"/></svg>
       </button>
+      <!-- Solo Superadministrador (rol 3): se revela en revelarNavsDeAdministracionSiCorresponde (scripts/Sidebar.html).
+           La verificación real del rol la hace el backend (backend/GestionHoteles.js). -->
+      <button type="button" id="btnGestionHoteles" class="sidebar-toolbar-btn sidebar-toolbar-btn-agregar oculto" title="Agregar y gestionar hoteles" aria-label="Agregar y gestionar hoteles">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+      </button>
     </div>
 
     <div class="sidebar-group" data-grupo="operacion" data-orden="1">

@@ -1,0 +1,208 @@
+<style>
+/* ==================== GESTIONAR HOTELES (solo Superadministrador) ==================== */
+
+.sidebar-toolbar-btn-agregar {
+  color: var(--home-accent-gold);
+  border-color: var(--home-accent-gold);
+}
+
+.sidebar-toolbar-btn-agregar:hover {
+  background: var(--home-accent-gold-light);
+  color: var(--home-accent-gold-hover);
+  border-color: var(--home-accent-gold-hover);
+}
+
+.gh-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.gh-panel h4 {
+  margin: 0 0 10px;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: var(--home-accent-green);
+}
+
+.gh-panel label {
+  display: block;
+  margin: 10px 0 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--home-text-muted);
+}
+
+.gh-panel .campo-input {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.gh-btn-agregar {
+  width: 100%;
+  margin-top: 14px;
+}
+
+.gh-ayuda {
+  margin: 8px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--home-text-muted);
+}
+
+.gh-estado {
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  background: var(--home-accent-gold-light);
+  color: var(--home-text);
+  border: 1px solid var(--home-accent-gold);
+}
+
+.gh-estado-error {
+  background: rgba(211, 47, 47, 0.10);
+  border-color: var(--danger-color);
+  color: var(--danger-color);
+}
+
+.gh-ocupado {
+  opacity: 0.65;
+  cursor: progress;
+}
+
+.gh-agregar {
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--home-border);
+}
+
+.gh-modulo {
+  margin-bottom: 16px;
+}
+
+.gh-modulo-titulo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--home-text);
+}
+
+.gh-contador {
+  min-width: 22px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 700;
+  background: var(--home-card-bg-subtle);
+  color: var(--home-text-muted);
+}
+
+.gh-vacio {
+  margin: 0;
+  padding: 8px 2px;
+  font-size: 12px;
+  color: var(--home-text-subtle);
+}
+
+.gh-hotel {
+  border: 1px solid var(--home-border);
+  border-radius: 10px;
+  margin-bottom: 6px;
+  background: var(--home-card-bg);
+}
+
+.gh-hotel-fila {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px 8px 12px;
+}
+
+.gh-hotel-nombre {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--home-text);
+  overflow-wrap: anywhere;
+}
+
+.gh-acciones {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.gh-icono {
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--home-text-muted);
+  cursor: pointer;
+}
+
+.gh-icono:hover {
+  background: var(--home-active-bg);
+  color: var(--home-accent-green);
+}
+
+.gh-icono-peligro:hover {
+  background: rgba(211, 47, 47, 0.10);
+  color: var(--danger-color);
+}
+
+.gh-detalle {
+  padding: 4px 12px 14px;
+  border-top: 1px dashed var(--home-border);
+}
+
+.gh-detalle[hidden] {
+  display: none;
+}
+
+.gh-botones {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.gh-alerta {
+  margin: 10px 0 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  line-height: 1.5;
+  background: rgba(211, 47, 47, 0.08);
+  color: var(--home-text);
+}
+
+.gh-btn-peligro {
+  padding: 0 18px;
+  height: 42px;
+  border: none;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #FFFFFF;
+  background: var(--danger-color);
+  cursor: pointer;
+}
+
+.gh-btn-peligro:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+</style>

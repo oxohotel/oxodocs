@@ -123,6 +123,11 @@
 
     const navLogs = document.getElementById("navLogs");
     if (navLogs) navLogs.classList.toggle("oculto", !tieneAcceso);
+
+    // Gestión de hoteles: solo Superadministrador (rol 3)
+    const esSuperadmin = rol === "3" || rol === "Superadministrador";
+    const btnGestionHoteles = document.getElementById("btnGestionHoteles");
+    if (btnGestionHoteles) btnGestionHoteles.classList.toggle("oculto", !esSuperadmin);
   }
 
   /** Marca "elemento" como la opción activa de la sidebar y le quita esa marca a
@@ -201,13 +206,22 @@
       .obtenerModulosConHoteles(token, idUsuario);
   }
 
+  // Última lista de módulos/hoteles recibida: la usa el panel "Gestionar hoteles" (scripts/GestionHoteles.html).
+  var _modulosHotelesCache = [];
+
   function renderizarHotelesSidebar(modulos) {
     if (!Array.isArray(modulos)) return;
+    _modulosHotelesCache = modulos;
 
     modulos.forEach(function (modulo) {
       const grupo = document.querySelector('.sidebar-group[data-orden="' + modulo.orden + '"]');
       const submenu = grupo ? grupo.querySelector(".sidebar-submenu") : null;
       if (!submenu) return;
+
+      // Al re-renderizar (p. ej. tras mover un hotel) un módulo puede dejar de ser "único" o volver a serlo.
+      grupo.classList.remove('sidebar-group-unico');
+      delete grupo.dataset.hotelUnicoId;
+      delete grupo.dataset.hotelUnicoNombre;
 
       if (!modulo.hoteles || !modulo.hoteles.length) {
         submenu.innerHTML = '<span class="sidebar-subitem sidebar-subitem-vacio">Sin hoteles registrados</span>';
@@ -243,6 +257,8 @@
         });
       });
     });
+
+    if (typeof refrescarPanelGestionHoteles_ === 'function') refrescarPanelGestionHoteles_();
   }
 
   function escaparHtml(texto) {

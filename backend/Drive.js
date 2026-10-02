@@ -1,6 +1,6 @@
 /**
  * Automatización idempotente de la estructura de Google Drive:
- * Carpeta raíz -> 4 Módulos (3 de hoteles + Corporativo) -> 35 hoteles + 1 sede corporativa
+ * Carpeta raíz -> 4 Módulos (3 de hoteles + Corporativo) -> 37 hoteles + 1 sede corporativa
  * -> áreas fijas cada uno (ver AREAS_FIJAS).
  * Dentro de cada área, el usuario puede crear subcarpetas y subir archivos libremente en
  * cualquier nivel (ver backend/Carpetas.js: crearSubcarpeta/obtenerContenidoCarpeta) — esas
@@ -36,10 +36,14 @@ const DRIVE_CONFIG = {
   ]
 };
 
-// -------- Hoteles en operación (28) --------
+// -------- Hoteles en operación (30) --------
 // -------- Hoteles en pre-apertura (3) --------
 // -------- Hoteles en desarrollo (4) --------
 // -------- Corporativo (1 sola sede) --------
+// Lista inicial (semilla) para crearEstructuraDriveCompleta. Desde la app, un Superadministrador puede
+// agregar, renombrar, mover y eliminar hoteles (backend/GestionHoteles.js); si se mueve un hotel de módulo
+// y luego se vuelve a ejecutar crearEstructuraDriveCompleta, esta lista debe reflejar su módulo actual
+// (la función identifica al hotel por módulo + nombre y, si no coincide, crearía uno duplicado).
 const HOTELES_REALES = [
   { nombre: 'AC Hotel by Marriott Bogotá Zona T', modulo: 'Hoteles en operación' },
   { nombre: 'The Artisan D.C. Hotel, Autograph Collection', modulo: 'Hoteles en operación' },
@@ -69,6 +73,8 @@ const HOTELES_REALES = [
   { nombre: 'Hotel Bari', modulo: 'Hoteles en operación' },
   { nombre: 'Holiday Inn Express Yopal', modulo: 'Hoteles en operación' },
   { nombre: 'MIA Hotel Chocó', modulo: 'Hoteles en operación' },
+  { nombre: 'Hotel Pop Art Tocancipá', modulo: 'Hoteles en operación' },
+  { nombre: 'Holiday Inn Express Barranquilla Buenavista', modulo: 'Hoteles en operación' },
   { nombre: 'Tapestry Miraflores', modulo: 'Hoteles en pre-apertura' },
   { nombre: 'Tapestry San Isidro', modulo: 'Hoteles en pre-apertura' },
   { nombre: 'Hilton Garden Inn Pereira', modulo: 'Hoteles en pre-apertura' },
