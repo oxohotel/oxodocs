@@ -5,3 +5,7 @@ node_modules/
 
 # Contiene datos personales y hashes de contraseña: nunca debe subirse al repositorio (es público)
 backend/ImportarUsuarios.js
+
+# Datos reales (base de datos exportada, credenciales): nunca deben subirse al repositorio público
+docs/*.xlsx
+docs/*.csv
