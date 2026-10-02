@@ -83,7 +83,7 @@ function obtenerMapaRoles_() {
   });
 
   try {
-    const ss = SpreadsheetApp.openById(DRIVE_CONFIG.SPREADSHEET_ID);
+    const ss = obtenerSpreadsheet_();
     const hoja = ss.getSheetByName('Roles');
     if (!hoja) return { porId: porId, porNombre: porNombre, catalogo: catalogo };
 
@@ -197,7 +197,7 @@ function obtenerRolDeUsuario_(idUsuario) {
   if (idUsuario === null || idUsuario === undefined || idUsuario === '') return null;
 
   try {
-    const ss = SpreadsheetApp.openById(DRIVE_CONFIG.SPREADSHEET_ID);
+    const ss = obtenerSpreadsheet_();
     const hoja = ss.getSheetByName('Usuarios');
     if (!hoja) return null;
 
@@ -382,7 +382,7 @@ function obtenerUsuariosParaGestion(idUsuarioSolicitanteOToken, idUsuarioFallbac
   }
 
   try {
-    const ss = SpreadsheetApp.openById(DRIVE_CONFIG.SPREADSHEET_ID);
+    const ss = obtenerSpreadsheet_();
     const hoja = ss.getSheetByName('Usuarios');
     if (!hoja) return { success: false, message: 'Hoja Usuarios no encontrada', usuarios: [] };
 
@@ -492,7 +492,7 @@ function cambiarEstadoUsuario(idUsuarioObjetivo, nuevoEstado, idUsuarioSolicitan
   }
 
   try {
-    const ss = SpreadsheetApp.openById(DRIVE_CONFIG.SPREADSHEET_ID);
+    const ss = obtenerSpreadsheet_();
     const hoja = ss.getSheetByName('Usuarios');
     if (!hoja) return { success: false, message: 'Hoja Usuarios no encontrada' };
 
@@ -553,7 +553,7 @@ function cambiarRolUsuario(idUsuarioObjetivo, nuevoRolIdONombre, idUsuarioSolici
   }
 
   try {
-    const ss = SpreadsheetApp.openById(DRIVE_CONFIG.SPREADSHEET_ID);
+    const ss = obtenerSpreadsheet_();
     const hoja = ss.getSheetByName('Usuarios');
     if (!hoja) return { success: false, message: 'Hoja Usuarios no encontrada' };
 
@@ -636,7 +636,7 @@ function asignarHotelesAUsuario(idUsuarioObjetivo, arrayHotelesIds, idUsuarioSol
   }
 
   try {
-    const ss = SpreadsheetApp.openById(DRIVE_CONFIG.SPREADSHEET_ID);
+    const ss = obtenerSpreadsheet_();
     const hoja = ss.getSheetByName('Usuarios');
     if (!hoja) return { success: false, message: 'Hoja Usuarios no encontrada' };
 
@@ -725,7 +725,7 @@ function crearUsuarioPorAdmin(datos, idUsuarioSolicitanteOToken, idUsuarioFallba
   try {
     lock.waitLock(15000);
 
-    const ss = SpreadsheetApp.openById(DRIVE_CONFIG.SPREADSHEET_ID);
+    const ss = obtenerSpreadsheet_();
     const hojaUsuarios = ss.getSheetByName('Usuarios');
     if (!hojaUsuarios) return { success: false, message: 'Hoja Usuarios no encontrada' };
 
@@ -840,7 +840,7 @@ function restablecerContrasenaUsuarioPorAdmin(idUsuarioObjetivo, nuevaPassword, 
   }
 
   try {
-    const ss = SpreadsheetApp.openById(DRIVE_CONFIG.SPREADSHEET_ID);
+    const ss = obtenerSpreadsheet_();
     const hoja = ss.getSheetByName('Usuarios');
     if (!hoja) return { success: false, message: 'Hoja Usuarios no encontrada' };
 
@@ -900,7 +900,7 @@ function restablecerContrasenaUsuarioPorAdmin(idUsuarioObjetivo, nuevaPassword, 
 function asignarSuperadminsIniciales() {
   const correos = ['acabrales@oxohotel.com', 'ptecnologia@oxohotel.com'];
 
-  const ss = SpreadsheetApp.openById(DRIVE_CONFIG.SPREADSHEET_ID);
+  const ss = obtenerSpreadsheet_();
   const hoja = ss.getSheetByName('Usuarios');
   if (!hoja) { Logger.log('❌ Hoja Usuarios no encontrada'); return; }
 

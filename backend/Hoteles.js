@@ -4,7 +4,7 @@
  * Solo Superadministradores (rol 3) siempre tienen acceso a todos los hoteles.
  */
 function obtenerModulosConHoteles(idUsuarioOToken, idUsuarioFallback) {
-  const ss = SpreadsheetApp.openById(DRIVE_CONFIG.SPREADSHEET_ID);
+  const ss = obtenerSpreadsheet_();
   const hojaModulos = ss.getSheetByName('Modulos');
   const hojaHoteles = ss.getSheetByName('Hoteles');
   if (!hojaModulos || !hojaHoteles) return [];

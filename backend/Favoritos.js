@@ -14,7 +14,7 @@ function alternarFavorito(idUsuarioOToken, tipoRecurso, idRecurso) {
   const lock = LockService.getScriptLock();
   try {
     lock.waitLock(10000);
-    const ss = SpreadsheetApp.openById(DRIVE_CONFIG.SPREADSHEET_ID);
+    const ss = obtenerSpreadsheet_();
     const hoja = ss.getSheetByName('Favoritos');
     if (!hoja) return { success: false, message: 'Hoja Favoritos no encontrada' };
 
@@ -44,7 +44,7 @@ function alternarFavorito(idUsuarioOToken, tipoRecurso, idRecurso) {
 /** Devuelve solo las claves "Tipo|ID" — liviano, para hidratar el estado de las estrellas en cualquier vista. */
 function obtenerIdsFavoritosUsuario(idUsuario) {
   try {
-    const ss = SpreadsheetApp.openById(DRIVE_CONFIG.SPREADSHEET_ID);
+    const ss = obtenerSpreadsheet_();
     const hoja = ss.getSheetByName('Favoritos');
     if (!hoja) return { success: true, favoritos: [] };
 
@@ -67,7 +67,7 @@ function obtenerIdsFavoritosUsuario(idUsuario) {
 /** Lista completa y resuelta, para el apartado "Favoritos" — más reciente primero. */
 function obtenerFavoritosDetallados(idUsuario) {
   try {
-    const ss = SpreadsheetApp.openById(DRIVE_CONFIG.SPREADSHEET_ID);
+    const ss = obtenerSpreadsheet_();
     const hoja = ss.getSheetByName('Favoritos');
     if (!hoja) return { success: true, favoritos: [] };
 

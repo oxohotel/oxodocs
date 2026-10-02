@@ -104,19 +104,21 @@
     if (Array.isArray(guardados)) { renderizarWidgetRecientes_(guardados); revelarWidget('seccionRecientes'); }
 
     google.script.run
-      .withSuccessHandler(function (result) {
-        if (!result.success) { if (!Array.isArray(guardados)) mostrarErrorWidget_('seccionRecientes', 'No se pudieron cargar tus documentos recientes.'); return; }
-        const actividad = (result.actividad || []).slice(0, 4);
-        if (typeof guardarCacheVista_ === 'function') guardarCacheVista_('recientes', actividad);
-        renderizarWidgetRecientes_(actividad);
-        revelarWidget('seccionRecientes');
-      })
+      .withSuccessHandler(function (result) { aplicarWidgetRecientes_(result, Array.isArray(guardados)); })
       .withFailureHandler(function (error) {
         console.error('Error cargando widget de recientes:', error);
         if (Array.isArray(guardados)) return;
         mostrarErrorWidget_('seccionRecientes', 'No se pudo conectar con el servidor.');
       })
       .obtenerActividadReciente(user.ID_Usuario, 4);
+  }
+
+  function aplicarWidgetRecientes_(result, hayCopia) {
+    if (!result || !result.success) { if (!hayCopia) mostrarErrorWidget_('seccionRecientes', 'No se pudieron cargar tus documentos recientes.'); return; }
+    const actividad = (result.actividad || []).slice(0, 4);
+    if (typeof guardarCacheVista_ === 'function') guardarCacheVista_('recientes', actividad);
+    renderizarWidgetRecientes_(actividad);
+    revelarWidget('seccionRecientes');
   }
 
   function renderizarWidgetRecientes_(actividad) {

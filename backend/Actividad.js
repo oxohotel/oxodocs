@@ -16,7 +16,7 @@ function registrarActividad(idUsuarioOToken, tipoRecurso, idRecurso, tipoInterac
   const lock = LockService.getScriptLock();
   try {
     lock.waitLock(10000);
-    const ss = SpreadsheetApp.openById(DRIVE_CONFIG.SPREADSHEET_ID);
+    const ss = obtenerSpreadsheet_();
     const hoja = ss.getSheetByName('Actividad_Reciente');
     if (!hoja) return { success: false, message: 'Hoja Actividad_Reciente no encontrada' };
 
@@ -41,7 +41,7 @@ function registrarActividad(idUsuarioOToken, tipoRecurso, idRecurso, tipoInterac
 function obtenerActividadReciente(idUsuario, limite) {
   try {
     limite = limite || 15;
-    const ss = SpreadsheetApp.openById(DRIVE_CONFIG.SPREADSHEET_ID);
+    const ss = obtenerSpreadsheet_();
     const hoja = ss.getSheetByName('Actividad_Reciente');
     if (!hoja) return { success: true, actividad: [] };
 

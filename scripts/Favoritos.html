@@ -9,14 +9,16 @@
     if (!user) return;
 
     google.script.run
-      .withSuccessHandler(function (result) {
-        _favoritosCache = new Set((result && result.favoritos) || []);
-        document.querySelectorAll('.btn-favorito').forEach(aplicarEstadoFavoritoEnBoton_);
-      })
+      .withSuccessHandler(aplicarIdsFavoritos_)
       .withFailureHandler(function (error) {
         console.error('No se pudieron cargar los favoritos:', error);
       })
       .obtenerIdsFavoritosUsuario(user.ID_Usuario);
+  }
+
+  function aplicarIdsFavoritos_(result) {
+    _favoritosCache = new Set((result && result.favoritos) || []);
+    document.querySelectorAll('.btn-favorito').forEach(aplicarEstadoFavoritoEnBoton_);
   }
 
   function esFavoritoEnCache_(tipoRecurso, idRecurso) {
@@ -198,19 +200,21 @@
     if (Array.isArray(guardados)) { renderizarWidgetFavoritos_(guardados); revelarWidget('seccionFavoritos'); }
 
     google.script.run
-      .withSuccessHandler(function (result) {
-        if (!result.success) { if (!Array.isArray(guardados)) mostrarErrorWidget_('seccionFavoritos', 'No se pudieron cargar tus favoritos.'); return; }
-        const favoritos = (result.favoritos || []).slice(0, 4);
-        if (typeof guardarCacheVista_ === 'function') guardarCacheVista_('favoritos', favoritos);
-        renderizarWidgetFavoritos_(favoritos);
-        revelarWidget('seccionFavoritos');
-      })
+      .withSuccessHandler(function (result) { aplicarWidgetFavoritos_(result, Array.isArray(guardados)); })
       .withFailureHandler(function (error) {
         console.error('Error cargando widget de favoritos:', error);
         if (Array.isArray(guardados)) return;
         mostrarErrorWidget_('seccionFavoritos', 'No se pudo conectar con el servidor.');
       })
       .obtenerFavoritosDetallados(user.ID_Usuario);
+  }
+
+  function aplicarWidgetFavoritos_(result, hayCopia) {
+    if (!result || !result.success) { if (!hayCopia) mostrarErrorWidget_('seccionFavoritos', 'No se pudieron cargar tus favoritos.'); return; }
+    const favoritos = (result.favoritos || []).slice(0, 4);
+    if (typeof guardarCacheVista_ === 'function') guardarCacheVista_('favoritos', favoritos);
+    renderizarWidgetFavoritos_(favoritos);
+    revelarWidget('seccionFavoritos');
   }
 
   function renderizarWidgetFavoritos_(favoritos) {

@@ -9211,16 +9211,19 @@ button, input, select, textarea {
     if (Array.isArray(guardados)) renderizarHotelesSidebar(guardados);
 
     google.script.run
-      .withSuccessHandler(function (modulos) {
-        if (Array.isArray(modulos) && typeof guardarCacheVista_ === "function") guardarCacheVista_("hoteles", modulos);
-        renderizarHotelesSidebar(modulos);
-        if (typeof marcarInicioCargado_ === "function") marcarInicioCargado_();
-      })
+      .withSuccessHandler(aplicarModulosSidebar_)
       .withFailureHandler(function (error) {
         console.error("No se pudieron cargar los hoteles de la sidebar:", error);
         if (typeof marcarInicioCargado_ === "function") marcarInicioCargado_();
       })
       .obtenerModulosConHoteles(token, idUsuario);
+  }
+
+  /** Guarda la copia para la próxima visita y pinta el menú con lo que respondió el servidor. */
+  function aplicarModulosSidebar_(modulos) {
+    if (Array.isArray(modulos) && typeof guardarCacheVista_ === "function") guardarCacheVista_("hoteles", modulos);
+    renderizarHotelesSidebar(modulos);
+    if (typeof marcarInicioCargado_ === "function") marcarInicioCargado_();
   }
 
   // Última lista de módulos/hoteles recibida: la usa el panel "Gestionar hoteles" (scripts/GestionHoteles.html).
@@ -9551,11 +9554,48 @@ button, input, select, textarea {
     // del login, si se acaba de iniciar sesión) satura momentáneamente el Web App de Apps
     // Script y alguna puede rebotar con un error de red/CORS sin dejar rastro en "Ejecuciones"
     // (ni siquiera llega a correr). Un pequeño desfase evita la ráfaga simultánea.
-    cargarHotelesSidebar();
-    setTimeout(function () { if (typeof refrescarCacheFavoritos === "function") refrescarCacheFavoritos(); }, 120);
-    setTimeout(function () { if (typeof cargarWidgetRecientes === "function") cargarWidgetRecientes(); }, 240);
-    setTimeout(function () { if (typeof cargarWidgetFavoritos === "function") cargarWidgetFavoritos(); }, 360);
+    cargarDatosInicio_();
     inicializarAtajosWidgets();
+  }
+
+  /** Pinta de inmediato lo guardado de la visita anterior y pide TODO el Inicio al servidor en una sola llamada
+   *  (obtenerDatosInicio). Si el servidor no la tiene todavía o falla, cae a las cuatro llamadas de siempre; y si solo
+   *  falló una de las partes, se reintenta únicamente esa. */
+  function cargarDatosInicio_() {
+    const sesion = getCurrentUserSession();
+    const token = getCurrentUserToken();
+    const idUsuario = sesion && (sesion.ID_Usuario || sesion.idUsuario) ? (sesion.ID_Usuario || sesion.idUsuario) : null;
+
+    function respaldo_() {
+      cargarHotelesSidebar();
+      setTimeout(function () { if (typeof refrescarCacheFavoritos === "function") refrescarCacheFavoritos(); }, 120);
+      setTimeout(function () { if (typeof cargarWidgetRecientes === "function") cargarWidgetRecientes(); }, 240);
+      setTimeout(function () { if (typeof cargarWidgetFavoritos === "function") cargarWidgetFavoritos(); }, 360);
+    }
+
+    if (!idUsuario) { respaldo_(); return; }
+
+    // Copias guardadas: se muestran ya, mientras llega la respuesta del servidor
+    const modulosGuardados = leerCacheVista_("hoteles");
+    if (Array.isArray(modulosGuardados)) renderizarHotelesSidebar(modulosGuardados);
+    const recientesGuardados = leerCacheVista_("recientes");
+    if (Array.isArray(recientesGuardados)) { renderizarWidgetRecientes_(recientesGuardados); revelarWidget("seccionRecientes"); }
+    const favoritosGuardados = leerCacheVista_("favoritos");
+    if (Array.isArray(favoritosGuardados)) { renderizarWidgetFavoritos_(favoritosGuardados); revelarWidget("seccionFavoritos"); }
+
+    google.script.run
+      .withSuccessHandler(function (datos) {
+        if (!datos || typeof datos !== "object") { respaldo_(); return; }
+        if (Array.isArray(datos.modulos)) aplicarModulosSidebar_(datos.modulos); else cargarHotelesSidebar();
+        if (datos.idsFavoritos) aplicarIdsFavoritos_(datos.idsFavoritos); else refrescarCacheFavoritos();
+        if (datos.actividad) aplicarWidgetRecientes_(datos.actividad, Array.isArray(recientesGuardados)); else cargarWidgetRecientes();
+        if (datos.favoritos) aplicarWidgetFavoritos_(datos.favoritos, Array.isArray(favoritosGuardados)); else cargarWidgetFavoritos();
+      })
+      .withFailureHandler(function (error) {
+        console.warn("obtenerDatosInicio no disponible, se usan las llamadas individuales:", error);
+        respaldo_();
+      })
+      .obtenerDatosInicio(token, idUsuario);
   }
 
   /** Los "Ver todos" de los widgets del dashboard abren el apartado completo correspondiente. */
@@ -12371,14 +12411,16 @@ function mostrarModalSinPermisos_(razon) {
     if (!user) return;
 
     google.script.run
-      .withSuccessHandler(function (result) {
-        _favoritosCache = new Set((result && result.favoritos) || []);
-        document.querySelectorAll('.btn-favorito').forEach(aplicarEstadoFavoritoEnBoton_);
-      })
+      .withSuccessHandler(aplicarIdsFavoritos_)
       .withFailureHandler(function (error) {
         console.error('No se pudieron cargar los favoritos:', error);
       })
       .obtenerIdsFavoritosUsuario(user.ID_Usuario);
+  }
+
+  function aplicarIdsFavoritos_(result) {
+    _favoritosCache = new Set((result && result.favoritos) || []);
+    document.querySelectorAll('.btn-favorito').forEach(aplicarEstadoFavoritoEnBoton_);
   }
 
   function esFavoritoEnCache_(tipoRecurso, idRecurso) {
@@ -12560,19 +12602,21 @@ function mostrarModalSinPermisos_(razon) {
     if (Array.isArray(guardados)) { renderizarWidgetFavoritos_(guardados); revelarWidget('seccionFavoritos'); }
 
     google.script.run
-      .withSuccessHandler(function (result) {
-        if (!result.success) { if (!Array.isArray(guardados)) mostrarErrorWidget_('seccionFavoritos', 'No se pudieron cargar tus favoritos.'); return; }
-        const favoritos = (result.favoritos || []).slice(0, 4);
-        if (typeof guardarCacheVista_ === 'function') guardarCacheVista_('favoritos', favoritos);
-        renderizarWidgetFavoritos_(favoritos);
-        revelarWidget('seccionFavoritos');
-      })
+      .withSuccessHandler(function (result) { aplicarWidgetFavoritos_(result, Array.isArray(guardados)); })
       .withFailureHandler(function (error) {
         console.error('Error cargando widget de favoritos:', error);
         if (Array.isArray(guardados)) return;
         mostrarErrorWidget_('seccionFavoritos', 'No se pudo conectar con el servidor.');
       })
       .obtenerFavoritosDetallados(user.ID_Usuario);
+  }
+
+  function aplicarWidgetFavoritos_(result, hayCopia) {
+    if (!result || !result.success) { if (!hayCopia) mostrarErrorWidget_('seccionFavoritos', 'No se pudieron cargar tus favoritos.'); return; }
+    const favoritos = (result.favoritos || []).slice(0, 4);
+    if (typeof guardarCacheVista_ === 'function') guardarCacheVista_('favoritos', favoritos);
+    renderizarWidgetFavoritos_(favoritos);
+    revelarWidget('seccionFavoritos');
   }
 
   function renderizarWidgetFavoritos_(favoritos) {
@@ -12695,19 +12739,21 @@ function mostrarModalSinPermisos_(razon) {
     if (Array.isArray(guardados)) { renderizarWidgetRecientes_(guardados); revelarWidget('seccionRecientes'); }
 
     google.script.run
-      .withSuccessHandler(function (result) {
-        if (!result.success) { if (!Array.isArray(guardados)) mostrarErrorWidget_('seccionRecientes', 'No se pudieron cargar tus documentos recientes.'); return; }
-        const actividad = (result.actividad || []).slice(0, 4);
-        if (typeof guardarCacheVista_ === 'function') guardarCacheVista_('recientes', actividad);
-        renderizarWidgetRecientes_(actividad);
-        revelarWidget('seccionRecientes');
-      })
+      .withSuccessHandler(function (result) { aplicarWidgetRecientes_(result, Array.isArray(guardados)); })
       .withFailureHandler(function (error) {
         console.error('Error cargando widget de recientes:', error);
         if (Array.isArray(guardados)) return;
         mostrarErrorWidget_('seccionRecientes', 'No se pudo conectar con el servidor.');
       })
       .obtenerActividadReciente(user.ID_Usuario, 4);
+  }
+
+  function aplicarWidgetRecientes_(result, hayCopia) {
+    if (!result || !result.success) { if (!hayCopia) mostrarErrorWidget_('seccionRecientes', 'No se pudieron cargar tus documentos recientes.'); return; }
+    const actividad = (result.actividad || []).slice(0, 4);
+    if (typeof guardarCacheVista_ === 'function') guardarCacheVista_('recientes', actividad);
+    renderizarWidgetRecientes_(actividad);
+    revelarWidget('seccionRecientes');
   }
 
   function renderizarWidgetRecientes_(actividad) {

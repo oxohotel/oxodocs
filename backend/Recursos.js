@@ -42,7 +42,7 @@ function obtenerIndiceHoja_(ss, nombreHoja, columnaClave) {
 }
 
 function resolverRecurso_(tipoRecurso, idRecurso) {
-  const ss = SpreadsheetApp.openById(DRIVE_CONFIG.SPREADSHEET_ID);
+  const ss = obtenerSpreadsheet_();
 
   if (tipoRecurso === 'Hotel') return resolverHotel_(ss, idRecurso);
   if (tipoRecurso === 'Carpeta') return resolverCarpeta_(ss, idRecurso);

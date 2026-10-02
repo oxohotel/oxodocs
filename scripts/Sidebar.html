@@ -202,16 +202,19 @@
     if (Array.isArray(guardados)) renderizarHotelesSidebar(guardados);
 
     google.script.run
-      .withSuccessHandler(function (modulos) {
-        if (Array.isArray(modulos) && typeof guardarCacheVista_ === "function") guardarCacheVista_("hoteles", modulos);
-        renderizarHotelesSidebar(modulos);
-        if (typeof marcarInicioCargado_ === "function") marcarInicioCargado_();
-      })
+      .withSuccessHandler(aplicarModulosSidebar_)
       .withFailureHandler(function (error) {
         console.error("No se pudieron cargar los hoteles de la sidebar:", error);
         if (typeof marcarInicioCargado_ === "function") marcarInicioCargado_();
       })
       .obtenerModulosConHoteles(token, idUsuario);
+  }
+
+  /** Guarda la copia para la próxima visita y pinta el menú con lo que respondió el servidor. */
+  function aplicarModulosSidebar_(modulos) {
+    if (Array.isArray(modulos) && typeof guardarCacheVista_ === "function") guardarCacheVista_("hoteles", modulos);
+    renderizarHotelesSidebar(modulos);
+    if (typeof marcarInicioCargado_ === "function") marcarInicioCargado_();
   }
 
   // Última lista de módulos/hoteles recibida: la usa el panel "Gestionar hoteles" (scripts/GestionHoteles.html).
