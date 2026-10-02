@@ -404,40 +404,12 @@ function obtenerUsuariosParaGestion(idUsuarioSolicitanteOToken, idUsuarioFallbac
       return norm === 'rol' || norm === 'idrol';
     });
 
-    // Obtener hoteles del usuario solicitante si es Administrador
-    let hotelesDelSolicitante = null;
-    let esAdminConFiltro = false;
+    // Alcance del solicitante (regla única en backend/AlcanceAdmin.js): un Administrador solo ve a quienes
+    // comparten alguna de sus propiedades; nunca a superadmins ni a cuentas con TODOS.
     const solicitante = resolverUsuarioSolicitante_(idUsuarioSolicitanteOToken, idUsuarioFallback);
-
-    if (solicitante && solicitante.idUsuario) {
-      const rolSolicitante = obtenerRolDeUsuario_(solicitante.idUsuario);
-      const infoRolSolicitante = obtenerInfoRol_(rolSolicitante);
-      const esSuperadmin = (infoRolSolicitante && String(infoRolSolicitante.id) === '3');
-
-      // Si es Administrador (rol 2), solo ve usuarios de las propiedades que administra
-      if (!esSuperadmin && infoRolSolicitante && String(infoRolSolicitante.id) === '2') {
-        esAdminConFiltro = true;
-        if (idxHoteles !== -1 && idxIdU !== -1) {
-          for (let i = 1; i < datos.length; i++) {
-            if (String(datos[i][idxIdU]).trim() === String(solicitante.idUsuario).trim()) {
-              const val = String(datos[i][idxHoteles] || '').trim();
-              if (val === '*' || val.toUpperCase() === 'TODOS') {
-                esAdminConFiltro = false; // Administra todas las propiedades
-              } else if (val) {
-                hotelesDelSolicitante = new Set(
-                  val.split(',')
-                    .map(function (s) { return String(s).trim(); })
-                    .filter(function (s) { return s.length > 0; })
-                );
-              } else {
-                hotelesDelSolicitante = new Set();
-              }
-              break;
-            }
-          }
-        }
-      }
-    }
+    const alcance = (solicitante && solicitante.idUsuario)
+      ? calcularAlcanceGestion_(leerUsuariosParaAlcance_(ss), solicitante.idUsuario)
+      : null;
 
     const usuarios = [];
     for (let i = 1; i < datos.length; i++) {
@@ -448,22 +420,8 @@ function obtenerUsuariosParaGestion(idUsuarioSolicitanteOToken, idUsuarioFallbac
       const infoRol = obtenerInfoRol_(rawRol);
       const hotelesUsuario = idxHoteles !== -1 ? String(datos[i][idxHoteles] || '').trim() : '';
 
-      // Si el solicitante es Administrador con hoteles asignados, filtrar usuarios:
-      if (esAdminConFiltro) {
-        // Siempre se ve a sí mismo
-        if (idFila !== String(solicitante.idUsuario).trim()) {
-          if (!hotelesDelSolicitante || hotelesDelSolicitante.size === 0) {
-            continue; // Si el administrador no tiene hoteles asignados, no ve otros usuarios
-          }
-          const usuarioHoteles = hotelesUsuario.split(',').map(function (s) { return String(s).trim(); }).filter(Boolean);
-          const tieneHotelesComunes = usuarioHoteles.includes('*') ||
-            usuarioHoteles.some(function (h) { return h.toUpperCase() === 'TODOS'; }) ||
-            usuarioHoteles.some(function (h) { return hotelesDelSolicitante.has(h); });
-
-          if (!tieneHotelesComunes) {
-            continue; // Omitir usuario si no comparte propiedades con este administrador
-          }
-        }
+      if (alcance && !usuarioEnAlcance_(alcance, { id: idFila, rolId: String(infoRol.id), hoteles: hotelesUsuario })) {
+        continue;
       }
 
       // Resolver nombres de hoteles a partir de los IDs
@@ -537,6 +495,9 @@ function cambiarEstadoUsuario(idUsuarioObjetivo, nuevoEstado, idUsuarioSolicitan
     const ss = SpreadsheetApp.openById(DRIVE_CONFIG.SPREADSHEET_ID);
     const hoja = ss.getSheetByName('Usuarios');
     if (!hoja) return { success: false, message: 'Hoja Usuarios no encontrada' };
+
+    const sinAlcance = verificarAlcanceSobreUsuario_(ss, solicitante.idUsuario, idUsuarioObjetivo);
+    if (sinAlcance) return { success: false, message: sinAlcance };
 
     const datos = hoja.getDataRange().getValues();
     const encabezados = datos[0];
@@ -679,6 +640,13 @@ function asignarHotelesAUsuario(idUsuarioObjetivo, arrayHotelesIds, idUsuarioSol
     const hoja = ss.getSheetByName('Usuarios');
     if (!hoja) return { success: false, message: 'Hoja Usuarios no encontrada' };
 
+    const sinAlcance = verificarAlcanceSobreUsuario_(ss, solicitante.idUsuario, idUsuarioObjetivo);
+    if (sinAlcance) return { success: false, message: sinAlcance };
+
+    // Un administrador con hoteles asignados no puede dar más de lo que tiene ("TODOS" = todos los suyos)
+    const asignables = hotelesAsignablesPorSolicitante_(ss, solicitante.idUsuario, arrayHotelesIds);
+    if (!asignables.ok) return { success: false, message: asignables.message };
+
     let idxHoteles = obtenerOAgregarColumna_(hoja, 'Hoteles_Permitidos');
     const datos = hoja.getDataRange().getValues();
     const encabezados = datos[0];
@@ -704,7 +672,7 @@ function asignarHotelesAUsuario(idUsuarioObjetivo, arrayHotelesIds, idUsuarioSol
 
     if (filaObjetivo === -1) return { success: false, message: 'Usuario no encontrado' };
 
-    const valorHoteles = Array.isArray(arrayHotelesIds) ? arrayHotelesIds.join(',') : String(arrayHotelesIds || '');
+    const valorHoteles = asignables.valor;
     hoja.getRange(filaObjetivo, idxHoteles + 1).setValue(valorHoteles);
 
     const emailObjetivo = datos[filaObjetivo - 1][colEmail];
@@ -738,7 +706,7 @@ function crearUsuarioPorAdmin(datos, idUsuarioSolicitanteOToken, idUsuarioFallba
   let rolId = parseInt(datos.rolId || datos.rol || 1, 10);
   if (isNaN(rolId) || rolId < 1) rolId = 1;
   const estado = datos.estado ? String(datos.estado).trim() : 'Activo';
-  const hotelesPermitidos = datos.hoteles ? String(datos.hoteles).trim() : 'TODOS';
+  let hotelesPermitidos = datos.hoteles ? String(datos.hoteles).trim() : 'TODOS';
 
   const rolSolicitante = obtenerRolDeUsuario_(solicitante.idUsuario);
   const infoRolSolicitante = obtenerInfoRol_(rolSolicitante);
@@ -760,6 +728,11 @@ function crearUsuarioPorAdmin(datos, idUsuarioSolicitanteOToken, idUsuarioFallba
     const ss = SpreadsheetApp.openById(DRIVE_CONFIG.SPREADSHEET_ID);
     const hojaUsuarios = ss.getSheetByName('Usuarios');
     if (!hojaUsuarios) return { success: false, message: 'Hoja Usuarios no encontrada' };
+
+    // Un administrador con hoteles asignados solo puede dar acceso a hoteles de su propiedad
+    const asignables = hotelesAsignablesPorSolicitante_(ss, solicitante.idUsuario, hotelesPermitidos);
+    if (!asignables.ok) return { success: false, message: asignables.message };
+    hotelesPermitidos = asignables.valor;
 
     const datosUsuarios = hojaUsuarios.getDataRange().getValues();
     const encabezados = datosUsuarios[0];
@@ -870,6 +843,9 @@ function restablecerContrasenaUsuarioPorAdmin(idUsuarioObjetivo, nuevaPassword, 
     const ss = SpreadsheetApp.openById(DRIVE_CONFIG.SPREADSHEET_ID);
     const hoja = ss.getSheetByName('Usuarios');
     if (!hoja) return { success: false, message: 'Hoja Usuarios no encontrada' };
+
+    const sinAlcance = verificarAlcanceSobreUsuario_(ss, solicitante.idUsuario, idUsuarioObjetivo);
+    if (sinAlcance) return { success: false, message: sinAlcance };
 
     const datos = hoja.getDataRange().getValues();
     const encabezados = datos[0];

@@ -39,12 +39,38 @@ function obtenerRegistrosAuditoria(idUsuarioSolicitante, limite, idUsuarioFallba
       }
     }
 
+    // Un Administrador (rol 2) solo ve la actividad de su alcance (backend/AlcanceAdmin.js): lo que hicieron él
+    // y los usuarios que puede ver, y también lo que otros (p. ej. un superadmin) hicieron sobre ellos, que se
+    // detecta por el correo del usuario en la descripción. El Superadministrador ve todo.
+    let filtroAlcance = null;
+    const solicitante = resolverUsuarioSolicitante_(idUsuarioSolicitante, idUsuarioFallback);
+    if (solicitante && solicitante.idUsuario) {
+      const usuariosAlcance = leerUsuariosParaAlcance_(ss);
+      const alcance = calcularAlcanceGestion_(usuariosAlcance, solicitante.idUsuario);
+      if (!alcance.esSuperadmin) {
+        const visibles = usuariosAlcance.filter(function (u) { return usuarioEnAlcance_(alcance, u); });
+        filtroAlcance = {
+          ids: new Set(visibles.map(function (u) { return u.id; })),
+          emails: visibles.map(function (u) { return u.email; }).filter(Boolean)
+        };
+      }
+    }
+
     const registros = [];
     for (let i = 1; i < datos.length; i++) {
       const idUsuarioFila = String(datos[i][idx['ID_Usuario']] || '');
       const usuarioInfo = mapaUsuarios[idUsuarioFila];
       const emailFila = datos[i][idx['Email_Usuario']];
       const fechaHora = datos[i][idx['Fecha_Hora']];
+
+      if (filtroAlcance) {
+        const emailActor = String(emailFila || (usuarioInfo && usuarioInfo.email) || '').trim().toLowerCase();
+        const descripcion = String(datos[i][idx['Descripcion']] || '').toLowerCase();
+        const esDelAlcance = filtroAlcance.ids.has(idUsuarioFila) ||
+          (emailActor && filtroAlcance.emails.indexOf(emailActor) !== -1) ||
+          filtroAlcance.emails.some(function (e) { return textoMencionaCorreo_(descripcion, e); });
+        if (!esDelAlcance) continue;
+      }
 
       registros.push({
         id: datos[i][idx['ID_Auditoria']],
