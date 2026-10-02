@@ -8197,6 +8197,7 @@ button, input, select, textarea {
     }
 
     removeFromLocalStorage("currentUser");
+    if (typeof limpiarCachesVista_ === "function") limpiarCachesVista_();
 
     // Limpiar estado del formulario
     const loginForm = document.getElementById("loginForm");
@@ -8784,9 +8785,11 @@ button, input, select, textarea {
 
     if (result.success) {
       saveUserSession(result.user);
-      logLoginAction(result.user.ID_Usuario, email);
+      // La auditoría espera a que el Inicio termine de cargar para no frenar las lecturas (ver alCargarInicio_).
+      const idLogin = result.user.ID_Usuario;
+      alCargarInicio_(function () { logLoginAction(idLogin, email); });
 
-      // Esperar 2.5 segundos con el loading visible, luego transicionar
+      // Breve pausa con el loading visible para que la transición no sea brusca, luego pasar al Inicio
       setTimeout(() => {
         // Ocultamos vistaAuth inmediatamente para que no aparezca debajo del loading
         const vistaAuth = document.getElementById("vistaAuth");
@@ -8800,7 +8803,7 @@ button, input, select, textarea {
           ocultarLoadingScreen();
           showNotification(`¡Bienvenido ${result.user.Nombre_Completo}!`, "success", 2000);
         }, 200);
-      }, 2500);
+      }, 400);
     } else {
       ocultarLoadingScreen();
       showError("loginEmail", "loginEmailError", result.message);
@@ -9204,10 +9207,18 @@ button, input, select, textarea {
     const sesion = typeof getCurrentUserSession === 'function' ? getCurrentUserSession() : null;
     const token = typeof getCurrentUserToken === 'function' ? getCurrentUserToken() : null;
     const idUsuario = sesion && (sesion.ID_Usuario || sesion.idUsuario) ? (sesion.ID_Usuario || sesion.idUsuario) : null;
+    const guardados = typeof leerCacheVista_ === "function" ? leerCacheVista_("hoteles") : null;
+    if (Array.isArray(guardados)) renderizarHotelesSidebar(guardados);
+
     google.script.run
-      .withSuccessHandler(renderizarHotelesSidebar)
+      .withSuccessHandler(function (modulos) {
+        if (Array.isArray(modulos) && typeof guardarCacheVista_ === "function") guardarCacheVista_("hoteles", modulos);
+        renderizarHotelesSidebar(modulos);
+        if (typeof marcarInicioCargado_ === "function") marcarInicioCargado_();
+      })
       .withFailureHandler(function (error) {
         console.error("No se pudieron cargar los hoteles de la sidebar:", error);
+        if (typeof marcarInicioCargado_ === "function") marcarInicioCargado_();
       })
       .obtenerModulosConHoteles(token, idUsuario);
   }
@@ -9470,7 +9481,58 @@ button, input, select, textarea {
 </script>
 
   <script>
+  // ==================== Caché de vista (mostrar al instante, refrescar por detrás) ====================
+  // Sidebar y widgets del Inicio se pintan de inmediato con la última respuesta guardada de ESTA persona y se
+  // actualizan cuando llega la del servidor. Es solo para mostrar rápido: los permisos siempre los aplica el
+  // servidor. Se borra al cerrar sesión (ver logoutUser).
+  const PREFIJO_CACHE_VISTA = "oxoCache:";
+
+  function claveCacheVista_(nombre) {
+    const s = getCurrentUserSession();
+    const id = s && (s.ID_Usuario || s.idUsuario);
+    return id ? PREFIJO_CACHE_VISTA + nombre + ":" + id : null;
+  }
+
+  function leerCacheVista_(nombre) {
+    try {
+      const k = claveCacheVista_(nombre);
+      return k ? JSON.parse(localStorage.getItem(k)) : null;
+    } catch (e) { return null; }
+  }
+
+  function guardarCacheVista_(nombre, valor) {
+    try {
+      const k = claveCacheVista_(nombre);
+      if (k) localStorage.setItem(k, JSON.stringify(valor));
+    } catch (e) {}
+  }
+
+  function limpiarCachesVista_() {
+    try {
+      Object.keys(localStorage).filter(function (k) { return k.indexOf(PREFIJO_CACHE_VISTA) === 0; })
+        .forEach(function (k) { localStorage.removeItem(k); });
+    } catch (e) {}
+  }
+
+  // Tareas de fondo (como la auditoría del login) esperan a que el Inicio termine de cargar, para no competir
+  // con las lecturas que la persona está esperando; máximo 8 s por si la carga falla.
+  var _inicioCargado = false;
+  var _tareasTrasInicio = [];
+
+  function alCargarInicio_(fn) {
+    if (_inicioCargado) { fn(); return; }
+    _tareasTrasInicio.push(fn);
+    setTimeout(marcarInicioCargado_, 8000);
+  }
+
+  function marcarInicioCargado_() {
+    _inicioCargado = true;
+    const pendientes = _tareasTrasInicio; _tareasTrasInicio = [];
+    pendientes.forEach(function (fn) { try { fn(); } catch (e) {} });
+  }
+
   function iniciarVistaHome() {
+    _inicioCargado = false;
     const user = getCurrentUserSession();
     const saludoEl = document.getElementById("homeSaludo");
     const avatarEl = document.getElementById("avatarInicial");
@@ -12494,14 +12556,20 @@ function mostrarModalSinPermisos_(razon) {
     const user = getCurrentUserSession();
     if (!user) return;
 
+    const guardados = typeof leerCacheVista_ === 'function' ? leerCacheVista_('favoritos') : null;
+    if (Array.isArray(guardados)) { renderizarWidgetFavoritos_(guardados); revelarWidget('seccionFavoritos'); }
+
     google.script.run
       .withSuccessHandler(function (result) {
-        if (!result.success) { mostrarErrorWidget_('seccionFavoritos', 'No se pudieron cargar tus favoritos.'); return; }
-        renderizarWidgetFavoritos_((result.favoritos || []).slice(0, 4));
+        if (!result.success) { if (!Array.isArray(guardados)) mostrarErrorWidget_('seccionFavoritos', 'No se pudieron cargar tus favoritos.'); return; }
+        const favoritos = (result.favoritos || []).slice(0, 4);
+        if (typeof guardarCacheVista_ === 'function') guardarCacheVista_('favoritos', favoritos);
+        renderizarWidgetFavoritos_(favoritos);
         revelarWidget('seccionFavoritos');
       })
       .withFailureHandler(function (error) {
         console.error('Error cargando widget de favoritos:', error);
+        if (Array.isArray(guardados)) return;
         mostrarErrorWidget_('seccionFavoritos', 'No se pudo conectar con el servidor.');
       })
       .obtenerFavoritosDetallados(user.ID_Usuario);
@@ -12623,14 +12691,20 @@ function mostrarModalSinPermisos_(razon) {
     const user = getCurrentUserSession();
     if (!user) return;
 
+    const guardados = typeof leerCacheVista_ === 'function' ? leerCacheVista_('recientes') : null;
+    if (Array.isArray(guardados)) { renderizarWidgetRecientes_(guardados); revelarWidget('seccionRecientes'); }
+
     google.script.run
       .withSuccessHandler(function (result) {
-        if (!result.success) { mostrarErrorWidget_('seccionRecientes', 'No se pudieron cargar tus documentos recientes.'); return; }
-        renderizarWidgetRecientes_((result.actividad || []).slice(0, 4));
+        if (!result.success) { if (!Array.isArray(guardados)) mostrarErrorWidget_('seccionRecientes', 'No se pudieron cargar tus documentos recientes.'); return; }
+        const actividad = (result.actividad || []).slice(0, 4);
+        if (typeof guardarCacheVista_ === 'function') guardarCacheVista_('recientes', actividad);
+        renderizarWidgetRecientes_(actividad);
         revelarWidget('seccionRecientes');
       })
       .withFailureHandler(function (error) {
         console.error('Error cargando widget de recientes:', error);
+        if (Array.isArray(guardados)) return;
         mostrarErrorWidget_('seccionRecientes', 'No se pudo conectar con el servidor.');
       })
       .obtenerActividadReciente(user.ID_Usuario, 4);

@@ -194,14 +194,20 @@
     const user = getCurrentUserSession();
     if (!user) return;
 
+    const guardados = typeof leerCacheVista_ === 'function' ? leerCacheVista_('favoritos') : null;
+    if (Array.isArray(guardados)) { renderizarWidgetFavoritos_(guardados); revelarWidget('seccionFavoritos'); }
+
     google.script.run
       .withSuccessHandler(function (result) {
-        if (!result.success) { mostrarErrorWidget_('seccionFavoritos', 'No se pudieron cargar tus favoritos.'); return; }
-        renderizarWidgetFavoritos_((result.favoritos || []).slice(0, 4));
+        if (!result.success) { if (!Array.isArray(guardados)) mostrarErrorWidget_('seccionFavoritos', 'No se pudieron cargar tus favoritos.'); return; }
+        const favoritos = (result.favoritos || []).slice(0, 4);
+        if (typeof guardarCacheVista_ === 'function') guardarCacheVista_('favoritos', favoritos);
+        renderizarWidgetFavoritos_(favoritos);
         revelarWidget('seccionFavoritos');
       })
       .withFailureHandler(function (error) {
         console.error('Error cargando widget de favoritos:', error);
+        if (Array.isArray(guardados)) return;
         mostrarErrorWidget_('seccionFavoritos', 'No se pudo conectar con el servidor.');
       })
       .obtenerFavoritosDetallados(user.ID_Usuario);

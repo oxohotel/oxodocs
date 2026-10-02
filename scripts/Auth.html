@@ -103,6 +103,7 @@
     }
 
     removeFromLocalStorage("currentUser");
+    if (typeof limpiarCachesVista_ === "function") limpiarCachesVista_();
 
     // Limpiar estado del formulario
     const loginForm = document.getElementById("loginForm");

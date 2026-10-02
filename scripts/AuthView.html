@@ -409,9 +409,11 @@
 
     if (result.success) {
       saveUserSession(result.user);
-      logLoginAction(result.user.ID_Usuario, email);
+      // La auditoría espera a que el Inicio termine de cargar para no frenar las lecturas (ver alCargarInicio_).
+      const idLogin = result.user.ID_Usuario;
+      alCargarInicio_(function () { logLoginAction(idLogin, email); });
 
-      // Esperar 2.5 segundos con el loading visible, luego transicionar
+      // Breve pausa con el loading visible para que la transición no sea brusca, luego pasar al Inicio
       setTimeout(() => {
         // Ocultamos vistaAuth inmediatamente para que no aparezca debajo del loading
         const vistaAuth = document.getElementById("vistaAuth");
@@ -425,7 +427,7 @@
           ocultarLoadingScreen();
           showNotification(`¡Bienvenido ${result.user.Nombre_Completo}!`, "success", 2000);
         }, 200);
-      }, 2500);
+      }, 400);
     } else {
       ocultarLoadingScreen();
       showError("loginEmail", "loginEmailError", result.message);

@@ -198,10 +198,18 @@
     const sesion = typeof getCurrentUserSession === 'function' ? getCurrentUserSession() : null;
     const token = typeof getCurrentUserToken === 'function' ? getCurrentUserToken() : null;
     const idUsuario = sesion && (sesion.ID_Usuario || sesion.idUsuario) ? (sesion.ID_Usuario || sesion.idUsuario) : null;
+    const guardados = typeof leerCacheVista_ === "function" ? leerCacheVista_("hoteles") : null;
+    if (Array.isArray(guardados)) renderizarHotelesSidebar(guardados);
+
     google.script.run
-      .withSuccessHandler(renderizarHotelesSidebar)
+      .withSuccessHandler(function (modulos) {
+        if (Array.isArray(modulos) && typeof guardarCacheVista_ === "function") guardarCacheVista_("hoteles", modulos);
+        renderizarHotelesSidebar(modulos);
+        if (typeof marcarInicioCargado_ === "function") marcarInicioCargado_();
+      })
       .withFailureHandler(function (error) {
         console.error("No se pudieron cargar los hoteles de la sidebar:", error);
+        if (typeof marcarInicioCargado_ === "function") marcarInicioCargado_();
       })
       .obtenerModulosConHoteles(token, idUsuario);
   }

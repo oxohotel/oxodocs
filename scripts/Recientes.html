@@ -100,14 +100,20 @@
     const user = getCurrentUserSession();
     if (!user) return;
 
+    const guardados = typeof leerCacheVista_ === 'function' ? leerCacheVista_('recientes') : null;
+    if (Array.isArray(guardados)) { renderizarWidgetRecientes_(guardados); revelarWidget('seccionRecientes'); }
+
     google.script.run
       .withSuccessHandler(function (result) {
-        if (!result.success) { mostrarErrorWidget_('seccionRecientes', 'No se pudieron cargar tus documentos recientes.'); return; }
-        renderizarWidgetRecientes_((result.actividad || []).slice(0, 4));
+        if (!result.success) { if (!Array.isArray(guardados)) mostrarErrorWidget_('seccionRecientes', 'No se pudieron cargar tus documentos recientes.'); return; }
+        const actividad = (result.actividad || []).slice(0, 4);
+        if (typeof guardarCacheVista_ === 'function') guardarCacheVista_('recientes', actividad);
+        renderizarWidgetRecientes_(actividad);
         revelarWidget('seccionRecientes');
       })
       .withFailureHandler(function (error) {
         console.error('Error cargando widget de recientes:', error);
+        if (Array.isArray(guardados)) return;
         mostrarErrorWidget_('seccionRecientes', 'No se pudo conectar con el servidor.');
       })
       .obtenerActividadReciente(user.ID_Usuario, 4);
