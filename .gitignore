@@ -2,3 +2,6 @@
 .claude/
 desktop.ini
 node_modules/
+
+# Contiene datos personales y hashes de contraseña: nunca debe subirse al repositorio (es público)
+backend/ImportarUsuarios.js
