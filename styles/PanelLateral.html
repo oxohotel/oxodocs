@@ -103,4 +103,8 @@
     width: 100vw;
   }
 }
+
+/* Sacudida breve: avisa que el panel no se cierra con Escape/clic fuera (ver _ignorarCierreAccidental). */
+.panel-lateral.sacudir { animation: panel-lateral-sacudir 0.3s ease; }
+@keyframes panel-lateral-sacudir { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-8px); } 75% { transform: translateX(8px); } }
 </style>

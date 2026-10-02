@@ -11,7 +11,7 @@
   var _panelLateralNodoPadreOriginal = null;
   var _panelLateralNodoSiguienteOriginal = null;
   var _panelLateralOnClose = null;
-  // Mensaje de un panel "protegido": cerrarlo (X, clic fuera, Escape) pide confirmación antes de descartarlo.
+  // Mensaje de un panel "protegido": cerrarlo (X) pide confirmación antes de descartarlo; Escape y clic fuera se ignoran.
   var _panelLateralProtegido = null;
 
   function _obtenerPanelLateral() {
@@ -34,17 +34,25 @@
     document.body.appendChild(overlay);
 
     overlay.addEventListener('click', function (e) {
-      if (e.target === overlay) cerrarPanelLateral();
+      if (e.target === overlay && !_ignorarCierreAccidental()) cerrarPanelLateral();
     });
     document.getElementById('btnCerrarPanelLateral').addEventListener('click', cerrarPanelLateral);
     window.addEventListener('beforeunload', function (e) {
       if (_panelLateralProtegido && overlay.classList.contains('active')) { e.preventDefault(); e.returnValue = ''; }
     });
     document.addEventListener('keydown', function (e) {
-      if (e.key === 'Escape' && overlay.classList.contains('active')) cerrarPanelLateral();
+      if (e.key === 'Escape' && overlay.classList.contains('active') && !_ignorarCierreAccidental()) cerrarPanelLateral();
     });
 
     return overlay;
+  }
+
+  /** En un panel protegido, Escape y el clic fuera (los cierres accidentales) no hacen nada: solo la X, con confirmación. */
+  function _ignorarCierreAccidental() {
+    if (!_panelLateralProtegido) return false;
+    const panel = document.getElementById('panelLateral');
+    if (panel) { panel.classList.remove('sacudir'); void panel.offsetWidth; panel.classList.add('sacudir'); }
+    return true;
   }
 
   function abrirPanelLateral(opciones) {
