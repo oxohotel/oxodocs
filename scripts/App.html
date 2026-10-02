@@ -33,6 +33,13 @@
       mostrarVistaHome();
     } else {
       mostrarVistaAuth();
+      // Tras cerrar sesión la página se recarga (ver iniciarCierreSesion); aquí se muestra el aviso.
+      try {
+        if (sessionStorage.getItem("oxoSesionCerrada")) {
+          sessionStorage.removeItem("oxoSesionCerrada");
+          showNotification("Sesión cerrada correctamente", "info", 2500);
+        }
+      } catch (e) {}
     }
     
     // Verificar en segundo plano por si el Apps Script cambió la versión hoy

@@ -89,12 +89,17 @@
     return (s && s.token) ? s.token : null;
   }
 
+  /** Cierra la sesión local y le pide al servidor cancelar el token. Devuelve una promesa que se resuelve
+   *  cuando el servidor respondió (o falló), para poder esperar antes de recargar la página. */
   function logoutUser() {
     const token = getCurrentUserToken();
+    let cierreEnServidor = Promise.resolve();
     if (token && window.google && google.script && google.script.run) {
-      try {
-        google.script.run.cerrarSesionUsuario(token);
-      } catch (e) {}
+      cierreEnServidor = new Promise(function (resolve) {
+        try {
+          google.script.run.withSuccessHandler(resolve).withFailureHandler(resolve).cerrarSesionUsuario(token);
+        } catch (e) { resolve(); }
+      });
     }
 
     removeFromLocalStorage("currentUser");
@@ -122,6 +127,8 @@
 
     // Limpiar cualquier modal abierto
     hideLoading();
+
+    return cierreEnServidor;
   }
 
   function isUserLoggedIn() {
@@ -166,7 +173,7 @@
   }
 
   function logLogoutAction(userId, email) {
-    logAction({
+    return logAction({
       tipo: "Logout",
       descripcion: "Cierre de sesión",
       usuarioId: userId,

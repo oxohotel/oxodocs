@@ -8117,12 +8117,17 @@ button, input, select, textarea {
     return (s && s.token) ? s.token : null;
   }
 
+  /** Cierra la sesión local y le pide al servidor cancelar el token. Devuelve una promesa que se resuelve
+   *  cuando el servidor respondió (o falló), para poder esperar antes de recargar la página. */
   function logoutUser() {
     const token = getCurrentUserToken();
+    let cierreEnServidor = Promise.resolve();
     if (token && window.google && google.script && google.script.run) {
-      try {
-        google.script.run.cerrarSesionUsuario(token);
-      } catch (e) {}
+      cierreEnServidor = new Promise(function (resolve) {
+        try {
+          google.script.run.withSuccessHandler(resolve).withFailureHandler(resolve).cerrarSesionUsuario(token);
+        } catch (e) { resolve(); }
+      });
     }
 
     removeFromLocalStorage("currentUser");
@@ -8150,6 +8155,8 @@ button, input, select, textarea {
 
     // Limpiar cualquier modal abierto
     hideLoading();
+
+    return cierreEnServidor;
   }
 
   function isUserLoggedIn() {
@@ -8194,7 +8201,7 @@ button, input, select, textarea {
   }
 
   function logLogoutAction(userId, email) {
-    logAction({
+    return logAction({
       tipo: "Logout",
       descripcion: "Cierre de sesión",
       usuarioId: userId,
@@ -9479,11 +9486,22 @@ button, input, select, textarea {
    *  donde se podía pedir, y eso llevaba a que uno rompiera silenciosamente al otro). */
   function iniciarCierreSesion() {
     const user = getCurrentUserSession();
-    if (user) logLogoutAction(user.ID_Usuario, user.Email);
+    const pendientes = [];
+    if (user) pendientes.push(logLogoutAction(user.ID_Usuario, user.Email));
+    pendientes.push(logoutUser());
 
-    logoutUser();
-    showNotification("Sesión cerrada correctamente", "info", 2000);
-    mostrarVistaAuth();
+    mostrarVistaAuth(); // respuesta inmediata mientras el servidor registra el cierre
+
+    // Se recarga la página para que, al volver a entrar, TODO arranque de cero y se caiga siempre en
+    // Inicio: antes solo se ocultaba la pantalla principal y quedaban en memoria la carpeta abierta, las
+    // vistas de Usuarios/Logs, el menú seleccionado y los datos de la persona anterior. Se espera (máx. 3 s)
+    // a que el servidor reciba el cierre y la auditoría, porque recargar antes cancelaría esas peticiones.
+    const limite = new Promise(function (resolve) { setTimeout(resolve, 3000); });
+    Promise.race([Promise.all(pendientes.map(function (p) { return Promise.resolve(p).catch(function () {}); })), limite])
+      .then(function () {
+        try { sessionStorage.setItem("oxoSesionCerrada", "1"); } catch (e) {}
+        window.location.reload();
+      });
   }
 
   function mostrarVistaCarpetasHotel(idHotel, nombreHotel, idCarpetaAutoAbrir, idArchivoResaltar) {
@@ -14585,6 +14603,13 @@ const GOOGLE_PICKER_CONFIG = {
       mostrarVistaHome();
     } else {
       mostrarVistaAuth();
+      // Tras cerrar sesión la página se recarga (ver iniciarCierreSesion); aquí se muestra el aviso.
+      try {
+        if (sessionStorage.getItem("oxoSesionCerrada")) {
+          sessionStorage.removeItem("oxoSesionCerrada");
+          showNotification("Sesión cerrada correctamente", "info", 2500);
+        }
+      } catch (e) {}
     }
     
     // Verificar en segundo plano por si el Apps Script cambió la versión hoy

@@ -82,11 +82,22 @@
    *  donde se podía pedir, y eso llevaba a que uno rompiera silenciosamente al otro). */
   function iniciarCierreSesion() {
     const user = getCurrentUserSession();
-    if (user) logLogoutAction(user.ID_Usuario, user.Email);
+    const pendientes = [];
+    if (user) pendientes.push(logLogoutAction(user.ID_Usuario, user.Email));
+    pendientes.push(logoutUser());
 
-    logoutUser();
-    showNotification("Sesión cerrada correctamente", "info", 2000);
-    mostrarVistaAuth();
+    mostrarVistaAuth(); // respuesta inmediata mientras el servidor registra el cierre
+
+    // Se recarga la página para que, al volver a entrar, TODO arranque de cero y se caiga siempre en
+    // Inicio: antes solo se ocultaba la pantalla principal y quedaban en memoria la carpeta abierta, las
+    // vistas de Usuarios/Logs, el menú seleccionado y los datos de la persona anterior. Se espera (máx. 3 s)
+    // a que el servidor reciba el cierre y la auditoría, porque recargar antes cancelaría esas peticiones.
+    const limite = new Promise(function (resolve) { setTimeout(resolve, 3000); });
+    Promise.race([Promise.all(pendientes.map(function (p) { return Promise.resolve(p).catch(function () {}); })), limite])
+      .then(function () {
+        try { sessionStorage.setItem("oxoSesionCerrada", "1"); } catch (e) {}
+        window.location.reload();
+      });
   }
 
   function mostrarVistaCarpetasHotel(idHotel, nombreHotel, idCarpetaAutoAbrir, idArchivoResaltar) {
