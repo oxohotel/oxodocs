@@ -7,17 +7,32 @@
 var METRICA_UMBRAL_MS_ = 5000;
 var METRICA_LIMITE_FILAS_ = 2000;
 var METRICA_HOLGURA_FILAS_ = 200;
+var _metricaDetalladaRegistrada_ = false; // ya se guardó el desglose de esta ejecución: doPost no repite la fila
 var METRICA_ENCABEZADOS_ = ['Fecha_Hora', 'Accion', 'Duracion_ms', 'Tipo', 'Detalle'];
 
 function esErrorDeCuota_(mensaje) {
   return /too many times|quota|cuota|rate limit|service invoked|limit exceeded|exceeded maximum/i.test(String(mensaje || ''));
 }
 
-/** Se llama desde doPost; jamás debe afectar la respuesta, por eso se traga cualquier error propio. */
-function registrarMetrica_(accion, duracionMs, error) {
+/** Cronómetro para medir las partes de una llamada: marca('nombre') anota cuánto tardó desde la marca anterior. */
+function cronometro_() {
+  const t0 = Date.now();
+  let ultimo = t0;
+  const partes = [];
+  return {
+    marca: function (nombre) { const ahora = Date.now(); partes.push(nombre + '=' + (ahora - ultimo)); ultimo = ahora; },
+    total: function () { return Date.now() - t0; },
+    detalle: function () { return partes.join(' '); }
+  };
+}
+
+/** Se llama desde doPost; jamás debe afectar la respuesta, por eso se traga cualquier error propio.
+ *  "detalle" y "umbralMs" son opcionales: permiten registrar el desglose de una llamada lenta con un umbral más bajo. */
+function registrarMetrica_(accion, duracionMs, error, detalle, umbralMs) {
   try {
     const hayError = !!error;
-    if (!hayError && duracionMs < METRICA_UMBRAL_MS_) return;
+    if (!hayError && duracionMs < (umbralMs || METRICA_UMBRAL_MS_)) return;
+    if (!hayError && !detalle && _metricaDetalladaRegistrada_) return;
 
     const tipo = hayError ? (esErrorDeCuota_(error) ? 'CUOTA' : 'ERROR') : 'LENTA';
     const ss = obtenerSpreadsheet_();
@@ -26,7 +41,8 @@ function registrarMetrica_(accion, duracionMs, error) {
       hoja = ss.insertSheet('Metricas');
       hoja.appendRow(METRICA_ENCABEZADOS_);
     }
-    hoja.appendRow([new Date(), String(accion || '').slice(0, 80), Math.round(duracionMs), tipo, hayError ? String(error).slice(0, 200) : '']);
+    if (detalle) _metricaDetalladaRegistrada_ = true;
+    hoja.appendRow([new Date(), String(accion || '').slice(0, 80), Math.round(duracionMs), tipo, hayError ? String(error).slice(0, 200) : String(detalle || '').slice(0, 200)]);
 
     if (hoja.getLastRow() > METRICA_LIMITE_FILAS_ + 1) {
       const lock = LockService.getScriptLock();

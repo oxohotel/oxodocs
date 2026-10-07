@@ -91,49 +91,67 @@
 
   /** Pinta de inmediato lo guardado de la visita anterior y pide TODO el Inicio al servidor en una sola llamada
    *  (obtenerDatosInicio). Si el servidor no la tiene todavía o falla, cae a las cuatro llamadas de siempre; y si solo
-   *  falló una de las partes, se reintenta únicamente esa. */
-  function cargarDatosInicio_() {
+   *  falló una de las partes, se reintenta únicamente esa.
+   *
+   *  opciones.forzar (botón "Recargar sistema"): no usa las copias guardadas (muestra los esqueletos), no espera el
+   *  momento aleatorio y le pide al servidor leer las hojas de nuevo. Devuelve una promesa que se cumple al terminar. */
+  function cargarDatosInicio_(opciones) {
+    opciones = opciones || {};
+    const forzar = opciones.forzar === true;
     const sesion = getCurrentUserSession();
     const token = getCurrentUserToken();
     const idUsuario = sesion && (sesion.ID_Usuario || sesion.idUsuario) ? (sesion.ID_Usuario || sesion.idUsuario) : null;
 
-    function respaldo_() {
-      cargarHotelesSidebar();
-      setTimeout(function () { if (typeof refrescarCacheFavoritos === "function") refrescarCacheFavoritos(); }, 120);
-      setTimeout(function () { if (typeof cargarWidgetRecientes === "function") cargarWidgetRecientes(); }, 240);
-      setTimeout(function () { if (typeof cargarWidgetFavoritos === "function") cargarWidgetFavoritos(); }, 360);
-    }
+    return new Promise(function (resolve) {
+      function respaldo_() {
+        cargarHotelesSidebar();
+        setTimeout(function () { if (typeof refrescarCacheFavoritos === "function") refrescarCacheFavoritos(); }, 120);
+        setTimeout(function () { if (typeof cargarWidgetRecientes === "function") cargarWidgetRecientes(); }, 240);
+        setTimeout(function () { if (typeof cargarWidgetFavoritos === "function") cargarWidgetFavoritos(); }, 360);
+        setTimeout(resolve, 2500); // las cuatro llamadas individuales no avisan al terminar: se da por cumplida tras un margen
+      }
 
-    if (!idUsuario) { respaldo_(); return; }
+      if (!idUsuario) { respaldo_(); return; }
 
-    // Copias guardadas: se muestran ya, mientras llega la respuesta del servidor
-    const modulosGuardados = leerCacheVista_("hoteles");
-    if (Array.isArray(modulosGuardados)) renderizarHotelesSidebar(modulosGuardados);
-    const recientesGuardados = leerCacheVista_("recientes");
-    if (Array.isArray(recientesGuardados)) { renderizarWidgetRecientes_(recientesGuardados); revelarWidget("seccionRecientes"); }
-    const favoritosGuardados = leerCacheVista_("favoritos");
-    if (Array.isArray(favoritosGuardados)) { renderizarWidgetFavoritos_(favoritosGuardados); revelarWidget("seccionFavoritos"); }
+      let modulosGuardados = null, recientesGuardados = null, favoritosGuardados = null;
+      if (forzar) {
+        mostrarSkeletonWidgets();
+      } else {
+        // Copias guardadas: se muestran ya, mientras llega la respuesta del servidor
+        modulosGuardados = leerCacheVista_("hoteles");
+        if (Array.isArray(modulosGuardados)) renderizarHotelesSidebar(modulosGuardados);
+        recientesGuardados = leerCacheVista_("recientes");
+        if (Array.isArray(recientesGuardados)) { renderizarWidgetRecientes_(recientesGuardados); revelarWidget("seccionRecientes"); }
+        favoritosGuardados = leerCacheVista_("favoritos");
+        if (Array.isArray(favoritosGuardados)) { renderizarWidgetFavoritos_(favoritosGuardados); revelarWidget("seccionFavoritos"); }
+      }
 
-    // Si ya se pintó una copia guardada, la petición al servidor puede esperar un momento aleatorio (0-0,7 s) sin que nadie
-    // lo note: así, cuando muchas personas entran a la misma hora (p. ej. a las 8:00), no llegan todas en el mismo instante.
-    const hayCopia = Array.isArray(modulosGuardados) || Array.isArray(recientesGuardados) || Array.isArray(favoritosGuardados);
-    setTimeout(pedirTodo_, hayCopia ? Math.floor(Math.random() * 700) : 0);
+      // Si ya se pintó una copia guardada, la petición al servidor puede esperar un momento aleatorio (0-0,7 s) sin que nadie
+      // lo note: así, cuando muchas personas entran a la misma hora (p. ej. a las 8:00), no llegan todas en el mismo instante.
+      const hayCopia = Array.isArray(modulosGuardados) || Array.isArray(recientesGuardados) || Array.isArray(favoritosGuardados);
+      setTimeout(pedirTodo_, hayCopia ? Math.floor(Math.random() * 700) : 0);
 
-    function pedirTodo_() {
-    google.script.run
-      .withSuccessHandler(function (datos) {
-        if (!datos || typeof datos !== "object") { respaldo_(); return; }
-        if (Array.isArray(datos.modulos)) aplicarModulosSidebar_(datos.modulos); else cargarHotelesSidebar();
-        if (datos.idsFavoritos) aplicarIdsFavoritos_(datos.idsFavoritos); else refrescarCacheFavoritos();
-        if (datos.actividad) aplicarWidgetRecientes_(datos.actividad, Array.isArray(recientesGuardados)); else cargarWidgetRecientes();
-        if (datos.favoritos) aplicarWidgetFavoritos_(datos.favoritos, Array.isArray(favoritosGuardados)); else cargarWidgetFavoritos();
-      })
-      .withFailureHandler(function (error) {
-        console.warn("obtenerDatosInicio no disponible, se usan las llamadas individuales:", error);
-        respaldo_();
-      })
-      .obtenerDatosInicio(token, idUsuario);
-    }
+      function pedirTodo_() {
+        google.script.run
+          .withSuccessHandler(function (datos) {
+            if (!datos || typeof datos !== "object") { respaldo_(); return; }
+            try {
+              if (Array.isArray(datos.modulos)) aplicarModulosSidebar_(datos.modulos); else cargarHotelesSidebar();
+              if (datos.idsFavoritos) aplicarIdsFavoritos_(datos.idsFavoritos); else refrescarCacheFavoritos();
+              if (datos.actividad) aplicarWidgetRecientes_(datos.actividad, Array.isArray(recientesGuardados)); else cargarWidgetRecientes();
+              if (datos.favoritos) aplicarWidgetFavoritos_(datos.favoritos, Array.isArray(favoritosGuardados)); else cargarWidgetFavoritos();
+            } finally {
+              // limitado: el servidor omitió el refresco profundo (límite de una vez por minuto): ver recargarSistema
+              resolve({ limitado: forzar && datos.refrescoForzado === false });
+            }
+          })
+          .withFailureHandler(function (error) {
+            console.warn("obtenerDatosInicio no disponible, se usan las llamadas individuales:", error);
+            respaldo_();
+          })
+          .obtenerDatosInicio(token, idUsuario, forzar);
+      }
+    });
   }
 
   /** Los "Ver todos" de los widgets del dashboard abren el apartado completo correspondiente. */

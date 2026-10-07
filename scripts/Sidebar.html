@@ -223,6 +223,8 @@
   function renderizarHotelesSidebar(modulos) {
     if (!Array.isArray(modulos)) return;
     _modulosHotelesCache = modulos;
+    const hotelActivo = document.querySelector(".sidebar-subitem.active");
+    const idHotelActivo = hotelActivo && hotelActivo.dataset ? hotelActivo.dataset.hotelId : null;
 
     modulos.forEach(function (modulo) {
       const grupo = document.querySelector('.sidebar-group[data-orden="' + modulo.orden + '"]');
@@ -279,6 +281,12 @@
     document.querySelectorAll('.sidebar-group[data-orden]').forEach(function (g) {
       if (!ordenesRecibidos.has(g.dataset.orden)) g.classList.add("oculto");
     });
+
+    // Se vuelve a marcar el hotel que estaba seleccionado (el menú se repinta entero al recargar los datos).
+    if (idHotelActivo) {
+      const botonActivo = document.querySelector('.btn-hotel-carpetas[data-hotel-id="' + idHotelActivo + '"]');
+      if (botonActivo) botonActivo.classList.add("active");
+    }
 
     if (typeof refrescarPanelGestionHoteles_ === 'function') refrescarPanelGestionHoteles_();
   }

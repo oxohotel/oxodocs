@@ -7,11 +7,71 @@
  */
 
 /**
- * Las funciones cuyo nombre termina en guion bajo (`_`) son auxiliares internas (crear sesiones, calcular hashes, escribir
- * en las hojas...). Nunca deben poder invocarse desde fuera: el despachador las trata como si no existieran.
+ * LISTA DE ACCIONES PERMITIDAS. doPost/doGet solo ejecutan las funciones de esta lista, que son las que usa el frontend.
+ * Todo lo demás (auxiliares internas, utilidades del editor, funciones de mantenimiento, tokens de OAuth...) queda fuera de
+ * alcance de quien llame desde internet, aunque exista como función global.
+ *
+ * Al agregar una función nueva que el frontend deba llamar, hay que añadirla aquí. Para comprobar que la lista y el
+ * frontend coinciden: node herramientas/verificar-acciones.js
  */
+const ACCIONES_PERMITIDAS_ = [
+  'actualizarNombreUsuario',
+  'actualizarPermisosExistentes',
+  'alternarFavorito',
+  'aprobarUsuario',
+  'asignarHotelesAUsuario',
+  'buscarGlobal',
+  'cambiarContrasenaUsuario',
+  'cambiarEstadoUsuario',
+  'cambiarRolUsuario',
+  'cerrarSesionUsuario',
+  'crearArea',
+  'crearGrupoUsuario',
+  'crearHotel',
+  'crearSubcarpeta',
+  'crearUsuarioPorAdmin',
+  'editarHotel',
+  'eliminarArchivo',
+  'eliminarCarpeta',
+  'eliminarGrupoUsuario',
+  'eliminarHotel',
+  'enviarCodigoVerificacion',
+  'guardarArchivoEnDrive',
+  'guardarArchivosMultiplesDesdeDrive',
+  'guardarPreferenciasNotificaciones',
+  'obtenerActividadReciente',
+  'obtenerArchivoPorIdOUrl',
+  'obtenerCarpetasDelHotel',
+  'obtenerCatalogoRoles',
+  'obtenerContenidoCarpeta',
+  'obtenerDatosInicio',
+  'obtenerDatosUsuarioActual',
+  'obtenerFavoritosDetallados',
+  'obtenerGruposUsuario',
+  'obtenerIdsFavoritosUsuario',
+  'obtenerListaUsuariosParaPermisos',
+  'obtenerModulosConHoteles',
+  'obtenerPreferenciasNotificaciones',
+  'obtenerRegistrosAuditoria',
+  'obtenerRutaCarpeta',
+  'obtenerUsuariosParaGestion',
+  'obtenerVersionCacheGlobal',
+  'registrarActividad',
+  'registrarAuditoria',
+  'registrarUsuario',
+  'renombrarArchivo',
+  'renombrarCarpeta',
+  'restablecerContrasenaUsuarioPorAdmin',
+  'restablecerPasswordConCodigo',
+  'solicitarCodigoRecuperacion',
+  'validarCodigoRecuperacion',
+  'validarCredenciales',
+  'verificarCodigoRegistro',
+  'verificarEmailExistente'
+];
+
 function accionPermitida_(nombre) {
-  return typeof nombre === 'string' && nombre.length > 0 && nombre.slice(-1) !== '_';
+  return typeof nombre === 'string' && ACCIONES_PERMITIDAS_.indexOf(nombre) !== -1;
 }
 
 function doPost(e) {

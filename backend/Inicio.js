@@ -20,18 +20,33 @@ function obtenerSpreadsheet_() {
   return _spreadsheetEjecucion_;
 }
 
-function obtenerDatosInicio(token, idUsuario) {
-  function intentar_(fn) {
+/** "forzar" (botón "Recargar sistema"): descarta el caché de usuarios/hoteles antes de leer, como máximo una vez por minuto. */
+function obtenerDatosInicio(token, idUsuario, forzar) {
+  const reloj = cronometro_();
+  const lecturasAntes = _lecturasDeHoja_;
+  // Solo con una sesión válida (la acción es pública) y como máximo una vez por minuto en todo el sistema
+  let refrescoForzado;
+  if (forzar === true) refrescoForzado = !!(token && obtenerUsuarioPorToken(token)) && refrescarCachesForzado_();
+
+  function intentar_(fn, parte) {
     try { return fn(); } catch (e) {
       Logger.log('Error en obtenerDatosInicio: ' + e);
       return null;
+    } finally {
+      reloj.marca(parte);
     }
   }
 
-  return {
-    modulos: intentar_(function () { return obtenerModulosConHoteles(token, idUsuario); }),
-    idsFavoritos: intentar_(function () { return obtenerIdsFavoritosUsuario(idUsuario); }),
-    actividad: intentar_(function () { return obtenerActividadReciente(idUsuario, 4); }),
-    favoritos: intentar_(function () { return obtenerFavoritosDetallados(idUsuario); })
+  const resultado = {
+    modulos: intentar_(function () { return obtenerModulosConHoteles(token, idUsuario); }, 'hoteles'),
+    idsFavoritos: intentar_(function () { return obtenerIdsFavoritosUsuario(idUsuario); }, 'idsFav'),
+    actividad: intentar_(function () { return obtenerActividadReciente(idUsuario, 4); }, 'actividad'),
+    favoritos: intentar_(function () { return obtenerFavoritosDetallados(idUsuario); }, 'favoritos')
   };
+
+  if (forzar === true) resultado.refrescoForzado = refrescoForzado; // false = se omitió (límite por minuto o sesión no válida)
+
+  // Si tardó más de 3 s se guarda el desglose y si el caché estaba frío (lecturas de hoja > 0): así se sabe qué parte es la lenta
+  registrarMetrica_('obtenerDatosInicio.partes', reloj.total(), null, reloj.detalle() + ' lecturasHoja=' + (_lecturasDeHoja_ - lecturasAntes), 3000);
+  return resultado;
 }

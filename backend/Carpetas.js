@@ -129,6 +129,7 @@ function obtenerCarpetasDelHotel(idHotel, idUsuarioOToken, idUsuarioFallback) {
  *  @param {string} idCarpeta - ID de la carpeta
  *  @param {string} idUsuario - (Opcional) ID del usuario para filtrar archivos bloqueados */
 function obtenerContenidoCarpeta(idCarpeta, idUsuario) {
+  const reloj = cronometro_();
   try {
     const ss = SpreadsheetApp.openById(DRIVE_CONFIG.SPREADSHEET_ID);
     const hojaCarpetas = ss.getSheetByName('Carpetas');
@@ -137,8 +138,10 @@ function obtenerContenidoCarpeta(idCarpeta, idUsuario) {
     }
 
     const resumenArchivosPorCarpeta = calcularResumenArchivosPorCarpeta_(ss);
+    reloj.marca('resumenArchivos');
     const idx = indiceEncabezados_(hojaCarpetas);
     const datos = hojaCarpetas.getDataRange().getValues();
+    reloj.marca('leerCarpetas');
 
     const subcarpetas = [];
     for (let i = 1; i < datos.length; i++) {
@@ -147,14 +150,19 @@ function obtenerContenidoCarpeta(idCarpeta, idUsuario) {
       }
     }
 
+    reloj.marca('subcarpetas');
     let archivosResultado = obtenerArchivosDeUnaCarpeta(idCarpeta);
+    reloj.marca('archivos');
 
     // Filtrar archivos bloqueados si se proporciona idUsuario
     if (archivosResultado.success && archivosResultado.archivos && idUsuario) {
       archivosResultado.archivos = filtrarArchivosNoRestringidos_(archivosResultado.archivos, idUsuario, ss);
     }
+    reloj.marca('permisos');
 
     const carpetaActual = resolverCarpeta_(ss, idCarpeta);
+    reloj.marca('resolverCarpeta');
+    registrarMetrica_('obtenerContenidoCarpeta.partes', reloj.total(), null, reloj.detalle(), 3000);
 
     return {
       success: true,

@@ -7,6 +7,14 @@
     const btnTema = document.getElementById("btnTema");
     const btnVerPerfil = document.getElementById("btnVerPerfil");
     const btnAbrirLogout = document.getElementById("btnAbrirLogout");
+    const btnRecargar = document.getElementById("btnRecargar");
+
+    if (btnRecargar) {
+      btnRecargar.addEventListener("click", function (e) {
+        e.stopPropagation();
+        recargarSistema();
+      });
+    }
 
     if (btnNotif && notifDropdown) {
       btnNotif.addEventListener("click", function (e) {
@@ -50,6 +58,111 @@
         showConfirmation("¿Seguro que quieres cerrar sesión?", "¿Cerrar sesión?", iniciarCierreSesion);
       });
     }
+  }
+
+  // ==================== Recargar sistema ====================
+  var _recargandoSistema = false;
+
+  /** Qué vista está a la vista ahora mismo (para recargar solo esa con su esqueleto). */
+  function vistaActivaDelSistema_() {
+    const visible = function (selector) {
+      const el = document.querySelector(selector);
+      return !!el && el.offsetParent !== null;
+    };
+    if (visible(".home-content .archivos-carpeta-container")) return "archivos";
+    if (visible(".home-content .hotel-carpetas-container")) return "carpetas";
+    if (visible(".home-content #usuariosContainer")) return "usuarios";
+    if (visible(".home-content #logsContainer")) return "logs";
+    if (visible(".home-content #favoritosContainer")) return "favoritos";
+    if (visible(".home-content #recientesContainer")) return "recientes";
+    if (visible(".home-content .perfil-container")) return "perfil";
+    return "inicio";
+  }
+
+  /** Se cumple cuando ya no queda ningún esqueleto de carga visible en la pantalla (todas las vistas comparten esa señal),
+   *  o a los 20 s. Así el botón no da por terminada la recarga antes de que lleguen los datos de la vista activa. */
+  function esperarFinDeCargaVisible_() {
+    return new Promise(function (resolve) {
+      const inicio = Date.now();
+      let seguidosSinEsqueleto = 0;
+      const revisar = function () {
+        const hayEsqueleto = Array.prototype.some.call(
+          document.querySelectorAll('.home-content [class*="skeleton"], .home-content [data-widget-skeleton]'),
+          function (el) { return el.offsetParent !== null && !el.classList.contains("oculto"); }
+        );
+        seguidosSinEsqueleto = hayEsqueleto ? 0 : seguidosSinEsqueleto + 1;
+        if (seguidosSinEsqueleto >= 2 || Date.now() - inicio > 20000) resolve(); else setTimeout(revisar, 150);
+      };
+      setTimeout(revisar, 250); // margen para que cada vista alcance a pintar su esqueleto
+    });
+  }
+
+  /** Vuelve a pedir al servidor los datos de lo que se está viendo (y el menú), mostrando el esqueleto de carga de cada
+   *  vista. Es global: está en la navbar, igual que el buscador. No hace nada mientras haya una subida o un cambio en curso
+   *  y se ignora si ya hay una recarga en marcha. */
+  function recargarSistema() {
+    if (_recargandoSistema) return;
+    if (typeof hayOperacionEnCurso === "function" && hayOperacionEnCurso()) {
+      showNotification("Espera a que termine la operación en curso antes de recargar.", "info", 2200);
+      return;
+    }
+
+    const boton = document.getElementById("btnRecargar");
+    const sidebar = document.getElementById("homeSidebar");
+    _recargandoSistema = true;
+    if (boton) { boton.classList.add("girando"); boton.disabled = true; }
+    if (sidebar) sidebar.classList.add("recargando");
+    const inicio = Date.now();
+
+    // Sin copias guardadas: así cada vista muestra su esqueleto y llega información fresca del servidor
+    if (typeof limpiarCachesVista_ === "function") limpiarCachesVista_();
+
+    const pendientes = [];
+    try {
+      pendientes.push(cargarDatosInicio_({ forzar: true })); // menú de hoteles, widgets y estrellas de favoritos
+
+      switch (vistaActivaDelSistema_()) {
+        case "carpetas": {
+          const hotel = estadoHotelCarpetas.hotelActual;
+          if (hotel) pendientes.push(cargarCarpetasDelHotel(hotel.idHotel, hotel.nombreHotel));
+          break;
+        }
+        case "archivos": {
+          const ruta = estadoArchivosCarpeta.ruta || [];
+          if (ruta.length) cargarContenidoCarpeta(ruta[ruta.length - 1].id);
+          break;
+        }
+        case "usuarios": if (typeof cargarVistaUsuarios === "function") cargarVistaUsuarios(); break;
+        case "logs": if (typeof cargarVistaLogs === "function") cargarVistaLogs(); break;
+        case "favoritos": if (typeof cargarVistaFavoritos === "function") cargarVistaFavoritos(); break;
+        case "recientes": if (typeof cargarVistaRecientes === "function") cargarVistaRecientes(); break;
+        case "perfil": if (typeof cargarDatosPerfil === "function") cargarDatosPerfil(); break;
+      }
+    } catch (error) {
+      console.error("Error al recargar el sistema:", error);
+    }
+
+    // Termina cuando llegó lo principal Y ya no quedan esqueletos a la vista (máximo 20 s); el icono gira al menos un instante
+    pendientes.push(esperarFinDeCargaVisible_());
+    const limite = new Promise(function (resolve) { setTimeout(resolve, 20000); });
+    let resultados = [];
+    // El .catch evita que un error en una de las cargas deje el botón bloqueado para siempre
+    Promise.race([Promise.all(pendientes), limite])
+      .then(function (r) { resultados = Array.isArray(r) ? r : []; })
+      .catch(function (error) { console.error("Error al recargar el sistema:", error); })
+      .then(function () {
+        setTimeout(function () {
+          if (boton) { boton.classList.remove("girando"); boton.disabled = false; }
+          if (sidebar) sidebar.classList.remove("recargando");
+          _recargandoSistema = false;
+          const limitado = !!(resultados[0] && resultados[0].limitado);
+          if (limitado) {
+            showNotification("Datos actualizados. Si cambiaste algo directamente en la hoja de cálculo, puede tardar unos minutos en verse.", "info", 4500);
+          } else {
+            showNotification("Datos actualizados", "success", 1500);
+          }
+        }, Math.max(0, 700 - (Date.now() - inicio)));
+      });
   }
 
   function cerrarTodosLosDropdowns() {

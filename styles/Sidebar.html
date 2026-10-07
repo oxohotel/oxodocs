@@ -83,6 +83,17 @@
   scrollbar-color: var(--home-border) transparent;
 }
 
+/* Mientras se recargan los datos ( botón "Recargar sistema" ) el menú late como un esqueleto de carga */
+.home-sidebar.recargando .sidebar-nav {
+  animation: sidebar-pulso 1.1s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes sidebar-pulso {
+  0%, 100% { opacity: 0.85; }
+  50% { opacity: 0.4; }
+}
+
 .sidebar-nav::-webkit-scrollbar {
   width: 5px;
 }

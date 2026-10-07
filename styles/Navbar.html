@@ -195,6 +195,24 @@
   transform: scale(0.92);
 }
 
+/* Botón "Recargar sistema": el icono gira mientras se recargan los datos */
+.icon-btn.girando svg {
+  animation: icono-girar 0.9s linear infinite;
+}
+
+.icon-btn:disabled {
+  cursor: progress;
+  opacity: 0.75;
+}
+
+@keyframes icono-girar {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .icon-btn.girando svg { animation-duration: 2.5s; }
+}
+
 .icon-btn-dot {
   position: absolute;
   top: 9px;
