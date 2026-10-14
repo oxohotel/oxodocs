@@ -215,7 +215,7 @@ button, input, select, textarea {
 
 /* El registro es más largo (incluye la lista de propiedades): la tarjeta crece para que el botón no quede cortado */
 .auth-container.carousel-register {
-  height: 920px !important;
+  height: 940px !important;
   transition: height 0.6s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -431,8 +431,22 @@ input[type="password"]::-webkit-contacts-auto-fill-button {
   box-shadow: 0 0 0 3px rgba(196, 151, 43, 0.15);
 }
 
-.propiedad-item[hidden] {
+.propiedad-item[hidden],
+.propiedades-grupo[hidden] {
   display: none;
+}
+
+.propiedades-grupo {
+  margin: 10px 4px 2px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--secondary-color);
+}
+
+.propiedades-grupo:first-child {
+  margin-top: 4px;
 }
 
 .propiedades-lista {
@@ -9169,8 +9183,16 @@ input[type="password"]::-webkit-contacts-auto-fill-button {
           if (enlace) enlace.addEventListener("click", function (e) { e.preventDefault(); cargarPropiedadesRegistro_(); });
           return;
         }
+        // Agrupadas por tipo (operación, pre-apertura...): un encabezado cada vez que cambia el grupo
+        let grupoActual = null;
         caja.innerHTML = lista.map(function (h) {
-          return '<label class="propiedad-item"><input type="checkbox" name="registerHotel" value="' + escaparHtml(h.idHotel) + '"><span>' + escaparHtml(h.nombre) + '</span></label>';
+          let encabezado = "";
+          const grupo = h.modulo || "";
+          if (grupo !== grupoActual) {
+            grupoActual = grupo;
+            if (grupo) encabezado = '<p class="propiedades-grupo" data-grupo="' + escaparHtml(grupo) + '">' + escaparHtml(grupo) + '</p>';
+          }
+          return encabezado + '<label class="propiedad-item" data-grupo="' + escaparHtml(grupo) + '"><input type="checkbox" name="registerHotel" value="' + escaparHtml(h.idHotel) + '"><span>' + escaparHtml(h.nombre) + '</span></label>';
         }).join("");
         _propiedadesRegistroCargadas = true;
 
@@ -9213,6 +9235,14 @@ input[type="password"]::-webkit-contacts-auto-fill-button {
       item.hidden = !coincide;
       if (coincide) visibles++;
     });
+    // Un encabezado de grupo solo se ve si queda alguna propiedad visible debajo
+    caja.querySelectorAll(".propiedades-grupo").forEach(function (titulo) {
+      const hayVisibles = Array.prototype.some.call(caja.querySelectorAll(".propiedad-item"), function (item) {
+        return item.dataset.grupo === titulo.dataset.grupo && !item.hidden;
+      });
+      titulo.hidden = !hayVisibles;
+    });
+
     let vacio = caja.querySelector(".propiedades-sin-resultados");
     if (!visibles) {
       if (!vacio) {

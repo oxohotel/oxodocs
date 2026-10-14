@@ -28,9 +28,9 @@ function listaDeIds_(valor) {
 }
 
 /**
- * Propiedades que se ofrecen en el formulario de registro, que es PÚBLICO (se llama sin sesión): solo los módulos
- * "Hoteles en operación" y "Corporativo", y solo id y nombre. Nunca los hoteles en pre-apertura o desarrollo (pueden ser
- * confidenciales) ni datos de Drive.
+ * Propiedades que se ofrecen en el formulario de registro, que es PÚBLICO (se llama sin sesión): TODAS las de los
+ * módulos (operación, pre-apertura, desarrollo y Corporativo), solo con id, nombre y el nombre del módulo al que pertenecen
+ * (para agruparlas en la lista). Nunca se expone nada de Drive. Ordenadas por módulo y luego por nombre.
  */
 function obtenerHotelesParaRegistro() {
   try {
@@ -38,17 +38,19 @@ function obtenerHotelesParaRegistro() {
     const hoteles = leerHojaConCache_('Hoteles');
     if (!modulos || !hoteles) return { success: true, hoteles: [] };
 
-    const publicos = [DRIVE_CONFIG.MODULOS[0], DRIVE_CONFIG.MODULOS[3]].map(claveTexto_);
-    const idsModulos = new Set(
-      modulos.slice(1)
-        .filter(function (f) { return f[0] && publicos.indexOf(claveTexto_(f[1])) !== -1; })
-        .map(function (f) { return String(f[0]); })
-    );
+    const infoModulo = {};
+    modulos.slice(1).filter(function (f) { return f[0]; }).forEach(function (f) {
+      infoModulo[String(f[0])] = { nombre: String(f[1] == null ? '' : f[1]), orden: Number(f[2]) || 0 };
+    });
 
     const lista = hoteles.slice(1)
-      .filter(function (f) { return f[0] && idsModulos.has(String(f[2])); })
-      .map(function (f) { return { idHotel: String(f[0]).trim(), nombre: String(f[1] == null ? '' : f[1]) }; })
-      .sort(function (a, b) { return a.nombre.localeCompare(b.nombre, 'es'); });
+      .filter(function (f) { return f[0] && infoModulo[String(f[2])]; })
+      .map(function (f) {
+        const m = infoModulo[String(f[2])];
+        return { idHotel: String(f[0]).trim(), nombre: String(f[1] == null ? '' : f[1]), modulo: m.nombre, _orden: m.orden };
+      })
+      .sort(function (a, b) { return (a._orden - b._orden) || a.nombre.localeCompare(b.nombre, 'es'); })
+      .map(function (h) { return { idHotel: h.idHotel, nombre: h.nombre, modulo: h.modulo }; });
 
     return { success: true, hoteles: lista };
   } catch (error) {
