@@ -310,12 +310,14 @@ function enviarCodigoVerificacion(email, idUsuario) {
 
     MailApp.sendEmail({
       to: email,
+      name: CORREO_NOMBRE_REMITENTE_,
       subject: 'Tu código de verificación - Repositorio de Documentos',
-      htmlBody:
-        '<p>Hola,</p>' +
-        '<p>Este es tu código para confirmar tu cuenta en el Repositorio de Documentos de OxoHotel:</p>' +
-        '<p style="font-size:28px;font-weight:bold;letter-spacing:6px;">' + codigo + '</p>' +
-        '<p>Vence en 15 minutos. Si tú no solicitaste esto, puedes ignorar este correo.</p>'
+      htmlBody: plantillaCorreo_('Confirma tu cuenta',
+        parrafoCorreo_('Hola,') +
+        parrafoCorreo_('Recibimos tu registro en el Repositorio de Documentos de OxoHotel. Ingresa el siguiente código para confirmar tu correo:') +
+        codigoCorreo_(codigo) +
+        parrafoCorreo_('⏱️ Este código es válido por <strong>15 minutos</strong> y puede usarse una sola vez.'),
+        'Si tú no solicitaste esto, puedes ignorar este correo sin problema.')
     });
 
     return { success: true, message: 'Código enviado' };

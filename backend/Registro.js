@@ -103,17 +103,24 @@ function notificarAprobadoresDeRegistro_(emailNuevo) {
     const destinatarios = destinatariosDeAprobacion_(usuarios, pedidos);
     if (!destinatarios.length) return;
 
-    const propiedades = pedidos.length ? nombresDeHoteles_(pedidos).join(', ') : 'no indicó ninguna';
+    const propiedades = pedidos.length
+      ? nombresDeHoteles_(pedidos).map(function (n) { return pildoraCorreo_(escaparHtmlCorreo_(n), 'propiedad'); }).join('')
+      : '<span style="color: #66706B;">No indicó ninguna</span>';
     MailApp.sendEmail({
       to: destinatarios[0],
       bcc: destinatarios.slice(1).join(','),
+      name: CORREO_NOMBRE_REMITENTE_,
       subject: 'Nueva solicitud de acceso - Repositorio de Documentos',
-      htmlBody:
-        '<p>Hola,</p>' +
-        '<p><strong>' + escaparHtmlCorreo_(nuevo.nombre) + '</strong> (' + escaparHtmlCorreo_(nuevo.email) + ') verificó su correo y está esperando aprobación.</p>' +
-        '<p>Propiedades que solicita: <strong>' + escaparHtmlCorreo_(propiedades) + '</strong></p>' +
-        '<p>Cada administrador resuelve las de su propiedad. Entra a <a href="' + URL_APLICACION_ + '">' + URL_APLICACION_ + '</a> → Usuarios.</p>' +
-        '<p>Recibes este aviso porque puedes resolver solicitudes de alguna de esas propiedades.</p>'
+      htmlBody: plantillaCorreo_('Nueva solicitud de acceso',
+        parrafoCorreo_('Hola,') +
+        parrafoCorreo_('<strong>' + escaparHtmlCorreo_(nuevo.nombre) + '</strong> verificó su correo y está esperando aprobación.') +
+        cajaDatosCorreo_([
+          { etiqueta: 'Persona', html: '<strong>' + escaparHtmlCorreo_(nuevo.nombre) + '</strong><br><span style="color: #66706B;">' + escaparHtmlCorreo_(nuevo.email) + '</span>' },
+          { etiqueta: 'Propiedades que solicita', html: propiedades }
+        ]) +
+        parrafoCorreo_('Cada administrador resuelve las propiedades de su alcance. Entra al sistema, abre <strong>Usuarios</strong> y usa los iconos de la columna de acciones para aprobar o denegar.') +
+        botonCorreo_('Revisar la solicitud', URL_APLICACION_),
+        'Recibes este aviso porque puedes resolver solicitudes de alguna de esas propiedades.')
     });
   } catch (error) {
     Logger.log('Aviso notificarAprobadoresDeRegistro_: ' + error);
@@ -124,12 +131,31 @@ function notificarAprobadoresDeRegistro_(emailNuevo) {
 function notificarSolicitante_(email, nombre, aprobados, denegados, cerrada) {
   try {
     if (!email) return;
-    let cuerpo = '<p>Hola ' + escaparHtmlCorreo_(nombre) + ',</p>';
-    if (aprobados.length) cuerpo += '<p>Te dieron acceso a: <strong>' + escaparHtmlCorreo_(nombresDeHoteles_(aprobados).join(', ')) + '</strong>.</p>';
-    if (denegados.length) cuerpo += '<p>No se aprobó el acceso a: <strong>' + escaparHtmlCorreo_(nombresDeHoteles_(denegados).join(', ')) + '</strong>.</p>';
-    if (cerrada) cuerpo += '<p>Tu solicitud fue cerrada. Si lo necesitas, puedes volver a registrarte con este mismo correo.</p>';
-    if (aprobados.length) cuerpo += '<p>Ya puedes entrar a <a href="' + URL_APLICACION_ + '">' + URL_APLICACION_ + '</a>.</p>';
-    MailApp.sendEmail({ to: email, subject: 'Tu solicitud de acceso - Repositorio de Documentos', htmlBody: cuerpo });
+    const primerNombre = String(nombre || '').trim().split(' ')[0];
+    const pildoras = function (ids, tipo) {
+      return nombresDeHoteles_(ids).map(function (n) { return pildoraCorreo_(escaparHtmlCorreo_(n), tipo); }).join('');
+    };
+
+    let cuerpo = parrafoCorreo_('Hola' + (primerNombre ? ' <strong>' + escaparHtmlCorreo_(primerNombre) + '</strong>' : '') + ',');
+    if (aprobados.length) {
+      cuerpo += parrafoCorreo_('Te dieron acceso a:') + '<div style="margin: 0 0 16px;">' + pildoras(aprobados, 'aprobada') + '</div>';
+    }
+    if (denegados.length) {
+      cuerpo += parrafoCorreo_('No se aprobó el acceso a:') + '<div style="margin: 0 0 16px;">' + pildoras(denegados, 'denegada') + '</div>';
+    }
+    if (cerrada) {
+      cuerpo += parrafoCorreo_('Tu solicitud fue <strong>cerrada</strong>. Si lo necesitas, puedes volver a registrarte con este mismo correo.');
+    }
+    if (aprobados.length) cuerpo += botonCorreo_('Entrar al sistema', URL_APLICACION_);
+    else if (cerrada) cuerpo += botonCorreo_('Volver a registrarme', URL_APLICACION_);
+
+    MailApp.sendEmail({
+      to: email,
+      name: CORREO_NOMBRE_REMITENTE_,
+      subject: 'Tu solicitud de acceso - Repositorio de Documentos',
+      htmlBody: plantillaCorreo_(aprobados.length ? 'Tu acceso fue aprobado' : 'Tu solicitud de acceso', cuerpo,
+        'Si tienes dudas, consúltalas con tu administrador de propiedad o con el equipo de Tecnología.')
+    });
   } catch (error) {
     Logger.log('Aviso notificarSolicitante_: ' + error);
   }
