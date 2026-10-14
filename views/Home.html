@@ -13,6 +13,18 @@
         </div>
       </section>
 
+      <!-- Aviso cuando la persona aún no tiene ninguna propiedad (se muestra desde scripts/SolicitarAcceso.html) -->
+      <section class="home-aviso-acceso oculto" id="avisoSinPropiedades" role="status">
+        <span class="home-aviso-icono">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V8l7-5 7 5v13"/><path d="M9 21v-5h6v5"/></svg>
+        </span>
+        <div class="home-aviso-texto">
+          <h3>Aún no tienes propiedades asignadas</h3>
+          <p>Pide acceso a las propiedades que necesitas. El administrador de cada una revisará tu solicitud.</p>
+        </div>
+        <button type="button" class="btn-home-primary" id="btnSolicitarAccesoAviso">Solicitar acceso</button>
+      </section>
+
       <section class="home-widgets-grid">
         <div class="widget-card" id="seccionRecientes">
           <div class="widget-card-header">

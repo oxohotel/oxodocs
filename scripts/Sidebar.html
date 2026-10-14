@@ -300,6 +300,9 @@
       if (!ordenesRecibidos.has(g.dataset.orden)) g.classList.add("oculto");
     });
 
+    // Aviso del Inicio si la persona no tiene ninguna propiedad (scripts/SolicitarAcceso.html)
+    if (typeof actualizarAvisoSinPropiedades_ === 'function') actualizarAvisoSinPropiedades_(modulos);
+
     // Se vuelve a marcar el hotel que estaba seleccionado (el menú se repinta entero al recargar los datos).
     if (idHotelActivo) {
       const botonActivo = document.querySelector('.btn-hotel-carpetas[data-hotel-id="' + idHotelActivo + '"]');

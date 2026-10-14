@@ -5574,6 +5574,124 @@ input[type="password"]::-webkit-contacts-auto-fill-button {
   background: #F6DAD5;
 }
 
+/* Solicitar acceso: panel, aviso del Inicio y bloque "Mis accesos" del Perfil */
+.acceso-pendientes {
+  margin-bottom: 18px;
+}
+
+.acceso-subtitulo {
+  margin: 0 0 8px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: #8A6D1F;
+}
+
+.acceso-pendiente {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.btn-cancelar-solicitud {
+  border: none;
+  background: none;
+  color: #B5473A;
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.acceso-lista {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.acceso-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #E8F1EB;
+  border: 1px solid #CFE0D5;
+  color: #2F4A3C;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.acceso-mas {
+  align-self: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: #7A8077;
+}
+
+.perfil-accesos {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.home-aviso-acceso {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 18px 22px;
+  margin-bottom: 20px;
+  background: #FBF4DF;
+  border: 1px solid #E8D59A;
+  border-radius: 16px;
+}
+
+.home-aviso-acceso.oculto {
+  display: none;
+}
+
+.home-aviso-icono {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: #C4972B;
+  color: #FFFFFF;
+}
+
+.home-aviso-texto h3 {
+  margin: 0 0 2px;
+  font-size: 15px;
+  color: #6B5316;
+}
+
+.home-aviso-texto p {
+  margin: 0;
+  font-size: 13px;
+  color: #7A6A3A;
+}
+
+.home-aviso-acceso .btn-home-primary {
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+@media (max-width: 700px) {
+  .home-aviso-acceso {
+    flex-wrap: wrap;
+  }
+
+  .home-aviso-acceso .btn-home-primary {
+    margin-left: 0;
+  }
+}
+
 .panel-solicitud-lista {
   max-height: 260px;
   margin-bottom: 16px;
@@ -6815,6 +6933,7 @@ input[type="password"]::-webkit-contacts-auto-fill-button {
       <div class="navbar-dropdown navbar-dropdown-perfil" id="perfilDropdown">
         <p class="dropdown-user-name" id="navbarUserName">Usuario</p>
         <button type="button" class="dropdown-item" id="btnVerPerfil">Ver perfil</button>
+        <button type="button" class="dropdown-item" id="btnSolicitarAccesoNavbar">Solicitar acceso</button>
         <button type="button" class="dropdown-item dropdown-item-danger" id="btnAbrirLogout">Cerrar sesión</button>
       </div>
     </div>
@@ -6829,6 +6948,18 @@ input[type="password"]::-webkit-contacts-auto-fill-button {
           <p>Estamos impulsando la gestión eficiente de documentos. Este proyecto centraliza y agiliza todos nuestros flujos de trabajo digitales, asegurando que cada contrato, informe y recurso esté al alcance de tu mano.</p>
           <span class="home-welcome-rule"></span>
         </div>
+      </section>
+
+      <!-- Aviso cuando la persona aún no tiene ninguna propiedad (se muestra desde scripts/SolicitarAcceso.html) -->
+      <section class="home-aviso-acceso oculto" id="avisoSinPropiedades" role="status">
+        <span class="home-aviso-icono">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V8l7-5 7 5v13"/><path d="M9 21v-5h6v5"/></svg>
+        </span>
+        <div class="home-aviso-texto">
+          <h3>Aún no tienes propiedades asignadas</h3>
+          <p>Pide acceso a las propiedades que necesitas. El administrador de cada una revisará tu solicitud.</p>
+        </div>
+        <button type="button" class="btn-home-primary" id="btnSolicitarAccesoAviso">Solicitar acceso</button>
       </section>
 
       <section class="home-widgets-grid">
@@ -7333,6 +7464,30 @@ input[type="password"]::-webkit-contacts-auto-fill-button {
             <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
           </svg>
           Editar Información
+        </button>
+      </div>
+
+      <!-- Mis accesos: propiedades a las que tiene acceso y solicitudes pendientes -->
+      <div class="perfil-bloque">
+        <h3 class="perfil-bloque-titulo">Mis accesos</h3>
+
+        <div class="perfil-accesos" id="perfilMisAccesos">
+          <p class="perfil-campo-valor">Cargando…</p>
+        </div>
+
+        <button type="button" class="perfil-opcion" id="btnSolicitarAccesoPerfil">
+          <div class="perfil-opcion-icono">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 21h18"></path><path d="M5 21V8l7-5 7 5v13"></path><path d="M9 21v-5h6v5"></path>
+            </svg>
+          </div>
+          <div class="perfil-opcion-contenido">
+            <p class="perfil-opcion-titulo">Solicitar acceso a otra propiedad</p>
+            <p class="perfil-opcion-descripcion">Pide acceso a más hoteles; el administrador de cada uno revisará tu solicitud</p>
+          </div>
+          <svg class="perfil-opcion-flecha" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="9 18 15 12 9 6"></polyline>
+          </svg>
         </button>
       </div>
 
@@ -9684,6 +9839,9 @@ input[type="password"]::-webkit-contacts-auto-fill-button {
     document.querySelectorAll('.sidebar-group[data-orden]').forEach(function (g) {
       if (!ordenesRecibidos.has(g.dataset.orden)) g.classList.add("oculto");
     });
+
+    // Aviso del Inicio si la persona no tiene ninguna propiedad (scripts/SolicitarAcceso.html)
+    if (typeof actualizarAvisoSinPropiedades_ === 'function') actualizarAvisoSinPropiedades_(modulos);
 
     // Se vuelve a marcar el hotel que estaba seleccionado (el menú se repinta entero al recargar los datos).
     if (idHotelActivo) {
@@ -12708,6 +12866,9 @@ function mostrarModalSinPermisos_(razon) {
         console.error('Error cargando perfil:', error);
       })
       .obtenerDatosUsuarioActual(sesion.ID_Usuario);
+
+    // Bloque "Mis accesos" (scripts/SolicitarAcceso.html)
+    if (typeof actualizarResumenAccesosPerfil_ === 'function') actualizarResumenAccesosPerfil_();
   }
 
   function abrirModalEditarPerfil() {
@@ -14620,6 +14781,222 @@ function mostrarModalSinPermisos_(razon) {
       })
       .obtenerModulosConHoteles();
   }
+</script>
+
+  <script>
+  // ==================== Solicitar acceso a más propiedades (cuenta ya registrada) ====================
+  // Entradas: opción "Solicitar acceso" del menú del usuario, bloque "Mis accesos" del Perfil y el aviso del Inicio cuando la
+  // persona no tiene ninguna propiedad. Todas abren el mismo panel lateral. El backend es backend/MisAccesos.js; lo pedido lo
+  // resuelve el administrador de cada propiedad desde "Usuarios" (mismo circuito del registro).
+
+  var ICONO_PROPIEDAD_ACCESO_ = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V8l7-5 7 5v13"/><path d="M9 21v-5h6v5"/></svg>';
+
+  function esSuperadminSesion_() {
+    const s = getCurrentUserSession();
+    return !!s && (String(s.Rol || '').toLowerCase() === 'superadministrador' || String(s.ID_Rol || s.Rol_ID || '') === '3');
+  }
+
+  /** Muestra u oculta el aviso del Inicio: aparece solo si la persona no tiene ninguna propiedad (y no es superadmin). */
+  function actualizarAvisoSinPropiedades_(modulos) {
+    const aviso = document.getElementById('avisoSinPropiedades');
+    if (!aviso) return;
+    const total = (modulos || []).reduce(function (n, m) { return n + ((m.hoteles || []).length); }, 0);
+    aviso.classList.toggle('oculto', total > 0 || esSuperadminSesion_());
+  }
+
+  function agruparPorModulo_(lista) {
+    let grupoActual = null;
+    return lista.map(function (h) {
+      let encabezado = '';
+      const grupo = h.modulo || '';
+      if (grupo !== grupoActual) {
+        grupoActual = grupo;
+        if (grupo) encabezado = '<p class="propiedades-grupo" data-grupo="' + escaparHtml(grupo) + '">' + escaparHtml(grupo) + '</p>';
+      }
+      return encabezado + '<label class="propiedad-item" data-grupo="' + escaparHtml(grupo) + '"><input type="checkbox" value="' + escaparHtml(h.idHotel) + '"><span>' + escaparHtml(h.nombre) + '</span></label>';
+    }).join('');
+  }
+
+  /** Filtra una lista de propiedades mientras se escribe (sin importar mayúsculas ni tildes); oculta los grupos sin resultados. */
+  function filtrarListaPropiedades_(entrada, caja) {
+    const termino = normalizarBusqueda_(entrada.value);
+    let visibles = 0;
+    caja.querySelectorAll('.propiedad-item').forEach(function (item) {
+      const coincide = !termino || normalizarBusqueda_(item.textContent).indexOf(termino) !== -1;
+      item.hidden = !coincide;
+      if (coincide) visibles++;
+    });
+    caja.querySelectorAll('.propiedades-grupo').forEach(function (titulo) {
+      titulo.hidden = !Array.prototype.some.call(caja.querySelectorAll('.propiedad-item'), function (item) {
+        return item.dataset.grupo === titulo.dataset.grupo && !item.hidden;
+      });
+    });
+    let vacio = caja.querySelector('.propiedades-sin-resultados');
+    if (!visibles) {
+      if (!vacio) {
+        vacio = document.createElement('p');
+        vacio.className = 'propiedades-estado propiedades-sin-resultados';
+        vacio.textContent = 'Ninguna propiedad coincide con la búsqueda.';
+        caja.appendChild(vacio);
+      }
+    } else if (vacio) {
+      vacio.remove();
+    }
+  }
+
+  function abrirPanelSolicitarAcceso() {
+    abrirPanelLateral({
+      titulo: 'Solicitar acceso',
+      html: '<div id="panelAccesoRaiz" class="nueva-carpeta-form"><p class="propiedades-estado">Cargando tus accesos…</p></div>'
+    });
+
+    google.script.run
+      .withSuccessHandler(function (datos) { renderizarPanelAcceso_(datos); })
+      .withFailureHandler(function (error) {
+        console.error('Error obtenerMisAccesos:', error);
+        const raiz = document.getElementById('panelAccesoRaiz');
+        if (raiz) raiz.innerHTML = '<p class="propiedades-estado">No se pudo cargar. Cierra este panel e inténtalo de nuevo.</p>';
+      })
+      .obtenerMisAccesos(getCurrentUserToken());
+  }
+
+  function renderizarPanelAcceso_(datos) {
+    const raiz = document.getElementById('panelAccesoRaiz'); // si ya se cerró el panel, no se pinta nada
+    if (!raiz) return;
+
+    if (!datos || !datos.success) {
+      raiz.innerHTML = '<p class="propiedades-estado">' + escaparHtml((datos && datos.message) || 'No se pudo cargar tu información.') + '</p>';
+      return;
+    }
+    if (datos.tieneTodos) {
+      raiz.innerHTML = '<p class="verificacion-texto">Ya tienes acceso a <strong>todas las propiedades</strong>, así que no necesitas pedir nada más.</p>';
+      return;
+    }
+
+    const pendientes = datos.pendientes || [];
+    const disponibles = datos.disponibles || [];
+
+    let html = '<p class="verificacion-texto">Elige las propiedades a las que necesitas acceso. El administrador de cada una revisará tu solicitud.</p>';
+
+    if (pendientes.length) {
+      html += '<div class="acceso-pendientes"><p class="acceso-subtitulo">Solicitudes pendientes</p>' + pendientes.map(function (h) {
+        return '<div class="acceso-pendiente"><span class="solicitud-item">' + ICONO_PROPIEDAD_ACCESO_ + '<span class="solicitud-nombre">' + escaparHtml(h.nombre) + '</span></span>' +
+          '<button type="button" class="btn-cancelar-solicitud" data-id-hotel="' + escaparHtml(h.idHotel) + '">Cancelar</button></div>';
+      }).join('') + '</div>';
+    }
+
+    if (disponibles.length) {
+      html += '<p class="acceso-subtitulo">Pedir acceso a</p>' +
+        '<input type="search" id="accesoBuscar" class="propiedades-buscador" placeholder="Buscar propiedad…" autocomplete="off" aria-label="Buscar propiedad">' +
+        '<div class="propiedades-lista panel-solicitud-lista" id="accesoLista" role="group">' + agruparPorModulo_(disponibles) + '</div>' +
+        '<p class="form-hint"><strong id="accesoContador"></strong></p>';
+    } else {
+      html += '<p class="propiedades-estado">Ya tienes acceso, o ya pediste, todas las propiedades disponibles.</p>';
+    }
+
+    html += '<div class="nueva-carpeta-acciones">' +
+      '<button type="button" class="btn-cancelar" id="btnAccesoCerrar">Cerrar</button>' +
+      (disponibles.length ? '<button type="button" class="btn-enviar" id="btnAccesoEnviar">Solicitar acceso</button>' : '') +
+      '</div>';
+    raiz.innerHTML = html;
+
+    document.getElementById('btnAccesoCerrar').addEventListener('click', function () { cerrarPanelLateral(); });
+
+    raiz.querySelectorAll('.btn-cancelar-solicitud').forEach(function (btn) {
+      btn.addEventListener('click', function () { cancelarSolicitudAccesoUI_(btn.dataset.idHotel); });
+    });
+
+    if (disponibles.length) {
+      const buscador = document.getElementById('accesoBuscar');
+      const lista = document.getElementById('accesoLista');
+      const contador = document.getElementById('accesoContador');
+      buscador.addEventListener('input', function () { filtrarListaPropiedades_(buscador, lista); });
+      lista.addEventListener('change', function () {
+        const n = lista.querySelectorAll('input:checked').length;
+        contador.textContent = n ? n + (n === 1 ? ' seleccionada' : ' seleccionadas') : '';
+      });
+      document.getElementById('btnAccesoEnviar').addEventListener('click', function () {
+        const elegidas = Array.prototype.map.call(lista.querySelectorAll('input:checked'), function (c) { return c.value; });
+        if (!elegidas.length) { showNotification('Elige al menos una propiedad', 'error', 2500); return; }
+        enviarSolicitudAccesoUI_(elegidas);
+      });
+    }
+  }
+
+  function enviarSolicitudAccesoUI_(ids) {
+    google.script.run
+      .withSuccessHandler(function (result) {
+        if (result && result.success) {
+          showNotification('✅ ' + (result.message || 'Solicitud enviada'), 'success', 5000);
+          cerrarPanelLateral();
+          actualizarResumenAccesosPerfil_();
+        } else {
+          showNotification('Error: ' + ((result && result.message) || 'No se pudo enviar'), 'error', 4000);
+        }
+      })
+      .withFailureHandler(function (error) { console.error('Error solicitarAccesoPropiedades:', error); showNotification('Error al enviar la solicitud', 'error', 3000); })
+      .solicitarAccesoPropiedades(getCurrentUserToken(), ids);
+  }
+
+  function cancelarSolicitudAccesoUI_(idHotel) {
+    google.script.run
+      .withSuccessHandler(function (result) {
+        if (result && result.success) {
+          showNotification('Solicitud cancelada', 'info', 2500);
+          abrirPanelSolicitarAcceso();       // se vuelve a pintar con la lista al día
+          actualizarResumenAccesosPerfil_();
+        } else {
+          showNotification('Error: ' + ((result && result.message) || 'No se pudo cancelar'), 'error', 3500);
+        }
+      })
+      .withFailureHandler(function (error) { console.error('Error cancelarSolicitudesPropias:', error); showNotification('Error al cancelar la solicitud', 'error', 3000); })
+      .cancelarSolicitudesPropias(getCurrentUserToken(), [idHotel]);
+  }
+
+  /** Bloque "Mis accesos" del Perfil: a qué tiene acceso y qué pidió y sigue pendiente. */
+  function actualizarResumenAccesosPerfil_() {
+    // OJO: la plantilla oculta del Perfil tiene los mismos ids; se apunta a la copia VIVA (dentro de .home-content)
+    const caja = document.querySelector('.home-content #perfilMisAccesos');
+    if (!caja) return; // el Perfil aún no se ha abierto
+
+    google.script.run
+      .withSuccessHandler(function (datos) {
+        const destino = document.querySelector('.home-content #perfilMisAccesos');
+        if (!destino) return;
+        const boton = document.querySelector('.home-content #btnSolicitarAccesoPerfil');
+        if (!datos || !datos.success) { destino.innerHTML = '<p class="perfil-campo-valor">No se pudo cargar tu información de accesos.</p>'; return; }
+
+        if (datos.tieneTodos) {
+          destino.innerHTML = '<p class="perfil-campo-valor">Tienes acceso a <strong>todas las propiedades</strong>.</p>';
+          if (boton) boton.classList.add('oculto');
+          return;
+        }
+        if (boton) boton.classList.remove('oculto');
+
+        const pildoras = function (lista, clase, maximo) {
+          const visibles = lista.slice(0, maximo).map(function (h) {
+            return '<span class="' + clase + '">' + ICONO_PROPIEDAD_ACCESO_ + '<span class="solicitud-nombre">' + escaparHtml(h.nombre) + '</span></span>';
+          }).join('');
+          return visibles + (lista.length > maximo ? '<span class="acceso-mas">+' + (lista.length - maximo) + ' más</span>' : '');
+        };
+
+        let html = '';
+        html += '<div><p class="acceso-subtitulo">Tienes acceso a</p>' +
+          (datos.permitidos.length ? '<div class="acceso-lista">' + pildoras(datos.permitidos, 'acceso-item', 12) + '</div>' : '<p class="perfil-campo-valor">Todavía no tienes ninguna propiedad.</p>') + '</div>';
+        if (datos.pendientes.length) {
+          html += '<div><p class="acceso-subtitulo">Solicitudes pendientes</p><div class="acceso-lista">' + pildoras(datos.pendientes, 'solicitud-item', 12) + '</div></div>';
+        }
+        destino.innerHTML = html;
+      })
+      .withFailureHandler(function (error) { console.error('Error obtenerMisAccesos (perfil):', error); })
+      .obtenerMisAccesos(getCurrentUserToken());
+  }
+
+  // Una sola delegación atiende todas las entradas (menú del usuario, Perfil y aviso del Inicio)
+  document.addEventListener('click', function (e) {
+    const origen = e.target.closest ? e.target.closest('#btnSolicitarAccesoNavbar, #btnSolicitarAccesoPerfil, #btnSolicitarAccesoAviso') : null;
+    if (origen) abrirPanelSolicitarAcceso();
+  });
 </script>
 
   <script>

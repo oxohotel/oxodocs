@@ -131,6 +131,9 @@
         console.error('Error cargando perfil:', error);
       })
       .obtenerDatosUsuarioActual(sesion.ID_Usuario);
+
+    // Bloque "Mis accesos" (scripts/SolicitarAcceso.html)
+    if (typeof actualizarResumenAccesosPerfil_ === 'function') actualizarResumenAccesosPerfil_();
   }
 
   function abrirModalEditarPerfil() {

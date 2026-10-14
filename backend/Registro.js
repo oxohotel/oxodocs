@@ -91,40 +91,59 @@ function escaparHtmlCorreo_(t) {
   return String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
-/** Aviso (en copia oculta) a quienes pueden aprobar. Es de mejor esfuerzo: si falla, el registro no se ve afectado. */
+/** Aviso (en copia oculta) a quienes pueden aprobar, tras verificar el correo del registro. De mejor esfuerzo. */
 function notificarAprobadoresDeRegistro_(emailNuevo) {
   try {
     const usuarios = obtenerUsuariosLite_().usuarios;
     const correo = claveTexto_(emailNuevo);
     const nuevo = usuarios.filter(function (u) { return claveTexto_(u.email) === correo; })[0];
     if (!nuevo) return;
-
-    const pedidos = listaDeIds_(nuevo.solicitados);
-    const destinatarios = destinatariosDeAprobacion_(usuarios, pedidos);
-    if (!destinatarios.length) return;
-
-    const propiedades = pedidos.length
-      ? nombresDeHoteles_(pedidos).map(function (n) { return pildoraCorreo_(escaparHtmlCorreo_(n), 'propiedad'); }).join('')
-      : '<span style="color: #66706B;">No indicó ninguna</span>';
-    MailApp.sendEmail({
-      to: destinatarios[0],
-      bcc: destinatarios.slice(1).join(','),
-      name: CORREO_NOMBRE_REMITENTE_,
-      subject: 'Nueva solicitud de acceso - Repositorio de Documentos',
-      htmlBody: plantillaCorreo_('Nueva solicitud de acceso',
-        parrafoCorreo_('Hola,') +
-        parrafoCorreo_('<strong>' + escaparHtmlCorreo_(nuevo.nombre) + '</strong> verificó su correo y está esperando aprobación.') +
-        cajaDatosCorreo_([
-          { etiqueta: 'Persona', html: '<strong>' + escaparHtmlCorreo_(nuevo.nombre) + '</strong><br><span style="color: #66706B;">' + escaparHtmlCorreo_(nuevo.email) + '</span>' },
-          { etiqueta: 'Propiedades que solicita', html: propiedades }
-        ]) +
-        parrafoCorreo_('Cada administrador resuelve las propiedades de su alcance. Entra al sistema, abre <strong>Usuarios</strong> y usa los iconos de la columna de acciones para aprobar o denegar.') +
-        botonCorreo_('Revisar la solicitud', URL_APLICACION_),
-        'Recibes este aviso porque puedes resolver solicitudes de alguna de esas propiedades.')
-    });
+    enviarAvisoAprobadores_(usuarios, nuevo, listaDeIds_(nuevo.solicitados), false);
   } catch (error) {
     Logger.log('Aviso notificarAprobadoresDeRegistro_: ' + error);
   }
+}
+
+/** Aviso cuando una cuenta YA activa pide acceso a más propiedades (solo las nuevas). De mejor esfuerzo. */
+function notificarAprobadoresDeSolicitudAdicional_(emailPersona, idsNuevos) {
+  try {
+    const usuarios = obtenerUsuariosLite_().usuarios;
+    const correo = claveTexto_(emailPersona);
+    const persona = usuarios.filter(function (u) { return claveTexto_(u.email) === correo; })[0];
+    if (!persona) return;
+    enviarAvisoAprobadores_(usuarios, persona, listaDeIds_(idsNuevos), true);
+  } catch (error) {
+    Logger.log('Aviso notificarAprobadoresDeSolicitudAdicional_: ' + error);
+  }
+}
+
+function enviarAvisoAprobadores_(usuarios, persona, pedidos, adicional) {
+  const destinatarios = destinatariosDeAprobacion_(usuarios, pedidos).filter(function (c) { return c !== claveTexto_(persona.email); });
+  if (!destinatarios.length) return;
+
+  const propiedades = pedidos.length
+    ? nombresDeHoteles_(pedidos).map(function (n) { return pildoraCorreo_(escaparHtmlCorreo_(n), 'propiedad'); }).join('')
+    : '<span style="color: #66706B;">No indicó ninguna</span>';
+  const titulo = adicional ? 'Solicitud de acceso adicional' : 'Nueva solicitud de acceso';
+
+  MailApp.sendEmail({
+    to: destinatarios[0],
+    bcc: destinatarios.slice(1).join(','),
+    name: CORREO_NOMBRE_REMITENTE_,
+    subject: titulo + ' - Repositorio de Documentos',
+    htmlBody: plantillaCorreo_(titulo,
+      parrafoCorreo_('Hola,') +
+      parrafoCorreo_(adicional
+        ? '<strong>' + escaparHtmlCorreo_(persona.nombre) + '</strong> ya tiene cuenta y pide acceso a más propiedades.'
+        : '<strong>' + escaparHtmlCorreo_(persona.nombre) + '</strong> verificó su correo y está esperando aprobación.') +
+      cajaDatosCorreo_([
+        { etiqueta: 'Persona', html: '<strong>' + escaparHtmlCorreo_(persona.nombre) + '</strong><br><span style="color: #66706B;">' + escaparHtmlCorreo_(persona.email) + '</span>' },
+        { etiqueta: 'Propiedades que solicita', html: propiedades }
+      ]) +
+      parrafoCorreo_('Cada administrador resuelve las propiedades de su alcance. Entra al sistema, abre <strong>Usuarios</strong> y usa los iconos de la columna de acciones para aprobar o denegar.') +
+      botonCorreo_('Revisar la solicitud', URL_APLICACION_),
+      'Recibes este aviso porque puedes resolver solicitudes de alguna de esas propiedades.')
+  });
 }
 
 /** Le avisa a la persona qué pasó con su solicitud. De mejor esfuerzo. */
