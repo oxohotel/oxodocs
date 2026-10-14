@@ -478,6 +478,19 @@
       }
     }
 
+    // Si la lista de propiedades cargó, hay que elegir al menos una (si no cargó, el servidor igual acepta el registro sin ella)
+    const propiedades = propiedadesSeleccionadasRegistro_();
+    const cajaPropiedades = document.getElementById("registerHoteles");
+    const errorPropiedades = document.getElementById("registerHotelesError");
+    if (_propiedadesRegistroCargadas && !propiedades.length) {
+      if (errorPropiedades) errorPropiedades.textContent = "Elige al menos una propiedad";
+      if (cajaPropiedades) cajaPropiedades.classList.add("error");
+      hasErrors = true;
+    } else {
+      if (errorPropiedades) errorPropiedades.textContent = "";
+      if (cajaPropiedades) cajaPropiedades.classList.remove("error");
+    }
+
     if (!passwordConfirm) {
       showError("registerPasswordConfirm", "registerPasswordConfirmError", "Debe confirmar la contraseña");
       hasErrors = true;
@@ -492,7 +505,7 @@
     const originalText = document.getElementById("registerBtn").textContent;
     setButtonText("registerBtn", "Registrando...");
 
-    const result = await registerUser({ nombre, email, password });
+    const result = await registerUser({ nombre, email, password, hoteles: propiedades });
 
     if (result.success) {
       logRegisterAction(result.userId, email);
@@ -527,6 +540,44 @@
     }
   }
 
+  // ---- Propiedades que se piden al registrarse (lista pública: solo id y nombre; ver backend/Registro.js)
+  var _propiedadesRegistroCargadas = false;
+  var _propiedadesRegistroCargando = false;
+
+  function cargarPropiedadesRegistro_() {
+    if (_propiedadesRegistroCargadas || _propiedadesRegistroCargando) return;
+    const caja = document.getElementById("registerHoteles");
+    if (!caja) return;
+    _propiedadesRegistroCargando = true;
+
+    google.script.run
+      .withSuccessHandler(function (resultado) {
+        _propiedadesRegistroCargando = false;
+        const lista = resultado && resultado.success && Array.isArray(resultado.hoteles) ? resultado.hoteles : [];
+        if (!lista.length) {
+          caja.innerHTML = '<p class="propiedades-estado">No se pudo cargar la lista. <a href="#" id="reintentarPropiedades">Reintentar</a></p>';
+          const enlace = document.getElementById("reintentarPropiedades");
+          if (enlace) enlace.addEventListener("click", function (e) { e.preventDefault(); cargarPropiedadesRegistro_(); });
+          return;
+        }
+        caja.innerHTML = lista.map(function (h) {
+          return '<label class="propiedad-item"><input type="checkbox" name="registerHotel" value="' + escaparHtml(h.idHotel) + '"><span>' + escaparHtml(h.nombre) + '</span></label>';
+        }).join("");
+        _propiedadesRegistroCargadas = true;
+      })
+      .withFailureHandler(function () {
+        _propiedadesRegistroCargando = false;
+        caja.innerHTML = '<p class="propiedades-estado">No se pudo cargar la lista. <a href="#" id="reintentarPropiedades">Reintentar</a></p>';
+        const enlace = document.getElementById("reintentarPropiedades");
+        if (enlace) enlace.addEventListener("click", function (e) { e.preventDefault(); cargarPropiedadesRegistro_(); });
+      })
+      .obtenerHotelesParaRegistro();
+  }
+
+  function propiedadesSeleccionadasRegistro_() {
+    return Array.prototype.map.call(document.querySelectorAll('#registerHoteles input[name="registerHotel"]:checked'), function (c) { return c.value; });
+  }
+
   function switchForm(form) {
     const carousel = document.getElementById("formCarousel");
     const container = document.querySelector(".auth-container");
@@ -545,6 +596,7 @@
       // Deslizar a register
       container.classList.remove("carousel-login");
       container.classList.add("carousel-register");
+      cargarPropiedadesRegistro_();
     }
 
     clearAllErrors("loginForm");

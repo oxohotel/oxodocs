@@ -185,7 +185,7 @@ function cerrarSesionUsuario(token) {
   return { success: true };
 }
 
-function registrarUsuario(nombre, email, password) {
+function registrarUsuario(nombre, email, password, hotelesSolicitados) {
   const lock = LockService.getScriptLock();
   try {
     lock.waitLock(10000);
@@ -204,11 +204,22 @@ function registrarUsuario(nombre, email, password) {
 
     const datos = hojaUsuarios.getDataRange().getValues();
 
-    // Verificar email duplicado
+    // Verificar email duplicado. Una solicitud que un administrador CERRÓ puede volver a registrarse con el mismo correo:
+    // en ese caso se reutiliza su fila (mismo ID e historial) en lugar de crear otra.
+    let filaReuso = -1;
+    let idReuso = null;
     for (let i = 1; i < datos.length; i++) {
       if (datos[i][2] && datos[i][2].toLowerCase() === emailNormalizado) {
+        if (String(datos[i][5]).trim() === ESTADO_SOLICITUD_CERRADA_) { filaReuso = i + 1; idReuso = datos[i][0]; break; }
         return { success: false, message: "Este email ya está registrado", userId: null };
       }
+    }
+
+    // Propiedades que solicita: solo las que se ofrecen en el formulario público
+    const pedidas = listaDeIds_(hotelesSolicitados);
+    const ofrecidas = (obtenerHotelesParaRegistro().hoteles || []).map(function (h) { return h.idHotel; });
+    if (pedidas.length > MAX_PROPIEDADES_SOLICITADAS_ || pedidas.some(function (id) { return ofrecidas.indexOf(id) === -1; })) {
+      return { success: false, message: 'Selecciona propiedades válidas de la lista', userId: null };
     }
 
     // Calcular siguiente ID basado en IDs existentes
@@ -221,13 +232,25 @@ function registrarUsuario(nombre, email, password) {
         }
       }
     }
+    if (filaReuso !== -1) nuevoId = idReuso;
 
     const passwordHashConSalt = calcularHashContrasenaConSalt_(password);
 
     const hoy = new Date();
     const fechaRegistro = Utilities.formatDate(hoy, "GMT-5", "yyyy-MM-dd");
 
-    hojaUsuarios.appendRow([nuevoId, nombre, emailNormalizado, passwordHashConSalt, "Usuario", "Pendiente_Verificacion", fechaRegistro]);
+    // El rol se guarda como NÚMERO (1 = Usuario), igual que en el resto del sistema (antes se guardaba el texto "Usuario")
+    const idxSolicitados = obtenerOAgregarColumna_(hojaUsuarios, 'Hoteles_Solicitados');
+    const totalColumnas = Math.max(hojaUsuarios.getLastColumn(), 7, idxSolicitados + 1);
+    const filaNueva = new Array(totalColumnas).fill('');
+    [nuevoId, nombre, emailNormalizado, passwordHashConSalt, 1, "Pendiente_Verificacion", fechaRegistro].forEach(function (v, i) { filaNueva[i] = v; });
+    filaNueva[idxSolicitados] = pedidas.join(',');
+
+    if (filaReuso !== -1) {
+      hojaUsuarios.getRange(filaReuso, 1, 1, totalColumnas).setValues([filaNueva]);
+    } else {
+      hojaUsuarios.appendRow(filaNueva);
+    }
     invalidarCacheUsuarios_();
 
     const envio = enviarCodigoVerificacion(emailNormalizado, nuevoId);
@@ -347,6 +370,7 @@ function verificarCodigoRegistro(email, codigo) {
 
     hojaUsuarios.getRange(filaUsuario, 6).setValue('Pendiente_Aprobacion'); // columna F = Estado
     invalidarCacheUsuarios_();
+    notificarAprobadoresDeRegistro_(email); // avisa a quienes pueden resolver las propiedades que pidió (mejor esfuerzo)
 
     return {
       success: true,
@@ -401,6 +425,9 @@ function validarCredenciales(email, password) {
             message: "Tu cuenta está pendiente de aprobación por un administrador.",
             user: null
           };
+        }
+        if (estado === ESTADO_SOLICITUD_CERRADA_) {
+          return { success: false, message: "Tu solicitud de acceso fue cerrada. Puedes volver a registrarte con este mismo correo.", user: null };
         }
         if (estado && estado !== "Activo") {
           return { success: false, message: "Esta cuenta ha sido desactivada", user: null };

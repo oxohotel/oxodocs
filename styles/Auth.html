@@ -46,6 +46,12 @@
   border: 1px solid rgba(232, 227, 218, 0.6);
 }
 
+/* El registro es más largo (incluye la lista de propiedades): la tarjeta crece para que el botón no quede cortado */
+.auth-container.carousel-register {
+  height: 790px !important;
+  transition: height 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
 /* ==================== LADO IZQUIERDO ==================== */
 .auth-left {
   flex: 1;
@@ -223,6 +229,68 @@
   border-color: var(--secondary-color);
   background: #FCFBF9;
   box-shadow: 0 0 0 3px rgba(196, 151, 43, 0.15);
+}
+
+/* Edge/Chrome agregan su propio ojo para mostrar la contraseña: se oculta para que quede solo el botón de la aplicación */
+input[type="password"]::-ms-reveal,
+input[type="password"]::-ms-clear {
+  display: none;
+}
+
+input[type="password"]::-webkit-credentials-auto-fill-button,
+input[type="password"]::-webkit-contacts-auto-fill-button {
+  visibility: hidden;
+  display: none !important;
+  pointer-events: none;
+}
+
+/* Lista de propiedades del registro (varias a la vez) */
+.propiedades-lista {
+  max-height: 108px;
+  overflow-y: auto;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  background: #FFFFFF;
+  padding: 6px 8px;
+}
+
+.propiedad-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 4px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-dark);
+  cursor: pointer;
+  border-radius: 8px;
+}
+
+.propiedad-item:hover {
+  background: #FCFBF9;
+}
+
+.propiedad-item input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--secondary-color);
+  cursor: pointer;
+}
+
+.propiedades-estado {
+  margin: 6px 4px;
+  font-size: 12px;
+  color: var(--text-light);
+}
+
+.propiedades-lista.error {
+  border-color: var(--danger-color);
+}
+
+.form-hint {
+  font-size: 11px;
+  color: var(--text-light);
+  font-weight: 500;
 }
 
 .form-input::placeholder {

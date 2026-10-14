@@ -345,23 +345,25 @@ function eliminarHotelImpl_(idHotel, nombreConfirmacion, idUsuarioOToken, idUsua
   }
 }
 
-/** Quita el ID del hotel de la lista "Hoteles_Permitidos" ("3,5,9") de cada usuario. */
+/** Quita el ID del hotel de las listas "Hoteles_Permitidos" y "Hoteles_Solicitados" ("3,5,9") de cada usuario. */
 function quitarHotelDeAccesosDeUsuarios_(ss, idHotelStr) {
   const hoja = ss.getSheetByName('Usuarios');
   if (!hoja) return;
   const datos = hoja.getDataRange().getValues();
-  const col = datos[0].findIndex(function (h) {
-    const n = String(h || '').trim().toLowerCase().replace(/[\s_]+/g, '');
-    return n === 'hotelespermitidos' || n === 'hoteles';
+  ['hotelespermitidos|hoteles', 'hotelessolicitados'].forEach(function (nombres) {
+    const validos = nombres.split('|');
+    const col = datos[0].findIndex(function (h) {
+      return validos.indexOf(String(h || '').trim().toLowerCase().replace(/[\s_]+/g, '')) !== -1;
+    });
+    if (col === -1) return;
+    for (let i = 1; i < datos.length; i++) {
+      const valor = String(datos[i][col] == null ? '' : datos[i][col]).trim();
+      if (!valor || valor === '*' || valor.toUpperCase() === 'TODOS') continue;
+      const partes = valor.split(',').map(function (s) { return s.trim(); }).filter(Boolean);
+      const nuevas = partes.filter(function (p) { return p !== idHotelStr; });
+      if (nuevas.length !== partes.length) hoja.getRange(i + 1, col + 1).setValue(nuevas.join(','));
+    }
   });
-  if (col === -1) return;
-  for (let i = 1; i < datos.length; i++) {
-    const valor = String(datos[i][col] == null ? '' : datos[i][col]).trim();
-    if (!valor || valor === '*' || valor.toUpperCase() === 'TODOS') continue;
-    const partes = valor.split(',').map(function (s) { return s.trim(); }).filter(Boolean);
-    const nuevas = partes.filter(function (p) { return p !== idHotelStr; });
-    if (nuevas.length !== partes.length) hoja.getRange(i + 1, col + 1).setValue(nuevas.join(','));
-  }
   invalidarCacheUsuarios_();
 }
 

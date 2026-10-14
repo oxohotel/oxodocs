@@ -303,7 +303,7 @@
 
 .usuarios-lista-encabezado {
   display: grid;
-  grid-template-columns: minmax(150px, 1.2fr) minmax(180px, 1.4fr) minmax(160px, 185px) minmax(110px, 125px) minmax(150px, 175px) minmax(90px, 100px);
+  grid-template-columns: minmax(140px, 1.1fr) minmax(160px, 1.3fr) minmax(150px, 175px) minmax(160px, 175px) minmax(150px, 175px) minmax(90px, 100px);
   gap: 20px;
   padding: 0 24px 10px;
   min-width: 940px;
@@ -326,7 +326,7 @@
 
 .usuario-fila {
   display: grid;
-  grid-template-columns: minmax(150px, 1.2fr) minmax(180px, 1.4fr) minmax(160px, 185px) minmax(110px, 125px) minmax(150px, 175px) minmax(90px, 100px);
+  grid-template-columns: minmax(140px, 1.1fr) minmax(160px, 1.3fr) minmax(150px, 175px) minmax(160px, 175px) minmax(150px, 175px) minmax(90px, 100px);
   align-items: center;
   gap: 20px;
   min-width: 940px;
@@ -517,9 +517,9 @@
 
 .usuario-estado-celda {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
-  white-space: nowrap;
+  gap: 6px 8px;
 }
 
 .btn-aprobar-usuario {
@@ -543,6 +543,81 @@
   opacity: 0.45;
   cursor: not-allowed;
 }
+
+/* Solicitudes de acceso por propiedad (Usuarios) */
+.solicitudes-bloque {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.solicitudes-titulo {
+  font-size: 11px;
+  font-weight: 800;
+  color: #8A6D1F;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.solicitud-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 4px 3px 10px;
+  border-radius: 999px;
+  background: #FBF4DF;
+  border: 1px solid #E8D59A;
+  font-size: 12px;
+  font-weight: 700;
+  color: #6B5316;
+}
+
+.solicitud-item.ajena {
+  background: var(--home-bg, #F4F1EA);
+  border-color: var(--home-border, #E3DED3);
+  color: #7A8077;
+  padding-right: 10px;
+}
+
+.solicitud-ajena {
+  font-size: 10px;
+  font-weight: 700;
+  opacity: 0.8;
+}
+
+.btn-resolver-solicitud {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: none;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 22px;
+  padding: 0;
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+
+.btn-resolver-solicitud:hover { transform: scale(1.12); }
+.btn-resolver-solicitud.ok { background: #3D5A4C; color: #FFFFFF; }
+.btn-resolver-solicitud.no { background: #B5473A; color: #FFFFFF; }
+
+.btn-cerrar-solicitud {
+  margin-top: 2px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid #D9A39B;
+  background: transparent;
+  color: #B5473A;
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.btn-cerrar-solicitud:hover { background: #FBEDEA; }
 
 @media (max-width: 700px) {
   .usuarios-lista-encabezado {

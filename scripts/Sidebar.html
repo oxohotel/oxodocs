@@ -210,6 +210,24 @@
       .obtenerModulosConHoteles(token, idUsuario);
   }
 
+  /** Insignia con la cantidad de solicitudes de acceso que esta persona puede resolver, sobre el icono de "Usuarios".
+   *  null/0 = sin insignia (también para quienes no gestionan usuarios). */
+  function actualizarInsigniaPendientes_(cantidad) {
+    const nav = document.getElementById("navUsuarios");
+    const icono = nav ? nav.querySelector(".sidebar-icon") : null;
+    if (!icono) return;
+    let insignia = icono.querySelector(".sidebar-badge-pendientes");
+    const n = Number(cantidad) || 0;
+    if (n <= 0) { if (insignia) insignia.remove(); nav.removeAttribute("title"); return; }
+    if (!insignia) {
+      insignia = document.createElement("span");
+      insignia.className = "sidebar-badge-pendientes";
+      icono.appendChild(insignia);
+    }
+    insignia.textContent = n > 99 ? "99+" : String(n);
+    nav.title = n + (n === 1 ? " solicitud de acceso pendiente" : " solicitudes de acceso pendientes");
+  }
+
   /** Guarda la copia para la próxima visita y pinta el menú con lo que respondió el servidor. */
   function aplicarModulosSidebar_(modulos) {
     if (Array.isArray(modulos) && typeof guardarCacheVista_ === "function") guardarCacheVista_("hoteles", modulos);

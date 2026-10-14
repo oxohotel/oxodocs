@@ -213,6 +213,12 @@ button, input, select, textarea {
   border: 1px solid rgba(232, 227, 218, 0.6);
 }
 
+/* El registro es más largo (incluye la lista de propiedades): la tarjeta crece para que el botón no quede cortado */
+.auth-container.carousel-register {
+  height: 790px !important;
+  transition: height 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
 /* ==================== LADO IZQUIERDO ==================== */
 .auth-left {
   flex: 1;
@@ -390,6 +396,68 @@ button, input, select, textarea {
   border-color: var(--secondary-color);
   background: #FCFBF9;
   box-shadow: 0 0 0 3px rgba(196, 151, 43, 0.15);
+}
+
+/* Edge/Chrome agregan su propio ojo para mostrar la contraseña: se oculta para que quede solo el botón de la aplicación */
+input[type="password"]::-ms-reveal,
+input[type="password"]::-ms-clear {
+  display: none;
+}
+
+input[type="password"]::-webkit-credentials-auto-fill-button,
+input[type="password"]::-webkit-contacts-auto-fill-button {
+  visibility: hidden;
+  display: none !important;
+  pointer-events: none;
+}
+
+/* Lista de propiedades del registro (varias a la vez) */
+.propiedades-lista {
+  max-height: 108px;
+  overflow-y: auto;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  background: #FFFFFF;
+  padding: 6px 8px;
+}
+
+.propiedad-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 4px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-dark);
+  cursor: pointer;
+  border-radius: 8px;
+}
+
+.propiedad-item:hover {
+  background: #FCFBF9;
+}
+
+.propiedad-item input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--secondary-color);
+  cursor: pointer;
+}
+
+.propiedades-estado {
+  margin: 6px 4px;
+  font-size: 12px;
+  color: var(--text-light);
+}
+
+.propiedades-lista.error {
+  border-color: var(--danger-color);
+}
+
+.form-hint {
+  font-size: 11px;
+  color: var(--text-light);
+  font-weight: 500;
 }
 
 .form-input::placeholder {
@@ -795,6 +863,29 @@ button, input, select, textarea {
 @keyframes sidebar-pulso {
   0%, 100% { opacity: 0.85; }
   50% { opacity: 0.4; }
+}
+
+/* Insignia de solicitudes pendientes sobre el icono de "Usuarios" */
+.sidebar-item .sidebar-icon {
+  position: relative;
+}
+
+.sidebar-badge-pendientes {
+  position: absolute;
+  top: -7px;
+  right: -9px;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: #C4972B;
+  color: #FFFFFF;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 17px;
+  text-align: center;
+  box-sizing: border-box;
+  box-shadow: 0 0 0 2px var(--home-card-bg, #FFFFFF);
 }
 
 .sidebar-nav::-webkit-scrollbar {
@@ -5138,7 +5229,7 @@ button, input, select, textarea {
 
 .usuarios-lista-encabezado {
   display: grid;
-  grid-template-columns: minmax(150px, 1.2fr) minmax(180px, 1.4fr) minmax(160px, 185px) minmax(110px, 125px) minmax(150px, 175px) minmax(90px, 100px);
+  grid-template-columns: minmax(140px, 1.1fr) minmax(160px, 1.3fr) minmax(150px, 175px) minmax(160px, 175px) minmax(150px, 175px) minmax(90px, 100px);
   gap: 20px;
   padding: 0 24px 10px;
   min-width: 940px;
@@ -5161,7 +5252,7 @@ button, input, select, textarea {
 
 .usuario-fila {
   display: grid;
-  grid-template-columns: minmax(150px, 1.2fr) minmax(180px, 1.4fr) minmax(160px, 185px) minmax(110px, 125px) minmax(150px, 175px) minmax(90px, 100px);
+  grid-template-columns: minmax(140px, 1.1fr) minmax(160px, 1.3fr) minmax(150px, 175px) minmax(160px, 175px) minmax(150px, 175px) minmax(90px, 100px);
   align-items: center;
   gap: 20px;
   min-width: 940px;
@@ -5352,9 +5443,9 @@ button, input, select, textarea {
 
 .usuario-estado-celda {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
-  white-space: nowrap;
+  gap: 6px 8px;
 }
 
 .btn-aprobar-usuario {
@@ -5378,6 +5469,81 @@ button, input, select, textarea {
   opacity: 0.45;
   cursor: not-allowed;
 }
+
+/* Solicitudes de acceso por propiedad (Usuarios) */
+.solicitudes-bloque {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.solicitudes-titulo {
+  font-size: 11px;
+  font-weight: 800;
+  color: #8A6D1F;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.solicitud-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 4px 3px 10px;
+  border-radius: 999px;
+  background: #FBF4DF;
+  border: 1px solid #E8D59A;
+  font-size: 12px;
+  font-weight: 700;
+  color: #6B5316;
+}
+
+.solicitud-item.ajena {
+  background: var(--home-bg, #F4F1EA);
+  border-color: var(--home-border, #E3DED3);
+  color: #7A8077;
+  padding-right: 10px;
+}
+
+.solicitud-ajena {
+  font-size: 10px;
+  font-weight: 700;
+  opacity: 0.8;
+}
+
+.btn-resolver-solicitud {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: none;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 22px;
+  padding: 0;
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+
+.btn-resolver-solicitud:hover { transform: scale(1.12); }
+.btn-resolver-solicitud.ok { background: #3D5A4C; color: #FFFFFF; }
+.btn-resolver-solicitud.no { background: #B5473A; color: #FFFFFF; }
+
+.btn-cerrar-solicitud {
+  margin-top: 2px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid #D9A39B;
+  background: transparent;
+  color: #B5473A;
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.btn-cerrar-solicitud:hover { background: #FBEDEA; }
 
 @media (max-width: 700px) {
   .usuarios-lista-encabezado {
@@ -6346,6 +6512,15 @@ button, input, select, textarea {
               >
             </div>
             <span class="error-message" id="registerEmailError"></span>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" id="registerHotelesLabel">Propiedades a las que necesitas acceso</label>
+            <div class="propiedades-lista" id="registerHoteles" role="group" aria-labelledby="registerHotelesLabel">
+              <p class="propiedades-estado">Cargando propiedades…</p>
+            </div>
+            <span class="form-hint">Puedes elegir varias. El administrador de cada propiedad aprueba la suya.</span>
+            <span class="error-message" id="registerHotelesError"></span>
           </div>
 
           <div class="form-group">
@@ -8129,7 +8304,7 @@ button, input, select, textarea {
   async function registerUser(userData) {
     try {
       showLoading();
-      const { nombre, email, password } = userData;
+      const { nombre, email, password, hoteles } = userData;
       const validation = validateRegisterData(nombre, email, password);
       if (!validation.isValid) {
         hideLoading();
@@ -8140,7 +8315,7 @@ button, input, select, textarea {
         google.script.run
           .withSuccessHandler((response) => resolve(response))
           .withFailureHandler((error) => reject(error))
-          .registrarUsuario(nombre, email, password);
+          .registrarUsuario(nombre, email, password, hoteles || []);
       });
 
       hideLoading();
@@ -8887,6 +9062,19 @@ button, input, select, textarea {
       }
     }
 
+    // Si la lista de propiedades cargó, hay que elegir al menos una (si no cargó, el servidor igual acepta el registro sin ella)
+    const propiedades = propiedadesSeleccionadasRegistro_();
+    const cajaPropiedades = document.getElementById("registerHoteles");
+    const errorPropiedades = document.getElementById("registerHotelesError");
+    if (_propiedadesRegistroCargadas && !propiedades.length) {
+      if (errorPropiedades) errorPropiedades.textContent = "Elige al menos una propiedad";
+      if (cajaPropiedades) cajaPropiedades.classList.add("error");
+      hasErrors = true;
+    } else {
+      if (errorPropiedades) errorPropiedades.textContent = "";
+      if (cajaPropiedades) cajaPropiedades.classList.remove("error");
+    }
+
     if (!passwordConfirm) {
       showError("registerPasswordConfirm", "registerPasswordConfirmError", "Debe confirmar la contraseña");
       hasErrors = true;
@@ -8901,7 +9089,7 @@ button, input, select, textarea {
     const originalText = document.getElementById("registerBtn").textContent;
     setButtonText("registerBtn", "Registrando...");
 
-    const result = await registerUser({ nombre, email, password });
+    const result = await registerUser({ nombre, email, password, hoteles: propiedades });
 
     if (result.success) {
       logRegisterAction(result.userId, email);
@@ -8936,6 +9124,44 @@ button, input, select, textarea {
     }
   }
 
+  // ---- Propiedades que se piden al registrarse (lista pública: solo id y nombre; ver backend/Registro.js)
+  var _propiedadesRegistroCargadas = false;
+  var _propiedadesRegistroCargando = false;
+
+  function cargarPropiedadesRegistro_() {
+    if (_propiedadesRegistroCargadas || _propiedadesRegistroCargando) return;
+    const caja = document.getElementById("registerHoteles");
+    if (!caja) return;
+    _propiedadesRegistroCargando = true;
+
+    google.script.run
+      .withSuccessHandler(function (resultado) {
+        _propiedadesRegistroCargando = false;
+        const lista = resultado && resultado.success && Array.isArray(resultado.hoteles) ? resultado.hoteles : [];
+        if (!lista.length) {
+          caja.innerHTML = '<p class="propiedades-estado">No se pudo cargar la lista. <a href="#" id="reintentarPropiedades">Reintentar</a></p>';
+          const enlace = document.getElementById("reintentarPropiedades");
+          if (enlace) enlace.addEventListener("click", function (e) { e.preventDefault(); cargarPropiedadesRegistro_(); });
+          return;
+        }
+        caja.innerHTML = lista.map(function (h) {
+          return '<label class="propiedad-item"><input type="checkbox" name="registerHotel" value="' + escaparHtml(h.idHotel) + '"><span>' + escaparHtml(h.nombre) + '</span></label>';
+        }).join("");
+        _propiedadesRegistroCargadas = true;
+      })
+      .withFailureHandler(function () {
+        _propiedadesRegistroCargando = false;
+        caja.innerHTML = '<p class="propiedades-estado">No se pudo cargar la lista. <a href="#" id="reintentarPropiedades">Reintentar</a></p>';
+        const enlace = document.getElementById("reintentarPropiedades");
+        if (enlace) enlace.addEventListener("click", function (e) { e.preventDefault(); cargarPropiedadesRegistro_(); });
+      })
+      .obtenerHotelesParaRegistro();
+  }
+
+  function propiedadesSeleccionadasRegistro_() {
+    return Array.prototype.map.call(document.querySelectorAll('#registerHoteles input[name="registerHotel"]:checked'), function (c) { return c.value; });
+  }
+
   function switchForm(form) {
     const carousel = document.getElementById("formCarousel");
     const container = document.querySelector(".auth-container");
@@ -8954,6 +9180,7 @@ button, input, select, textarea {
       // Deslizar a register
       container.classList.remove("carousel-login");
       container.classList.add("carousel-register");
+      cargarPropiedadesRegistro_();
     }
 
     clearAllErrors("loginForm");
@@ -9250,6 +9477,24 @@ button, input, select, textarea {
         if (typeof marcarInicioCargado_ === "function") marcarInicioCargado_();
       })
       .obtenerModulosConHoteles(token, idUsuario);
+  }
+
+  /** Insignia con la cantidad de solicitudes de acceso que esta persona puede resolver, sobre el icono de "Usuarios".
+   *  null/0 = sin insignia (también para quienes no gestionan usuarios). */
+  function actualizarInsigniaPendientes_(cantidad) {
+    const nav = document.getElementById("navUsuarios");
+    const icono = nav ? nav.querySelector(".sidebar-icon") : null;
+    if (!icono) return;
+    let insignia = icono.querySelector(".sidebar-badge-pendientes");
+    const n = Number(cantidad) || 0;
+    if (n <= 0) { if (insignia) insignia.remove(); nav.removeAttribute("title"); return; }
+    if (!insignia) {
+      insignia = document.createElement("span");
+      insignia.className = "sidebar-badge-pendientes";
+      icono.appendChild(insignia);
+    }
+    insignia.textContent = n > 99 ? "99+" : String(n);
+    nav.title = n + (n === 1 ? " solicitud de acceso pendiente" : " solicitudes de acceso pendientes");
   }
 
   /** Guarda la copia para la próxima visita y pinta el menú con lo que respondió el servidor. */
@@ -9775,6 +10020,7 @@ button, input, select, textarea {
           .withSuccessHandler(function (datos) {
             if (!datos || typeof datos !== "object") { respaldo_(); return; }
             try {
+              if ("pendientes" in datos && typeof actualizarInsigniaPendientes_ === "function") actualizarInsigniaPendientes_(datos.pendientes);
               if (Array.isArray(datos.modulos)) aplicarModulosSidebar_(datos.modulos); else cargarHotelesSidebar();
               if (datos.idsFavoritos) aplicarIdsFavoritos_(datos.idsFavoritos); else refrescarCacheFavoritos();
               if (datos.actividad) aplicarWidgetRecientes_(datos.actividad, Array.isArray(recientesGuardados)); else cargarWidgetRecientes();
@@ -13006,8 +13252,17 @@ function mostrarModalSinPermisos_(razon) {
     'Activo': 'Activo',
     'Pendiente_Verificacion': 'Falta verificar correo',
     'Pendiente_Aprobacion': 'Pendiente de aprobación',
+    'Solicitud_Cerrada': 'Solicitud cerrada',
     'Inactivo': 'Inactivo'
   };
+
+  /** Cuántas filas tienen una solicitud que quien mira puede resolver (para la insignia del menú). */
+  function contarSolicitudesVisibles_(usuarios) {
+    return usuarios.filter(function (u) {
+      const sol = Array.isArray(u.solicitudes) ? u.solicitudes : [];
+      return sol.some(function (s) { return s.puedeResolver; }) || (String(u.estado) === 'Pendiente_Aprobacion' && !sol.length);
+    }).length;
+  }
 
   function mostrarVistaUsuarios() {
     const homeContent = document.querySelector('.home-content');
@@ -13089,6 +13344,7 @@ function mostrarModalSinPermisos_(razon) {
       .withSuccessHandler(function (result) {
         if (!result.success) { mostrarErrorApartado(grid, result.message); return; }
         renderizarUsuarios_(result.usuarios || [], sesion);
+        if (typeof actualizarInsigniaPendientes_ === 'function') actualizarInsigniaPendientes_(contarSolicitudesVisibles_(result.usuarios || []));
       })
       .withFailureHandler(function (error) {
         console.error('Error cargando usuarios:', error);
@@ -13118,10 +13374,13 @@ function mostrarModalSinPermisos_(razon) {
       const estado = String(u.estado || '');
       const estadoClase = estado === 'Activo' ? 'activo' : (estado === 'Pendiente_Aprobacion' ? 'pendiente' : 'inactivo');
       const estadoTexto = ESTADOS_USUARIO_TEXTO[estado] || estado;
-      const rolCelda = puedeCambiarRol
+      const solicitudes = Array.isArray(u.solicitudes) ? u.solicitudes : [];
+      const soloSolicitud = u.solo_solicitud === true; // la ves únicamente por una solicitud de tu propiedad
+      const puedeResolverAlgo = solicitudes.some(function (s) { return s.puedeResolver; });
+      const rolCelda = (puedeCambiarRol && !soloSolicitud)
         ? '<select class="usuario-rol-select" data-id-usuario="' + u.id + '" data-id-rol-actual="' + (u.rol_id || u.id_rol || 1) + '" data-rol-actual="' + escaparHtml(u.rol || '') + '"></select>'
         : '<span class="usuario-rol-badge">' + escaparHtml(u.rol || '') + '</span>';
-      const botonAprobar = estado === 'Pendiente_Aprobacion'
+      const botonAprobar = (estado === 'Pendiente_Aprobacion' && (solicitudes.length ? puedeResolverAlgo : true))
         ? '<button type="button" class="btn-aprobar-usuario" data-id-usuario="' + u.id + '">Aprobar</button>'
         : '';
 
@@ -13206,6 +13465,30 @@ function mostrarModalSinPermisos_(razon) {
         }
       }
 
+      // Quien ve la cuenta solo por una solicitud no puede restablecer contraseñas ni desactivarla: solo resolver lo suyo
+      if (soloSolicitud) accionesHtml = '';
+      const puedeCerrar = (estado === 'Pendiente_Aprobacion' && (solicitudes.length ? puedeResolverAlgo : puedeCambiarRol)) ||
+        (estado === 'Activo' && puedeResolverAlgo);
+      const botonCerrarHtml = (puedeCerrar && !esEsteUsuario)
+        ? '<button type="button" class="btn-cerrar-solicitud" data-id-usuario="' + u.id + '" title="' +
+            (estado === 'Pendiente_Aprobacion' ? 'Cerrar la solicitud: la persona podrá volver a registrarse' : 'Denegar las propiedades pendientes que te corresponden') + '">' +
+            (estado === 'Pendiente_Aprobacion' ? 'Cerrar solicitud' : 'Denegar pendientes') + '</button>'
+        : '';
+
+      // Propiedades que pidió y siguen pendientes: cada administrador resuelve las suyas
+      // (el botón de cerrar va en esta misma columna, no en la de acciones, que es muy angosta)
+      const solicitudesHtml = (solicitudes.length || botonCerrarHtml)
+        ? '<div class="solicitudes-bloque">' + (solicitudes.length ? '<span class="solicitudes-titulo">Solicita:</span>' : '') + solicitudes.map(function (s) {
+            return '<span class="solicitud-item' + (s.puedeResolver ? '' : ' ajena') + '">' +
+              '<span class="solicitud-nombre">' + escaparHtml(s.nombre) + '</span>' +
+              (s.puedeResolver
+                ? '<button type="button" class="btn-resolver-solicitud ok" data-id-usuario="' + u.id + '" data-id-hotel="' + escaparHtml(s.idHotel) + '" data-decision="aprobar" title="Aprobar ' + escaparHtml(s.nombre) + '">✓</button>' +
+                  '<button type="button" class="btn-resolver-solicitud no" data-id-usuario="' + u.id + '" data-id-hotel="' + escaparHtml(s.idHotel) + '" data-decision="denegar" title="Denegar ' + escaparHtml(s.nombre) + '">✕</button>'
+                : '<span class="solicitud-ajena" title="Lo resuelve el administrador de esa propiedad">otro admin</span>') +
+            '</span>';
+          }).join('') + botonCerrarHtml + '</div>'
+        : '';
+
       return '<div class="usuario-fila" data-id-usuario="' + u.id + '">' +
         '<div class="usuario-nombre">' + escaparHtml(u.nombre || '') + '</div>' +
         '<div class="usuario-email">' + escaparHtml(u.email || '') + '</div>' +
@@ -13214,7 +13497,7 @@ function mostrarModalSinPermisos_(razon) {
           '<span class="usuario-estado-badge ' + estadoClase + '">' + escaparHtml(estadoTexto) + '</span>' +
           botonAprobar +
         '</div>' +
-        '<div>' + hotelesCelda + '</div>' +
+        '<div>' + hotelesCelda + solicitudesHtml + '</div>' +
         '<div class="usuario-acciones-celda">' +
           accionesHtml +
         '</div>' +
@@ -13276,10 +13559,44 @@ function mostrarModalSinPermisos_(razon) {
     grid.querySelectorAll('.btn-aprobar-usuario').forEach(function (btn) {
       btn.addEventListener('click', function () {
         const usuario = usuarios.find(function (u) { return String(u.id) === btn.dataset.idUsuario; });
+        const propias = usuario && Array.isArray(usuario.solicitudes) ? usuario.solicitudes.filter(function (s) { return s.puedeResolver; }) : [];
+        const textoAprobar = propias.length
+          ? '¿Aprobar a ' + usuario.nombre + ' en: ' + propias.map(function (s) { return s.nombre; }).join(', ') + '? Las propiedades que corresponden a otros administradores las resuelve cada uno.'
+          : '¿Darle acceso a ' + (usuario ? usuario.nombre : 'este usuario') + '? Va a poder iniciar sesión de inmediato.';
         showConfirmation(
-          '¿Darle acceso a ' + (usuario ? usuario.nombre : 'este usuario') + '? Va a poder iniciar sesión de inmediato.',
+          textoAprobar,
           'Aprobar usuario',
           function () { confirmarAprobarUsuario_(btn); }
+        );
+      });
+    });
+
+    // Aprobar o denegar UNA propiedad solicitada
+    grid.querySelectorAll('.btn-resolver-solicitud').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        const usuario = usuarios.find(function (u) { return String(u.id) === btn.dataset.idUsuario; });
+        const sol = usuario && usuario.solicitudes ? usuario.solicitudes.find(function (s) { return String(s.idHotel) === btn.dataset.idHotel; }) : null;
+        const nombreHotel = sol ? sol.nombre : 'esta propiedad';
+        const aprobar = btn.dataset.decision === 'aprobar';
+        showConfirmation(
+          (aprobar ? '¿Darle acceso a ' : '¿Denegar el acceso a ') + nombreHotel + ' a ' + (usuario ? usuario.nombre : 'esta persona') + '?',
+          aprobar ? 'Aprobar propiedad' : 'Denegar propiedad',
+          function () { resolverSolicitudUI_(btn.dataset.idUsuario, btn.dataset.idHotel, btn.dataset.decision); }
+        );
+      });
+    });
+
+    // Cerrar la solicitud completa
+    grid.querySelectorAll('.btn-cerrar-solicitud').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        const usuario = usuarios.find(function (u) { return String(u.id) === btn.dataset.idUsuario; });
+        const pendienteDeAprobar = usuario && String(usuario.estado) === 'Pendiente_Aprobacion';
+        showConfirmation(
+          pendienteDeAprobar
+            ? '¿Cerrar la solicitud de ' + (usuario ? usuario.nombre : 'esta persona') + '? No tendrá acceso y podrá volver a registrarse con su mismo correo.'
+            : '¿Denegar las propiedades pendientes de ' + (usuario ? usuario.nombre : 'esta persona') + ' que te corresponden? Sus accesos ya aprobados no cambian.',
+          pendienteDeAprobar ? 'Cerrar solicitud' : 'Denegar pendientes',
+          function () { cerrarSolicitudUI_(btn.dataset.idUsuario); }
         );
       });
     });
@@ -13715,6 +14032,32 @@ function mostrarModalSinPermisos_(razon) {
       .cambiarRolUsuario(idUsuarioObjetivo, idRolNuevo, token, idUsuario);
   }
 
+  function resolverSolicitudUI_(idUsuarioObjetivo, idHotel, decision) {
+    const sesion = getCurrentUserSession();
+    const token = getCurrentUserToken();
+    const idUsuario = sesion && (sesion.ID_Usuario || sesion.idUsuario) ? (sesion.ID_Usuario || sesion.idUsuario) : null;
+    google.script.run
+      .withSuccessHandler(function (result) {
+        if (result && result.success) { showNotification('✅ ' + (result.message || 'Solicitud resuelta'), 'success', 4000); cargarVistaUsuarios(); }
+        else showNotification('Error: ' + ((result && result.message) || 'No se pudo resolver'), 'error', 3500);
+      })
+      .withFailureHandler(function (error) { console.error('Error resolverSolicitudHotel:', error); showNotification('Error al resolver la solicitud', 'error', 3000); })
+      .resolverSolicitudHotel(idUsuarioObjetivo, idHotel, decision, token, idUsuario);
+  }
+
+  function cerrarSolicitudUI_(idUsuarioObjetivo) {
+    const sesion = getCurrentUserSession();
+    const token = getCurrentUserToken();
+    const idUsuario = sesion && (sesion.ID_Usuario || sesion.idUsuario) ? (sesion.ID_Usuario || sesion.idUsuario) : null;
+    google.script.run
+      .withSuccessHandler(function (result) {
+        if (result && result.success) { showNotification('✅ ' + (result.message || 'Solicitud cerrada'), 'success', 4000); cargarVistaUsuarios(); }
+        else showNotification('Error: ' + ((result && result.message) || 'No se pudo cerrar'), 'error', 3500);
+      })
+      .withFailureHandler(function (error) { console.error('Error cerrarSolicitudUsuario:', error); showNotification('Error al cerrar la solicitud', 'error', 3000); })
+      .cerrarSolicitudUsuario(idUsuarioObjetivo, token, idUsuario);
+  }
+
   function confirmarAprobarUsuario_(btn) {
     const idUsuarioObjetivo = btn.dataset.idUsuario;
     const sesion = getCurrentUserSession();
@@ -13725,7 +14068,7 @@ function mostrarModalSinPermisos_(razon) {
     google.script.run
       .withSuccessHandler(function (result) {
         if (result.success) {
-          showNotification('✅ Usuario aprobado', 'success', 2500);
+          showNotification('✅ ' + (result.message || 'Usuario aprobado'), 'success', 4000);
           cargarVistaUsuarios();
         } else {
           btn.disabled = false;

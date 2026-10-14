@@ -121,6 +121,7 @@ function obtenerUsuariosLite_(opciones) {
       const cRol = buscar(['rol', 'idrol', 'rolid'], 4);
       const cEstado = buscar(['estado'], 5);
       const cHot = buscar(['hotelespermitidos', 'hoteles'], -1);
+      const cSol = buscar(['hotelessolicitados'], -1);
       resultado.hayHoteles = cHot !== -1;
 
       for (let i = 1; i < datos.length; i++) {
@@ -132,7 +133,8 @@ function obtenerUsuariosLite_(opciones) {
           email: String(fila[cEmail] || '').trim(),
           rol: (rol === null || rol === undefined || rol === '') ? '' : rol,
           estado: String(fila[cEstado] == null ? '' : fila[cEstado]).trim(),
-          hoteles: cHot !== -1 ? String(fila[cHot] == null ? '' : fila[cHot]).trim() : ''
+          hoteles: cHot !== -1 ? String(fila[cHot] == null ? '' : fila[cHot]).trim() : '',
+          solicitados: cSol !== -1 ? String(fila[cSol] == null ? '' : fila[cSol]).trim() : ''
         });
       }
     }

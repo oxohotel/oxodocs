@@ -386,6 +386,20 @@ function obtenerUsuariosParaGestion(idUsuarioSolicitanteOToken, idUsuarioFallbac
       const norm = String(h || '').trim().toLowerCase().replace(/[\s_]+/g, '');
       return norm === 'rol' || norm === 'idrol';
     });
+    const idxSolicitados = encabezados.findIndex(function (h) {
+      return String(h || '').trim().toLowerCase().replace(/[\s_]+/g, '') === 'hotelessolicitados';
+    });
+
+    // Catálogo de hoteles UNA sola vez (antes se releía la hoja Hoteles por cada usuario de la lista)
+    const nombrePorIdHotel = {};
+    const catalogoHoteles = [];
+    (leerHojaConCache_('Hoteles') || []).slice(1).forEach(function (f) {
+      if (!f[0]) return;
+      const id = String(f[0]).trim();
+      const nombre = String(f[1] == null ? '' : f[1]);
+      nombrePorIdHotel[id] = nombre;
+      catalogoHoteles.push({ id: id, nombre: nombre });
+    });
 
     // Alcance del solicitante (regla única en backend/AlcanceAdmin.js): un Administrador solo ve a quienes
     // comparten alguna de sus propiedades; nunca a superadmins ni a cuentas con TODOS.
@@ -403,41 +417,31 @@ function obtenerUsuariosParaGestion(idUsuarioSolicitanteOToken, idUsuarioFallbac
       const infoRol = obtenerInfoRol_(rawRol);
       const hotelesUsuario = idxHoteles !== -1 ? String(datos[i][idxHoteles] || '').trim() : '';
 
-      if (alcance && !usuarioEnAlcance_(alcance, { id: idFila, rolId: String(infoRol.id), hoteles: hotelesUsuario })) {
-        continue;
+      const estadoFila = String(datos[i][idx['Estado'] || 5] == null ? '' : datos[i][idx['Estado'] || 5]).trim();
+      const solicitadosTexto = idxSolicitados !== -1 ? String(datos[i][idxSolicitados] == null ? '' : datos[i][idxSolicitados]).trim() : '';
+      const paraAlcance = { id: idFila, rolId: String(infoRol.id), hoteles: hotelesUsuario, estado: estadoFila, solicitados: solicitadosTexto };
+
+      // Alcance pleno (puede gestionar la cuenta) o, si no, visible solo por una solicitud que le toca resolver
+      let soloSolicitud = false;
+      let resolubles = [];
+      if (alcance) {
+        const plena = usuarioEnAlcance_(alcance, paraAlcance);
+        resolubles = solicitudesResolubles_(alcance, paraAlcance);
+        if (!plena && !resolubles.length) continue;
+        soloSolicitud = !plena;
       }
 
-      // Resolver nombres de hoteles a partir de los IDs
+      // Nombres de los hoteles asignados (en el orden de la hoja de hoteles)
       let hotelesLista = [];
       if (hotelesUsuario && hotelesUsuario !== '*' && hotelesUsuario.toUpperCase() !== 'TODOS') {
-        try {
-          const hojaHoteles = ss.getSheetByName('Hoteles');
-          if (hojaHoteles) {
-            const datosHoteles = hojaHoteles.getDataRange().getValues();
-            const encabHoteles = datosHoteles[0];
-            const idxIdHotel = encabHoteles.findIndex(function (h) {
-              const norm = String(h || '').trim().toLowerCase().replace(/[\s_]+/g, '');
-              return norm === 'idhotel' || norm === 'id';
-            });
-            const idxNombreHotel = encabHoteles.findIndex(function (h) {
-              const norm = String(h || '').trim().toLowerCase().replace(/[\s_]+/g, '');
-              return norm === 'nombrehotel' || norm === 'nombre';
-            });
-
-            if (idxIdHotel !== -1 && idxNombreHotel !== -1) {
-              const idsRequeridos = hotelesUsuario.split(',').map(function (s) { return String(s).trim(); }).filter(Boolean);
-              for (let h = 1; h < datosHoteles.length; h++) {
-                const idHotel = String(datosHoteles[h][idxIdHotel]).trim();
-                if (idsRequeridos.includes(idHotel)) {
-                  hotelesLista.push(datosHoteles[h][idxNombreHotel]);
-                }
-              }
-            }
-          }
-        } catch (errNombres) {
-          Logger.log('Aviso resolviendo nombres de hoteles: ' + errNombres);
-        }
+        const requeridos = hotelesUsuario.split(',').map(function (s) { return String(s).trim(); }).filter(Boolean);
+        hotelesLista = catalogoHoteles.filter(function (h) { return requeridos.indexOf(h.id) !== -1; }).map(function (h) { return h.nombre; });
       }
+
+      // Propiedades que pidió y siguen pendientes; "puedeResolver" indica cuáles le tocan a quien mira
+      const solicitudes = listaDeIdsAlcance_(solicitadosTexto).map(function (id) {
+        return { idHotel: id, nombre: nombrePorIdHotel[id] || ('Hotel ' + id), puedeResolver: !alcance || resolubles.indexOf(id) !== -1 };
+      });
 
       usuarios.push({
         id: idFila,
@@ -448,7 +452,9 @@ function obtenerUsuariosParaGestion(idUsuarioSolicitanteOToken, idUsuarioFallbac
         id_rol: infoRol.id,
         estado: datos[i][idx['Estado'] || 5],
         hoteles_permitidos: hotelesUsuario,
-        hoteles_lista: hotelesLista
+        hoteles_lista: hotelesLista,
+        solicitudes: solicitudes,
+        solo_solicitud: soloSolicitud
       });
     }
     return { success: true, usuarios: usuarios };
@@ -458,12 +464,7 @@ function obtenerUsuariosParaGestion(idUsuarioSolicitanteOToken, idUsuarioFallbac
   }
 }
 
-/**
- * Le da acceso a un usuario ("Pendiente_Aprobacion" -> "Activo").
- */
-function aprobarUsuario(idUsuarioObjetivo, idUsuarioSolicitanteOToken, idUsuarioFallback) {
-  return cambiarEstadoUsuario(idUsuarioObjetivo, 'Activo', idUsuarioSolicitanteOToken, idUsuarioFallback);
-}
+// aprobarUsuario y las demás funciones de solicitudes viven en backend/Solicitudes.js
 
 /**
  * Cambia el estado de un usuario (Activo, Inactivo, Pendiente_Aprobacion).

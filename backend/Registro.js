@@ -1,0 +1,134 @@
+/**
+ * Solicitud de propiedades al registrarse y avisos del flujo de aprobación.
+ *
+ * Al registrarse la persona elige UNA O VARIAS propiedades (hotel o Corporativo). Eso NO le da acceso: queda guardado en la
+ * columna "Hoteles_Solicitados" (ids separados por coma). Cada propiedad la resuelve su propio administrador
+ * (backend/Solicitudes.js): al aprobarla pasa a "Hoteles_Permitidos" y sale de "Hoteles_Solicitados"; si la deniega, solo sale
+ * de "Hoteles_Solicitados". La persona solo accede a las propiedades que le aprobaron.
+ */
+
+var URL_APLICACION_ = 'https://oxohotel.github.io/oxodocs/';
+var MAX_DESTINATARIOS_AVISO_ = 15;
+var MAX_PROPIEDADES_SOLICITADAS_ = 20;
+
+function claveTexto_(t) {
+  return String(t == null ? '' : t).trim().toLowerCase();
+}
+
+/** Lista única de ids a partir de un arreglo o de un texto "3,5,9". */
+function listaDeIds_(valor) {
+  const crudo = Array.isArray(valor) ? valor : String(valor == null ? '' : valor).split(',');
+  const vistos = {};
+  const lista = [];
+  crudo.forEach(function (v) {
+    const id = String(v == null ? '' : v).trim();
+    if (id && !vistos[id]) { vistos[id] = true; lista.push(id); }
+  });
+  return lista;
+}
+
+/**
+ * Propiedades que se ofrecen en el formulario de registro, que es PÚBLICO (se llama sin sesión): solo los módulos
+ * "Hoteles en operación" y "Corporativo", y solo id y nombre. Nunca los hoteles en pre-apertura o desarrollo (pueden ser
+ * confidenciales) ni datos de Drive.
+ */
+function obtenerHotelesParaRegistro() {
+  try {
+    const modulos = leerHojaConCache_('Modulos');
+    const hoteles = leerHojaConCache_('Hoteles');
+    if (!modulos || !hoteles) return { success: true, hoteles: [] };
+
+    const publicos = [DRIVE_CONFIG.MODULOS[0], DRIVE_CONFIG.MODULOS[3]].map(claveTexto_);
+    const idsModulos = new Set(
+      modulos.slice(1)
+        .filter(function (f) { return f[0] && publicos.indexOf(claveTexto_(f[1])) !== -1; })
+        .map(function (f) { return String(f[0]); })
+    );
+
+    const lista = hoteles.slice(1)
+      .filter(function (f) { return f[0] && idsModulos.has(String(f[2])); })
+      .map(function (f) { return { idHotel: String(f[0]).trim(), nombre: String(f[1] == null ? '' : f[1]) }; })
+      .sort(function (a, b) { return a.nombre.localeCompare(b.nombre, 'es'); });
+
+    return { success: true, hoteles: lista };
+  } catch (error) {
+    Logger.log('Error obtenerHotelesParaRegistro: ' + error);
+    return { success: false, message: 'No se pudo cargar la lista de propiedades', hoteles: [] };
+  }
+}
+
+function nombreDeHotel_(idHotel) {
+  const hoteles = leerHojaConCache_('Hoteles');
+  if (!hoteles) return '';
+  const fila = hoteles.slice(1).filter(function (f) { return String(f[0]).trim() === String(idHotel).trim(); })[0];
+  return fila ? String(fila[1]) : '';
+}
+
+function nombresDeHoteles_(ids) {
+  return ids.map(function (id) { return nombreDeHotel_(id) || ('hotel ' + id); });
+}
+
+/** Quiénes deben enterarse de una solicitud: superadmins, administradores con TODOS y administradores de esas propiedades. */
+function destinatariosDeAprobacion_(usuarios, idsHotelesSolicitados) {
+  const pedidos = listaDeIds_(idsHotelesSolicitados);
+  const vistos = {};
+  const lista = [];
+  usuarios.forEach(function (u) {
+    if (u.estado !== 'Activo' || !u.email) return;
+    const rolId = String(obtenerInfoRol_(u.rol).id);
+    const propios = listaHotelesDeValor_(u.hoteles);
+    const aplica = rolId === '3' ||
+      (rolId === '2' && (esAccesoTotalHoteles_(u.hoteles) || pedidos.some(function (id) { return propios.indexOf(id) !== -1; })));
+    const correo = u.email.toLowerCase();
+    if (aplica && !vistos[correo]) { vistos[correo] = true; lista.push(correo); }
+  });
+  return lista.slice(0, MAX_DESTINATARIOS_AVISO_);
+}
+
+function escaparHtmlCorreo_(t) {
+  return String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+/** Aviso (en copia oculta) a quienes pueden aprobar. Es de mejor esfuerzo: si falla, el registro no se ve afectado. */
+function notificarAprobadoresDeRegistro_(emailNuevo) {
+  try {
+    const usuarios = obtenerUsuariosLite_().usuarios;
+    const correo = claveTexto_(emailNuevo);
+    const nuevo = usuarios.filter(function (u) { return claveTexto_(u.email) === correo; })[0];
+    if (!nuevo) return;
+
+    const pedidos = listaDeIds_(nuevo.solicitados);
+    const destinatarios = destinatariosDeAprobacion_(usuarios, pedidos);
+    if (!destinatarios.length) return;
+
+    const propiedades = pedidos.length ? nombresDeHoteles_(pedidos).join(', ') : 'no indicó ninguna';
+    MailApp.sendEmail({
+      to: destinatarios[0],
+      bcc: destinatarios.slice(1).join(','),
+      subject: 'Nueva solicitud de acceso - Repositorio de Documentos',
+      htmlBody:
+        '<p>Hola,</p>' +
+        '<p><strong>' + escaparHtmlCorreo_(nuevo.nombre) + '</strong> (' + escaparHtmlCorreo_(nuevo.email) + ') verificó su correo y está esperando aprobación.</p>' +
+        '<p>Propiedades que solicita: <strong>' + escaparHtmlCorreo_(propiedades) + '</strong></p>' +
+        '<p>Cada administrador resuelve las de su propiedad. Entra a <a href="' + URL_APLICACION_ + '">' + URL_APLICACION_ + '</a> → Usuarios.</p>' +
+        '<p>Recibes este aviso porque puedes resolver solicitudes de alguna de esas propiedades.</p>'
+    });
+  } catch (error) {
+    Logger.log('Aviso notificarAprobadoresDeRegistro_: ' + error);
+  }
+}
+
+/** Le avisa a la persona qué pasó con su solicitud. De mejor esfuerzo. */
+function notificarSolicitante_(email, nombre, aprobados, denegados, cerrada) {
+  try {
+    if (!email) return;
+    let cuerpo = '<p>Hola ' + escaparHtmlCorreo_(nombre) + ',</p>';
+    if (aprobados.length) cuerpo += '<p>Te dieron acceso a: <strong>' + escaparHtmlCorreo_(nombresDeHoteles_(aprobados).join(', ')) + '</strong>.</p>';
+    if (denegados.length) cuerpo += '<p>No se aprobó el acceso a: <strong>' + escaparHtmlCorreo_(nombresDeHoteles_(denegados).join(', ')) + '</strong>.</p>';
+    if (cerrada) cuerpo += '<p>Tu solicitud fue cerrada. Si lo necesitas, puedes volver a registrarte con este mismo correo.</p>';
+    if (aprobados.length) cuerpo += '<p>Ya puedes entrar a <a href="' + URL_APLICACION_ + '">' + URL_APLICACION_ + '</a>.</p>';
+    MailApp.sendEmail({ to: email, subject: 'Tu solicitud de acceso - Repositorio de Documentos', htmlBody: cuerpo });
+  } catch (error) {
+    Logger.log('Aviso notificarSolicitante_: ' + error);
+  }
+}

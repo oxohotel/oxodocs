@@ -41,7 +41,9 @@ function obtenerDatosInicio(token, idUsuario, forzar) {
     modulos: intentar_(function () { return obtenerModulosConHoteles(token, idUsuario); }, 'hoteles'),
     idsFavoritos: intentar_(function () { return obtenerIdsFavoritosUsuario(idUsuario); }, 'idsFav'),
     actividad: intentar_(function () { return obtenerActividadReciente(idUsuario, 4); }, 'actividad'),
-    favoritos: intentar_(function () { return obtenerFavoritosDetallados(idUsuario); }, 'favoritos')
+    favoritos: intentar_(function () { return obtenerFavoritosDetallados(idUsuario); }, 'favoritos'),
+    // Solicitudes de acceso que esta persona puede resolver (null si no gestiona usuarios): insignia en "Usuarios"
+    pendientes: intentar_(function () { return contarPendientesAprobacion_(token, idUsuario); }, 'pendientes')
   };
 
   if (forzar === true) resultado.refrescoForzado = refrescoForzado; // false = se omitió (límite por minuto o sesión no válida)

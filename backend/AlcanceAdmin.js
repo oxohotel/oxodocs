@@ -31,7 +31,10 @@ function leerUsuariosParaAlcance_(ss) {
   return obtenerUsuariosLite_().usuarios
     .filter(function (u) { return u.id; })
     .map(function (u) {
-      return { id: u.id, email: u.email.toLowerCase(), rolId: String(obtenerInfoRol_(u.rol).id), hoteles: u.hoteles };
+      return {
+        id: u.id, email: u.email.toLowerCase(), rolId: String(obtenerInfoRol_(u.rol).id), hoteles: u.hoteles,
+        estado: u.estado || '', solicitados: u.solicitados || ''
+      };
     });
 }
 
@@ -58,6 +61,23 @@ function usuarioEnAlcance_(alcance, u) {
   if (alcance.global) return true;                         // administrador con TODOS
   if (esAccesoTotalHoteles_(u.hoteles)) return false;      // cuentas con TODOS no son "de una propiedad"
   return listaHotelesDeValor_(u.hoteles).some(function (h) { return alcance.hoteles.has(h); });
+}
+
+/**
+ * Propiedades que "u" pidió y que el administrador de "alcance" PUEDE resolver (las suyas; todas si es superadmin o TODOS).
+ * Solo cuentan solicitudes de cuentas pendientes de aprobación o activas, y nunca de superadministradores.
+ * Quien solo es visible por una solicitud no tiene alcance pleno sobre la cuenta (no puede desactivarla, cambiarle la contraseña...).
+ */
+function solicitudesResolubles_(alcance, u) {
+  if (u.id === alcance.idSolicitante || u.rolId === '3') return [];
+  if (u.estado !== 'Pendiente_Aprobacion' && u.estado !== 'Activo') return [];
+  const pedidas = listaDeIdsAlcance_(u.solicitados);
+  if (alcance.esSuperadmin || alcance.global) return pedidas;
+  return pedidas.filter(function (id) { return alcance.hoteles.has(id); });
+}
+
+function listaDeIdsAlcance_(valor) {
+  return String(valor == null ? '' : valor).split(',').map(function (s) { return s.trim(); }).filter(Boolean);
 }
 
 /** ¿El texto (en minúsculas) menciona el correo completo? Evita que "ana@x.com" coincida dentro de "mariana@x.com". */

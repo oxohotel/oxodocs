@@ -2,7 +2,7 @@
   async function registerUser(userData) {
     try {
       showLoading();
-      const { nombre, email, password } = userData;
+      const { nombre, email, password, hoteles } = userData;
       const validation = validateRegisterData(nombre, email, password);
       if (!validation.isValid) {
         hideLoading();
@@ -13,7 +13,7 @@
         google.script.run
           .withSuccessHandler((response) => resolve(response))
           .withFailureHandler((error) => reject(error))
-          .registrarUsuario(nombre, email, password);
+          .registrarUsuario(nombre, email, password, hoteles || []);
       });
 
       hideLoading();

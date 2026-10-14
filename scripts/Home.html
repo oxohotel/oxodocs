@@ -136,6 +136,7 @@
           .withSuccessHandler(function (datos) {
             if (!datos || typeof datos !== "object") { respaldo_(); return; }
             try {
+              if ("pendientes" in datos && typeof actualizarInsigniaPendientes_ === "function") actualizarInsigniaPendientes_(datos.pendientes);
               if (Array.isArray(datos.modulos)) aplicarModulosSidebar_(datos.modulos); else cargarHotelesSidebar();
               if (datos.idsFavoritos) aplicarIdsFavoritos_(datos.idsFavoritos); else refrescarCacheFavoritos();
               if (datos.actividad) aplicarWidgetRecientes_(datos.actividad, Array.isArray(recientesGuardados)); else cargarWidgetRecientes();
