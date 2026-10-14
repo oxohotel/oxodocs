@@ -64,7 +64,7 @@ const ACCIONES_PERMITIDAS_ = [
   'renombrarArchivo',
   'renombrarCarpeta',
   'restablecerContrasenaUsuarioPorAdmin',
-  'resolverSolicitudHotel',
+  'resolverSolicitudesUsuario',
   'restablecerPasswordConCodigo',
   'solicitarCodigoRecuperacion',
   'validarCodigoRecuperacion',

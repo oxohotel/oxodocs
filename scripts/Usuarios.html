@@ -12,6 +12,11 @@
     'Inactivo': 'Inactivo'
   };
 
+  // Iconos de línea (mismo estilo que la llave y el interruptor de las acciones): un edificio es una propiedad
+  var ICONO_PROPIEDAD_ = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V8l7-5 7 5v13"/><path d="M9 21v-5h6v5"/></svg>';
+  var ICONO_APROBAR_ = '<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V8l7-5 7 5v13"/><path d="M8.5 14l2.5 2.5 4.5-5.5" stroke-width="2.6"/></svg>';
+  var ICONO_DENEGAR_ = '<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V8l7-5 7 5v13"/><path d="M9 11l6 6M15 11l-6 6" stroke-width="2.6"/></svg>';
+
   /** Cuántas filas tienen una solicitud que quien mira puede resolver (para la insignia del menú). */
   function contarSolicitudesVisibles_(usuarios) {
     return usuarios.filter(function (u) {
@@ -132,12 +137,15 @@
       const estadoTexto = ESTADOS_USUARIO_TEXTO[estado] || estado;
       const solicitudes = Array.isArray(u.solicitudes) ? u.solicitudes : [];
       const soloSolicitud = u.solo_solicitud === true; // la ves únicamente por una solicitud de tu propiedad
-      const puedeResolverAlgo = solicitudes.some(function (s) { return s.puedeResolver; });
+      const propiasSolicitudes = solicitudes.filter(function (s) { return s.puedeResolver; });
+      const esPendiente = estado === 'Pendiente_Aprobacion';
       const rolCelda = (puedeCambiarRol && !soloSolicitud)
         ? '<select class="usuario-rol-select" data-id-usuario="' + u.id + '" data-id-rol-actual="' + (u.rol_id || u.id_rol || 1) + '" data-rol-actual="' + escaparHtml(u.rol || '') + '"></select>'
         : '<span class="usuario-rol-badge">' + escaparHtml(u.rol || '') + '</span>';
-      const botonAprobar = (estado === 'Pendiente_Aprobacion' && (solicitudes.length ? puedeResolverAlgo : true))
-        ? '<button type="button" class="btn-aprobar-usuario" data-id-usuario="' + u.id + '">Aprobar</button>'
+      // Aprobar / denegar: un solo camino, desde la columna de acciones (registros antiguos sin propiedades pedidas incluidos)
+      const puedeResolver = (propiasSolicitudes.length > 0 || (esPendiente && !solicitudes.length)) && String(u.id) !== idSesion;
+      const botonAprobar = puedeResolver
+        ? '<button type="button" class="btn-accion-icono aprobar btn-solicitud-aprobar" data-id-usuario="' + u.id + '" title="Aprobar acceso" aria-label="Aprobar acceso">' + ICONO_APROBAR_ + '</button>'
         : '';
 
       // Celda de Hoteles permitidos
@@ -223,25 +231,17 @@
 
       // Quien ve la cuenta solo por una solicitud no puede restablecer contraseñas ni desactivarla: solo resolver lo suyo
       if (soloSolicitud) accionesHtml = '';
-      const puedeCerrar = (estado === 'Pendiente_Aprobacion' && (solicitudes.length ? puedeResolverAlgo : puedeCambiarRol)) ||
-        (estado === 'Activo' && puedeResolverAlgo);
-      const botonCerrarHtml = (puedeCerrar && !esEsteUsuario)
-        ? '<button type="button" class="btn-cerrar-solicitud" data-id-usuario="' + u.id + '" title="' +
-            (estado === 'Pendiente_Aprobacion' ? 'Cerrar la solicitud: la persona podrá volver a registrarse' : 'Denegar las propiedades pendientes que te corresponden') + '">' +
-            (estado === 'Pendiente_Aprobacion' ? 'Cerrar solicitud' : 'Denegar pendientes') + '</button>'
+      const botonCerrarHtml = puedeResolver
+        ? '<button type="button" class="btn-accion-icono denegar btn-solicitud-denegar" data-id-usuario="' + u.id + '" title="' +
+            (esPendiente ? 'Cerrar solicitud (la persona podrá volver a registrarse)' : 'Denegar solicitudes pendientes') + '" aria-label="' +
+            (esPendiente ? 'Cerrar solicitud' : 'Denegar solicitudes pendientes') + '">' + ICONO_DENEGAR_ + '</button>'
         : '';
 
-      // Propiedades que pidió y siguen pendientes: cada administrador resuelve las suyas
-      // (el botón de cerrar va en esta misma columna, no en la de acciones, que es muy angosta)
+      // Propiedades que pidió y siguen pendientes (solo informativas): cada administrador resuelve las suyas
       const solicitudesHtml = solicitudes.length
         ? '<div class="solicitudes-bloque">' + '<span class="solicitudes-titulo">Solicita:</span>' + solicitudes.map(function (s) {
-            return '<span class="solicitud-item' + (s.puedeResolver ? '' : ' ajena') + '">' +
-              '<span class="solicitud-nombre">' + escaparHtml(s.nombre) + '</span>' +
-              (s.puedeResolver
-                ? '<button type="button" class="btn-resolver-solicitud ok" data-id-usuario="' + u.id + '" data-id-hotel="' + escaparHtml(s.idHotel) + '" data-decision="aprobar" title="Aprobar ' + escaparHtml(s.nombre) + '">✓</button>' +
-                  '<button type="button" class="btn-resolver-solicitud no" data-id-usuario="' + u.id + '" data-id-hotel="' + escaparHtml(s.idHotel) + '" data-decision="denegar" title="Denegar ' + escaparHtml(s.nombre) + '">✕</button>'
-                : '<span class="solicitud-ajena" title="Lo resuelve el administrador de esa propiedad">otro admin</span>') +
-            '</span>';
+            return '<span class="solicitud-item' + (s.puedeResolver ? '' : ' ajena') + '" title="' + (s.puedeResolver ? 'Te corresponde resolverla' : 'La resuelve el administrador de esa propiedad') + '">' +
+              ICONO_PROPIEDAD_ + '<span class="solicitud-nombre">' + escaparHtml(s.nombre) + '</span></span>';
           }).join('') + '</div>'
         : '';
 
@@ -314,48 +314,10 @@
       });
     });
 
-    grid.querySelectorAll('.btn-aprobar-usuario').forEach(function (btn) {
+    grid.querySelectorAll('.btn-solicitud-aprobar, .btn-solicitud-denegar').forEach(function (btn) {
       btn.addEventListener('click', function () {
         const usuario = usuarios.find(function (u) { return String(u.id) === btn.dataset.idUsuario; });
-        const propias = usuario && Array.isArray(usuario.solicitudes) ? usuario.solicitudes.filter(function (s) { return s.puedeResolver; }) : [];
-        const textoAprobar = propias.length
-          ? '¿Aprobar a ' + usuario.nombre + ' en: ' + propias.map(function (s) { return s.nombre; }).join(', ') + '? Las propiedades que corresponden a otros administradores las resuelve cada uno.'
-          : '¿Darle acceso a ' + (usuario ? usuario.nombre : 'este usuario') + '? Va a poder iniciar sesión de inmediato.';
-        showConfirmation(
-          textoAprobar,
-          'Aprobar usuario',
-          function () { confirmarAprobarUsuario_(btn); }
-        );
-      });
-    });
-
-    // Aprobar o denegar UNA propiedad solicitada
-    grid.querySelectorAll('.btn-resolver-solicitud').forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        const usuario = usuarios.find(function (u) { return String(u.id) === btn.dataset.idUsuario; });
-        const sol = usuario && usuario.solicitudes ? usuario.solicitudes.find(function (s) { return String(s.idHotel) === btn.dataset.idHotel; }) : null;
-        const nombreHotel = sol ? sol.nombre : 'esta propiedad';
-        const aprobar = btn.dataset.decision === 'aprobar';
-        showConfirmation(
-          (aprobar ? '¿Darle acceso a ' : '¿Denegar el acceso a ') + nombreHotel + ' a ' + (usuario ? usuario.nombre : 'esta persona') + '?',
-          aprobar ? 'Aprobar propiedad' : 'Denegar propiedad',
-          function () { resolverSolicitudUI_(btn.dataset.idUsuario, btn.dataset.idHotel, btn.dataset.decision); }
-        );
-      });
-    });
-
-    // Cerrar la solicitud completa
-    grid.querySelectorAll('.btn-cerrar-solicitud').forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        const usuario = usuarios.find(function (u) { return String(u.id) === btn.dataset.idUsuario; });
-        const pendienteDeAprobar = usuario && String(usuario.estado) === 'Pendiente_Aprobacion';
-        showConfirmation(
-          pendienteDeAprobar
-            ? '¿Cerrar la solicitud de ' + (usuario ? usuario.nombre : 'esta persona') + '? No tendrá acceso y podrá volver a registrarse con su mismo correo.'
-            : '¿Denegar las propiedades pendientes de ' + (usuario ? usuario.nombre : 'esta persona') + ' que te corresponden? Sus accesos ya aprobados no cambian.',
-          pendienteDeAprobar ? 'Cerrar solicitud' : 'Denegar pendientes',
-          function () { cerrarSolicitudUI_(btn.dataset.idUsuario); }
-        );
+        manejarSolicitudUsuario_(usuario, btn.classList.contains('btn-solicitud-aprobar'));
       });
     });
 
@@ -790,55 +752,113 @@
       .cambiarRolUsuario(idUsuarioObjetivo, idRolNuevo, token, idUsuario);
   }
 
-  function resolverSolicitudUI_(idUsuarioObjetivo, idHotel, decision) {
+  function datosSesionGestion_() {
     const sesion = getCurrentUserSession();
-    const token = getCurrentUserToken();
-    const idUsuario = sesion && (sesion.ID_Usuario || sesion.idUsuario) ? (sesion.ID_Usuario || sesion.idUsuario) : null;
+    return {
+      token: getCurrentUserToken(),
+      idUsuario: sesion && (sesion.ID_Usuario || sesion.idUsuario) ? (sesion.ID_Usuario || sesion.idUsuario) : null
+    };
+  }
+
+  /** Qué hacer al pulsar aprobar o denegar sobre una persona:
+   *   - registro antiguo (sin propiedades pedidas): confirmación simple;
+   *   - una sola propiedad tuya: confirmación diciendo cuál;
+   *   - dos o más propiedades tuyas: panel lateral para elegir cuáles. */
+  function manejarSolicitudUsuario_(usuario, aprobar) {
+    if (!usuario) return;
+    const nombre = usuario.nombre || 'esta persona';
+    const todas = Array.isArray(usuario.solicitudes) ? usuario.solicitudes : [];
+    const propias = todas.filter(function (s) { return s.puedeResolver; });
+    const pendienteDeAprobar = String(usuario.estado) === 'Pendiente_Aprobacion';
+
+    if (!todas.length) {
+      if (aprobar) {
+        showConfirmation('¿Darle acceso a ' + nombre + '? Va a poder iniciar sesión de inmediato, sin hoteles asignados.', 'Aprobar usuario', function () { aprobarUsuarioAntiguoUI_(usuario.id); });
+      } else {
+        showConfirmation('¿Cerrar la solicitud de ' + nombre + '? No tendrá acceso y podrá volver a registrarse con su mismo correo.', 'Cerrar solicitud', function () { cerrarSolicitudUI_(usuario.id); });
+      }
+      return;
+    }
+
+    if (propias.length === 1) {
+      const p = propias[0];
+      const cierraTodo = !aprobar && pendienteDeAprobar && todas.length === 1;
+      showConfirmation(
+        aprobar
+          ? '¿Darle acceso a ' + p.nombre + ' a ' + nombre + '?'
+          : '¿Denegar el acceso a ' + p.nombre + ' a ' + nombre + '?' + (cierraTodo ? ' Como es lo único que pidió, la solicitud se cerrará y podrá volver a registrarse con su mismo correo.' : ''),
+        aprobar ? 'Aprobar acceso' : (cierraTodo ? 'Cerrar solicitud' : 'Denegar acceso'),
+        function () { resolverSolicitudesUI_(usuario.id, aprobar ? [p.idHotel] : [], aprobar ? [] : [p.idHotel]); }
+      );
+      return;
+    }
+
+    abrirPanelSolicitudUsuario_(usuario, propias, aprobar);
+  }
+
+  function abrirPanelSolicitudUsuario_(usuario, propias, aprobar) {
+    abrirPanelLateral({
+      titulo: aprobar ? 'Aprobar acceso' : 'Denegar solicitud',
+      html:
+        '<div class="nueva-carpeta-form">' +
+          '<p class="verificacion-texto"><strong>' + escaparHtml(usuario.nombre || '') + '</strong> pidió acceso a varias propiedades tuyas. Elige a cuáles ' + (aprobar ? 'darle acceso' : 'denegárselo') + ':</p>' +
+          '<div class="propiedades-lista panel-solicitud-lista" id="panelSolicitudLista">' +
+            propias.map(function (s) {
+              return '<label class="propiedad-item"><input type="checkbox" value="' + escaparHtml(s.idHotel) + '" checked><span>' + escaparHtml(s.nombre) + '</span></label>';
+            }).join('') +
+          '</div>' +
+          '<div class="nueva-carpeta-acciones">' +
+            '<button type="button" class="btn-cancelar" id="btnPanelSolicitudCancelar">Cancelar</button>' +
+            '<button type="button" class="btn-enviar" id="btnPanelSolicitudConfirmar">' + (aprobar ? 'Aprobar' : 'Denegar') + '</button>' +
+          '</div>' +
+        '</div>'
+    });
+
+    document.getElementById('btnPanelSolicitudCancelar').addEventListener('click', function () { cerrarPanelLateral(); });
+    document.getElementById('btnPanelSolicitudConfirmar').addEventListener('click', function () {
+      const elegidas = Array.prototype.map.call(document.querySelectorAll('#panelSolicitudLista input:checked'), function (c) { return c.value; });
+      if (!elegidas.length) { showNotification('Elige al menos una propiedad', 'error', 2500); return; }
+      resolverSolicitudesUI_(usuario.id, aprobar ? elegidas : [], aprobar ? [] : elegidas, function () { cerrarPanelLateral(); });
+    });
+  }
+
+  function resolverSolicitudesUI_(idUsuarioObjetivo, aprobar, denegar, alTerminar) {
+    const s = datosSesionGestion_();
     google.script.run
       .withSuccessHandler(function (result) {
-        if (result && result.success) { showNotification('✅ ' + (result.message || 'Solicitud resuelta'), 'success', 4000); cargarVistaUsuarios(); }
-        else showNotification('Error: ' + ((result && result.message) || 'No se pudo resolver'), 'error', 3500);
+        if (result && result.success) {
+          showNotification('✅ ' + (result.message || 'Solicitud resuelta'), 'success', 4500);
+          if (typeof alTerminar === 'function') alTerminar();
+          cargarVistaUsuarios();
+        } else {
+          showNotification('Error: ' + ((result && result.message) || 'No se pudo resolver'), 'error', 3500);
+        }
       })
-      .withFailureHandler(function (error) { console.error('Error resolverSolicitudHotel:', error); showNotification('Error al resolver la solicitud', 'error', 3000); })
-      .resolverSolicitudHotel(idUsuarioObjetivo, idHotel, decision, token, idUsuario);
+      .withFailureHandler(function (error) { console.error('Error resolverSolicitudesUsuario:', error); showNotification('Error al resolver la solicitud', 'error', 3000); })
+      .resolverSolicitudesUsuario(idUsuarioObjetivo, aprobar, denegar, s.token, s.idUsuario);
   }
 
   function cerrarSolicitudUI_(idUsuarioObjetivo) {
-    const sesion = getCurrentUserSession();
-    const token = getCurrentUserToken();
-    const idUsuario = sesion && (sesion.ID_Usuario || sesion.idUsuario) ? (sesion.ID_Usuario || sesion.idUsuario) : null;
+    const s = datosSesionGestion_();
     google.script.run
       .withSuccessHandler(function (result) {
         if (result && result.success) { showNotification('✅ ' + (result.message || 'Solicitud cerrada'), 'success', 4000); cargarVistaUsuarios(); }
         else showNotification('Error: ' + ((result && result.message) || 'No se pudo cerrar'), 'error', 3500);
       })
       .withFailureHandler(function (error) { console.error('Error cerrarSolicitudUsuario:', error); showNotification('Error al cerrar la solicitud', 'error', 3000); })
-      .cerrarSolicitudUsuario(idUsuarioObjetivo, token, idUsuario);
+      .cerrarSolicitudUsuario(idUsuarioObjetivo, s.token, s.idUsuario);
   }
 
-  function confirmarAprobarUsuario_(btn) {
-    const idUsuarioObjetivo = btn.dataset.idUsuario;
-    const sesion = getCurrentUserSession();
-    const token = getCurrentUserToken();
-    const idUsuario = sesion && (sesion.ID_Usuario || sesion.idUsuario) ? (sesion.ID_Usuario || sesion.idUsuario) : null;
-    btn.disabled = true;
-
+  /** Registros anteriores al flujo de propiedades (sin nada solicitado): se activan sin hoteles, como antes. */
+  function aprobarUsuarioAntiguoUI_(idUsuarioObjetivo) {
+    const s = datosSesionGestion_();
     google.script.run
       .withSuccessHandler(function (result) {
-        if (result.success) {
-          showNotification('✅ ' + (result.message || 'Usuario aprobado'), 'success', 4000);
-          cargarVistaUsuarios();
-        } else {
-          btn.disabled = false;
-          showNotification('Error: ' + result.message, 'error', 3200);
-        }
+        if (result && result.success) { showNotification('✅ ' + (result.message || 'Usuario aprobado'), 'success', 4000); cargarVistaUsuarios(); }
+        else showNotification('Error: ' + ((result && result.message) || 'No se pudo aprobar'), 'error', 3200);
       })
-      .withFailureHandler(function (error) {
-        btn.disabled = false;
-        console.error('Error aprobarUsuario:', error);
-        showNotification('Error al aprobar el usuario', 'error', 3000);
-      })
-      .aprobarUsuario(idUsuarioObjetivo, token, idUsuario);
+      .withFailureHandler(function (error) { console.error('Error aprobarUsuario:', error); showNotification('Error al aprobar el usuario', 'error', 3000); })
+      .aprobarUsuario(idUsuarioObjetivo, s.token, s.idUsuario);
   }
 
   function confirmarCambioEstadoUsuario_(idUsuarioObjetivo, nuevoEstado) {

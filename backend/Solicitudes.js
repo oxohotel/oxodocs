@@ -159,6 +159,24 @@ function resolverSolicitudHotel(idUsuarioObjetivo, idHotel, decision, idUsuarioS
 }
 
 /**
+ * Resuelve VARIAS propiedades de una misma persona en una sola llamada (y un solo correo para ella):
+ * "aprobar" y "denegar" son listas de ids de propiedades. Se ignoran las que no le corresponden al solicitante.
+ */
+function resolverSolicitudesUsuario(idUsuarioObjetivo, aprobar, denegar, idUsuarioSolicitanteOToken, idUsuarioFallback) {
+  const ctx = prepararResolucion_(idUsuarioObjetivo, idUsuarioSolicitanteOToken, idUsuarioFallback);
+  if (ctx.error) return { success: false, message: ctx.error };
+
+  const decisiones = {};
+  listaDeIds_(denegar).forEach(function (id) { decisiones[id] = 'denegar'; });
+  listaDeIds_(aprobar).forEach(function (id) { decisiones[id] = 'aprobar'; }); // si una viene en ambas listas, gana aprobar
+  if (!Object.keys(decisiones).length) return { success: false, message: 'Elige al menos una propiedad' };
+
+  const r = aplicarDecisionesSolicitud_(ctx, decisiones);
+  if (r.success) r.message = textoResultadoSolicitud_(r);
+  return r;
+}
+
+/**
  * Aprueba TODAS las propiedades pendientes que el solicitante puede resolver. Para una cuenta sin propiedades solicitadas
  * (registros anteriores a este flujo) solo un superadministrador o un administrador con TODOS puede activarla.
  */

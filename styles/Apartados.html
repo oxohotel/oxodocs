@@ -569,8 +569,8 @@
 .solicitud-item {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 3px 4px 3px 10px;
+  gap: 6px;
+  padding: 4px 10px;
   border-radius: 999px;
   background: #FBF4DF;
   border: 1px solid #E8D59A;
@@ -579,35 +579,42 @@
   color: #6B5316;
 }
 
+.solicitud-item svg {
+  flex-shrink: 0;
+  opacity: 0.8;
+}
+
 .solicitud-item.ajena {
   background: var(--home-bg, #F4F1EA);
   border-color: var(--home-border, #E3DED3);
   color: #7A8077;
-  padding-right: 10px;
 }
 
-.solicitud-ajena {
-  font-size: 10px;
-  font-weight: 700;
-  opacity: 0.8;
+/* Aprobar / denegar en la columna de acciones: mismos botones de icono que la llave y el interruptor */
+.btn-accion-icono.aprobar {
+  color: var(--home-accent-green, #3D5A4C);
+  background: #E8F1EB;
+  border-color: #CFE0D5;
 }
 
-.btn-resolver-solicitud {
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  border: none;
-  font-size: 12px;
-  font-weight: 800;
-  line-height: 22px;
-  padding: 0;
-  cursor: pointer;
-  transition: transform 0.15s ease;
+.btn-accion-icono.aprobar:hover {
+  background: #D6E7DC;
 }
 
-.btn-resolver-solicitud:hover { transform: scale(1.12); }
-.btn-resolver-solicitud.ok { background: #3D5A4C; color: #FFFFFF; }
-.btn-resolver-solicitud.no { background: #B5473A; color: #FFFFFF; }
+.btn-accion-icono.denegar {
+  color: #B5473A;
+  background: #FBEDEA;
+  border-color: #F0CFC9;
+}
+
+.btn-accion-icono.denegar:hover {
+  background: #F6DAD5;
+}
+
+.panel-solicitud-lista {
+  max-height: 260px;
+  margin-bottom: 16px;
+}
 
 .btn-cerrar-solicitud {
   padding: 6px 12px;
