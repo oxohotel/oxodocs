@@ -16,6 +16,7 @@
  */
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const { execSync } = require('child_process');
 
 const RAIZ = path.join(__dirname, '..');
@@ -30,6 +31,12 @@ const leer = (...p) => fs.readFileSync(path.join(RAIZ, ...p), 'utf8');
 if (!fs.existsSync(ARCHIVO_CONFIG)) fallar('Falta .pruebas-gas.config.json. Copia .pruebas-gas.config.ejemplo.json y completa scriptId y spreadsheetId (ver pruebas-gas/README.md).');
 const config = JSON.parse(fs.readFileSync(ARCHIVO_CONFIG, 'utf8'));
 if (!config.scriptId || !config.spreadsheetId) fallar('La configuración debe tener scriptId y spreadsheetId.');
+// La clave de las ejecuciones web la genera esta herramienta (si falta) y se guarda en la configuración local: no hay que copiarla de ningún lado
+if (!config.clave) {
+  config.clave = crypto.randomBytes(18).toString('hex');
+  fs.writeFileSync(ARCHIVO_CONFIG, JSON.stringify(config, null, 2));
+  console.log('Se generó una clave para las ejecuciones web y se guardó en .pruebas-gas.config.json');
+}
 
 const driveOriginal = leer('backend', 'Drive.js');
 const idHojaProduccion = (driveOriginal.match(/SPREADSHEET_ID:\s*'([^']+)'/) || [])[1];
@@ -77,7 +84,8 @@ fs.readdirSync(path.join(RAIZ, 'pruebas-gas')).filter(f => f.endsWith('.js')).fo
   fs.copyFileSync(path.join(RAIZ, 'pruebas-gas', f), path.join(SALIDA, 'pruebas-gas', f));
 });
 fs.writeFileSync(path.join(SALIDA, 'pruebas-gas', 'Seguridad.js'),
-  "/** Generado por herramientas/sincronizar-pruebas.js: la hoja de PRODUCCIÓN, que este proyecto jamás debe usar. */\nvar ID_PRODUCCION_PROHIBIDO_ = '" + idHojaProduccion + "';\n");
+  "/** Generado por herramientas/sincronizar-pruebas.js: la hoja de PRODUCCIÓN, que este proyecto jamás debe usar. */\nvar ID_PRODUCCION_PROHIBIDO_ = '" + idHojaProduccion + "';\n" +
+  "/** Clave de las ejecuciones web (la toma prepararEntornoDePruebas). */\nvar CLAVE_PRUEBAS_INICIAL_ = '" + config.clave + "';\n");
 fs.writeFileSync(path.join(SALIDA, '.clasp.json'), JSON.stringify({ scriptId: config.scriptId, rootDir: '', scriptExtensions: ['.js', '.gs'], jsonExtensions: ['.json'], filePushOrder: [] }, null, 2));
 
 // ---------- Revisión final de lo preparado (si algo no cuadra, no se sube nada)

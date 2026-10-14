@@ -59,10 +59,9 @@ function inspeccionarEstadoPruebasWeb(clave) {
 /** Para ejecutar desde el editor la primera vez: marca el proyecto como de pruebas y crea las hojas. */
 function prepararEntornoDePruebas() {
   PropertiesService.getScriptProperties().setProperty('ENTORNO', 'PRUEBAS');
-  if (!PropertiesService.getScriptProperties().getProperty('CLAVE_PRUEBAS')) {
-    PropertiesService.getScriptProperties().setProperty('CLAVE_PRUEBAS', Utilities.getUuid());
-  }
+  // La clave viene de la herramienta de sincronización (CLAVE_PRUEBAS_INICIAL_, igual a la de .pruebas-gas.config.json); si no, se genera una
+  PropertiesService.getScriptProperties().setProperty('CLAVE_PRUEBAS', typeof CLAVE_PRUEBAS_INICIAL_ !== 'undefined' ? CLAVE_PRUEBAS_INICIAL_ : Utilities.getUuid());
   reiniciarEntornoDePruebas_();
   Logger.log('Entorno de pruebas listo. Hoja: ' + DRIVE_CONFIG.SPREADSHEET_ID);
-  Logger.log('CLAVE_PRUEBAS (para las ejecuciones web): ' + PropertiesService.getScriptProperties().getProperty('CLAVE_PRUEBAS'));
+  Logger.log('Listo: ya se pueden hacer ejecuciones web (la clave está en .pruebas-gas.config.json).');
 }
