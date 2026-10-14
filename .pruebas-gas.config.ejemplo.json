@@ -1,0 +1,6 @@
+{
+  "scriptId": "ID del proyecto de Apps Script de PRUEBAS (distinto al de producción)",
+  "spreadsheetId": "ID de la hoja de cálculo de PRUEBAS (vacía, con datos ficticios; distinta a la de producción)",
+  "webAppUrl": "URL de la implementación web del proyecto de pruebas (solo para prueba-concurrencia.js)",
+  "clave": "El valor de CLAVE_PRUEBAS que imprime prepararEntornoDePruebas (solo para las ejecuciones web)"
+}

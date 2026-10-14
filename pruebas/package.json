@@ -1,0 +1,8 @@
+{
+  "name": "oxodocs-pruebas",
+  "private": true,
+  "description": "Dependencias de las pruebas de navegador (solo desarrollo). Instalar una vez con: npm install",
+  "devDependencies": {
+    "puppeteer-core": "25.12.0"
+  }
+}

@@ -9,3 +9,8 @@ backend/ImportarUsuarios.js
 # Datos reales (base de datos exportada, credenciales): nunca deben subirse al repositorio público
 docs/*.xlsx
 docs/*.csv
+
+# Proyecto de PRUEBAS de Apps Script (configuración local y carpeta generada)
+.pruebas-gas.config.json
+.pruebas-gas/
+.publicaciones.json
