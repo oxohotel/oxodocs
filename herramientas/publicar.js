@@ -9,7 +9,9 @@
  *   node herramientas/publicar.js --revertir           → vuelve a la versión publicada justo antes (con confirmación)
  *   node herramientas/publicar.js --revertir 150       → vuelve a la versión 150 (con confirmación)
  *
- * Opciones: --mensaje "texto"  descripción de la versión (por defecto, el último mensaje de commit)
+ * Opciones: --pruebas          opera sobre el proyecto de PRUEBAS (ver pruebas-gas/README.md) en vez de producción: sirve para ensayar
+ *                              el flujo completo (publicar, revertir) sin riesgo
+ *           --mensaje "texto"  descripción de la versión (por defecto, el último mensaje de commit)
  *           --navegador        incluye también las pruebas de navegador en las comprobaciones (~3 min)
  *
  * Qué comprueba antes de publicar (si algo falla, NO se publica):
@@ -29,14 +31,19 @@ const readline = require('readline');
 const { execSync } = require('child_process');
 
 const RAIZ = path.join(__dirname, '..');
-const HISTORIAL = path.join(RAIZ, '.publicaciones.json');
+const PRUEBAS = process.argv.includes('--pruebas');
+const HISTORIAL = path.join(RAIZ, PRUEBAS ? '.publicaciones-pruebas.json' : '.publicaciones.json');
+const ENTORNO = PRUEBAS ? 'PRUEBAS' : 'PRODUCCIÓN';
+const DIR_CLASP = PRUEBAS ? path.join(RAIZ, '.pruebas-gas') : RAIZ;
 const REMOTO = 'oxohotel/main';
 const args = process.argv.slice(2);
 const tiene = f => args.includes(f);
 const valorDe = f => { const i = args.indexOf(f); return i !== -1 && args[i + 1] && !args[i + 1].startsWith('--') ? args[i + 1] : null; };
 
 function sh(cmd, opciones) {
-  return execSync(cmd, Object.assign({ cwd: RAIZ, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], maxBuffer: 50 * 1024 * 1024 }, opciones || {})).trim();
+  // Los comandos de clasp se ejecutan en la carpeta del proyecto correspondiente (producción: la raíz; pruebas: .pruebas-gas)
+  const cwd = /^clasp /.test(cmd) ? DIR_CLASP : RAIZ;
+  return execSync(cmd, Object.assign({ cwd: cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], maxBuffer: 50 * 1024 * 1024 }, opciones || {})).trim();
 }
 function fallar(mensaje) { console.error('\n✖ ' + mensaje + '\n'); process.exit(1); }
 function paso(nombre, fn) {
@@ -55,16 +62,25 @@ async function preguntar(texto) {
 }
 
 // ---------- Datos de producción (se leen del propio código, no se escriben a mano)
-const build = fs.readFileSync(path.join(RAIZ, 'build.js'), 'utf8');
-const URL_PRODUCCION = (build.match(/https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec/) || [])[0];
-if (!URL_PRODUCCION) fallar('No se encontró la URL de producción en build.js.');
+let URL_PRODUCCION;
+if (PRUEBAS) {
+  const archivo = path.join(RAIZ, '.pruebas-gas.config.json');
+  if (!fs.existsSync(archivo)) fallar('Falta .pruebas-gas.config.json (ver pruebas-gas/README.md).');
+  URL_PRODUCCION = JSON.parse(fs.readFileSync(archivo, 'utf8')).webAppUrl;
+  if (!URL_PRODUCCION) fallar('Falta webAppUrl en .pruebas-gas.config.json (la URL de la implementación web del proyecto de pruebas).');
+  if (!fs.existsSync(path.join(DIR_CLASP, '.clasp.json'))) fallar('Falta .pruebas-gas/. Ejecuta primero: node herramientas/sincronizar-pruebas.js');
+} else {
+  const build = fs.readFileSync(path.join(RAIZ, 'build.js'), 'utf8');
+  URL_PRODUCCION = (build.match(/https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec/) || [])[0];
+  if (!URL_PRODUCCION) fallar('No se encontró la URL de producción en build.js.');
+}
 const ID_IMPLEMENTACION = URL_PRODUCCION.match(/\/s\/([^/]+)\/exec/)[1];
 
 function estadoRemoto() {
   const imp = sh('clasp deployments').split('\n').map(l => l.match(/^- (\S+) @(\S+)\s*(.*)$/)).filter(Boolean).find(m => m[1] === ID_IMPLEMENTACION);
   if (!imp) throw new Error('La implementación de producción (' + ID_IMPLEMENTACION.slice(0, 10) + '…) no aparece en "clasp deployments". ¿Sesión de clasp o proyecto equivocados?');
   const versiones = sh('clasp versions').split('\n').map(l => l.match(/^(\d+) - (.*)$/)).filter(Boolean).map(m => ({ numero: Number(m[1]), descripcion: m[2] }));
-  return { version: imp[2] === 'HEAD' ? null : Number(imp[2]), descripcionImplementacion: imp[3], versiones };
+  return { version: imp[2] === 'HEAD' ? null : Number(imp[2]), descripcionImplementacion: String(imp[3] || '').replace(/^-\s*/, ''), versiones };
 }
 
 function leerHistorial() { try { return JSON.parse(fs.readFileSync(HISTORIAL, 'utf8')); } catch (e) { return []; } }
@@ -90,15 +106,15 @@ function comprobarYa() { return (async () => { try { return await humo(true); } 
 async function mostrarEstado() {
   const e = estadoRemoto();
   const hist = leerHistorial();
-  console.log('Implementación de producción: ' + ID_IMPLEMENTACION.slice(0, 12) + '…  (URL fija, no cambia)');
-  console.log('Versión publicada hoy: ' + (e.version === null ? 'HEAD (sin versión fija)' : e.version) + (e.descripcionImplementacion ? '  — ' + e.descripcionImplementacion : ''));
+  console.log('Implementación de ' + ENTORNO.toLowerCase() + ': ' + ID_IMPLEMENTACION.slice(0, 12) + '…  (URL fija, no cambia)');
+  console.log('Versión publicada hoy (' + ENTORNO.toLowerCase() + '): ' + (e.version === null ? 'HEAD (sin versión fija)' : e.version) + (e.descripcionImplementacion ? '  — ' + e.descripcionImplementacion : ''));
   console.log('\nÚltimas versiones:');
   e.versiones.slice(-8).forEach(v => console.log('  ' + String(v.numero).padStart(4) + '  ' + v.descripcion + (v.numero === e.version ? '   ← publicada' : '')));
   if (hist.length) {
     console.log('\nÚltimas publicaciones hechas con esta herramienta:');
     hist.slice(-5).forEach(h => console.log('  ' + h.fecha.slice(0, 16).replace('T', ' ') + '  ' + (h.tipo || 'publicación') + '  v' + h.version + (h.commit ? '  (' + h.commit + ')' : '') + '  ' + (h.mensaje || '')));
   }
-  console.log('\nEstado de producción ahora: ' + await comprobarYa());
+  console.log('\nEstado de ' + ENTORNO.toLowerCase() + ' ahora: ' + await comprobarYa());
 }
 
 // ---------- Comprobaciones previas
@@ -147,16 +163,16 @@ async function publicar() {
   }
 
   const siguiente = nuevoPlan.versiones.length ? nuevoPlan.versiones[nuevoPlan.versiones.length - 1].numero + 1 : 1;
-  console.log('\nSe publicará en PRODUCCIÓN:');
+  console.log('\nSe publicará en ' + ENTORNO + ':');
   console.log('  · Commit:          ' + commit + '  ' + mensaje);
   console.log('  · Implementación:  ' + ID_IMPLEMENTACION.slice(0, 12) + '…  (hoy en la versión ' + (nuevoPlan.version === null ? 'HEAD' : nuevoPlan.version) + ')');
   console.log('  · Versión nueva:   ' + siguiente + '   La URL no cambia.');
-  console.log('  · Para volver atrás:  node herramientas/publicar.js --revertir');
+  console.log('  · Para volver atrás:  node herramientas/publicar.js ' + (PRUEBAS ? '--pruebas ' : '') + '--revertir');
   const r = await preguntar('\n¿Publicar? Escribe SI para continuar: ');
   if (r.toLowerCase() !== 'si' && r.toLowerCase() !== 'sí') fallar('Cancelado. No se publicó nada.');
 
   console.log('\nPublicando…');
-  paso('Subiendo el código (clasp push)', () => { sh('clasp push -f'); });
+  paso('Subiendo el código' + (PRUEBAS ? ' (sincronizar-pruebas)' : ' (clasp push)'), () => { sh(PRUEBAS ? 'node herramientas/sincronizar-pruebas.js --push' : 'clasp push -f', PRUEBAS ? { env: Object.assign({}, process.env, { SIN_REDEPLOY: '1' }) } : undefined); });
   let numero;
   paso('Creando la versión', () => {
     const salida = sh('clasp version ' + JSON.stringify(mensaje));
@@ -193,7 +209,7 @@ async function revertir() {
   if (!destino || !info) fallar('No se encontró la versión a la que volver' + (pedida ? ' (' + pedida + ')' : '') + '. Mira --estado.');
   if (destino === e.version) fallar('Producción ya está en la versión ' + destino + '.');
 
-  console.log('\nVolver atrás en PRODUCCIÓN:');
+  console.log('\nVolver atrás en ' + ENTORNO + ':');
   console.log('  · Hoy:      versión ' + e.version + '  ' + (e.versiones.find(v => v.numero === e.version) || {}).descripcion);
   console.log('  · Destino:  versión ' + destino + '  ' + info.descripcion);
   console.log('\n  OJO: solo vuelve el BACKEND. El frontend de GitHub Pages sigue siendo el del último commit; si el frontend nuevo');

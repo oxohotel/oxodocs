@@ -14,3 +14,4 @@ docs/*.csv
 .pruebas-gas.config.json
 .pruebas-gas/
 .publicaciones.json
+.publicaciones-pruebas.json

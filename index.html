@@ -13525,6 +13525,13 @@ function mostrarModalSinPermisos_(razon) {
 
   var _catalogoRolesCache = [];
 
+  // Si el catálogo de roles no llega (o llega vacío), los selectores usan estos: así nunca quedan sin opciones
+  var ROLES_POR_DEFECTO_ = [
+    { id: 1, nombre: 'Usuario' },
+    { id: 2, nombre: 'Administrador' },
+    { id: 3, nombre: 'Superadministrador' }
+  ];
+
   var ESTADOS_USUARIO_TEXTO = {
     'Activo': 'Activo',
     'Pendiente_Verificacion': 'Falta verificar correo',
@@ -13612,11 +13619,29 @@ function mostrarModalSinPermisos_(razon) {
     const sesion = getCurrentUserSession();
     if (!sesion) return;
 
+    // El catálogo de roles y la lista de usuarios se piden en paralelo, pero la lista SOLO se pinta cuando ya hay catálogo: antes,
+    // si la lista llegaba primero, los selectores de rol se construían sin opciones y se veían vacíos.
+    let catalogoListo = false;
+    let resultadoUsuarios = null;
+    const pintarSiListo = function () {
+      if (!catalogoListo || !resultadoUsuarios) return;
+      renderizarUsuarios_(resultadoUsuarios.usuarios || [], sesion);
+      if (typeof actualizarInsigniaPendientes_ === 'function') actualizarInsigniaPendientes_(contarSolicitudesVisibles_(resultadoUsuarios.usuarios || []));
+    };
+
     google.script.run
       .withSuccessHandler(function (resultadoRoles) {
-        _catalogoRolesCache = (resultadoRoles && resultadoRoles.roles) || [];
+        const roles = (resultadoRoles && resultadoRoles.roles) || [];
+        _catalogoRolesCache = roles.length ? roles : ROLES_POR_DEFECTO_;
+        catalogoListo = true;
+        pintarSiListo();
       })
-      .withFailureHandler(function (error) { console.error('Error cargando catálogo de roles:', error); })
+      .withFailureHandler(function (error) {
+        console.error('Error cargando catálogo de roles (se usan los roles por defecto):', error);
+        _catalogoRolesCache = ROLES_POR_DEFECTO_;
+        catalogoListo = true;
+        pintarSiListo();
+      })
       .obtenerCatalogoRoles();
 
     const token = getCurrentUserToken();
@@ -13625,8 +13650,8 @@ function mostrarModalSinPermisos_(razon) {
     google.script.run
       .withSuccessHandler(function (result) {
         if (!result.success) { mostrarErrorApartado(grid, result.message); return; }
-        renderizarUsuarios_(result.usuarios || [], sesion);
-        if (typeof actualizarInsigniaPendientes_ === 'function') actualizarInsigniaPendientes_(contarSolicitudesVisibles_(result.usuarios || []));
+        resultadoUsuarios = result;
+        pintarSiListo();
       })
       .withFailureHandler(function (error) {
         console.error('Error cargando usuarios:', error);

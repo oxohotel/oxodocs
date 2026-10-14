@@ -117,4 +117,17 @@ try {
 } catch (e) {
   fallar('clasp push falló. Revisa que hayas iniciado sesión (clasp login) y que el scriptId sea correcto.');
 }
+// Si hay una implementación web configurada, se actualiza a una versión nueva con este código (las ejecuciones web usan una versión fija)
+if (config.webAppUrl && config.webAppUrl.includes('/s/') && !process.env.SIN_REDEPLOY) {
+  const idImplementacion = config.webAppUrl.split('/s/')[1].split('/')[0];
+  try {
+    const salida = execSync('clasp version "sincronización ' + new Date().toISOString().slice(0, 16) + '"', { cwd: SALIDA, encoding: 'utf8' });
+    const numeros = salida.match(/\d+/g);
+    const version = numeros[numeros.length - 1];
+    execSync('clasp redeploy ' + idImplementacion + ' -V ' + version + ' -d "sincronización"', { cwd: SALIDA, encoding: 'utf8' });
+    console.log('✔ Implementación web de pruebas actualizada a la versión ' + version);
+  } catch (e) {
+    console.log('⚠ No se pudo actualizar la implementación web de pruebas: ' + String(e.message).split('\n')[0]);
+  }
+}
 console.log('\n✔ Listo. En el editor del proyecto de pruebas: ejecuta prepararEntornoDePruebas (una vez) y luego ejecutarPruebas.');
