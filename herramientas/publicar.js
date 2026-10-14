@@ -56,6 +56,19 @@ function paso(nombre, fn) {
     fallar(nombre + ':\n  ' + String(e.message || e).split('\n').slice(0, 12).join('\n  '));
   }
 }
+const dormir = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+async function pasoA(nombre, fn) {
+  process.stdout.write('  · ' + nombre.padEnd(52));
+  try {
+    const extra = await fn();
+    console.log('✔' + (extra ? '  ' + extra : ''));
+  } catch (e) {
+    console.log('✖');
+    fallar(nombre + ':\n  ' + String(e.message || e).split('\n').slice(0, 12).join('\n  '));
+  }
+}
+
 async function preguntar(texto) {
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
   return new Promise(resolve => rl.question(texto, r => { rl.close(); resolve(r.trim()); }));
@@ -83,6 +96,31 @@ function estadoRemoto() {
   return { version: imp[2] === 'HEAD' ? null : Number(imp[2]), descripcionImplementacion: String(imp[3] || '').replace(/^-\s*/, ''), versiones };
 }
 
+/**
+ * El servicio de Google es "eventualmente consistente": justo después de actualizar una implementación, algunas lecturas aún devuelven la
+ * versión anterior. Por eso (1) para DECIDIR algo se exigen dos lecturas iguales seguidas y (2) para VERIFICAR un cambio se reintenta hasta verlo.
+ */
+async function estadoRemotoEstable() {
+  let anterior = estadoRemoto();
+  for (let i = 0; i < 5; i++) {
+    await dormir(2500);
+    const ahora = estadoRemoto();
+    if (ahora.version === anterior.version) return ahora;
+    anterior = ahora;
+  }
+  return anterior;
+}
+
+async function esperarVersion(esperada) {
+  let ultima;
+  for (let i = 0; i < 10; i++) {
+    ultima = estadoRemoto();
+    if (ultima.version === esperada) return ultima;
+    await dormir(3000);
+  }
+  throw new Error('La implementación sigue en la versión ' + ultima.version + ' y no en la ' + esperada + ' tras esperar 30 s.');
+}
+
 function leerHistorial() { try { return JSON.parse(fs.readFileSync(HISTORIAL, 'utf8')); } catch (e) { return []; } }
 function anotar(registro) { const h = leerHistorial(); h.push(Object.assign({ fecha: new Date().toISOString() }, registro)); fs.writeFileSync(HISTORIAL, JSON.stringify(h, null, 2)); }
 
@@ -104,7 +142,7 @@ function comprobarYa() { return (async () => { try { return await humo(true); } 
 
 // ---------- Estado
 async function mostrarEstado() {
-  const e = estadoRemoto();
+  const e = await estadoRemotoEstable();
   const hist = leerHistorial();
   console.log('Implementación de ' + ENTORNO.toLowerCase() + ': ' + ID_IMPLEMENTACION.slice(0, 12) + '…  (URL fija, no cambia)');
   console.log('Versión publicada hoy (' + ENTORNO.toLowerCase() + '): ' + (e.version === null ? 'HEAD (sin versión fija)' : e.version) + (e.descripcionImplementacion ? '  — ' + e.descripcionImplementacion : ''));
@@ -150,7 +188,7 @@ function comprobaciones() {
 
 // ---------- Flujos
 async function publicar() {
-  const nuevoPlan = estadoRemoto();
+  const nuevoPlan = await estadoRemotoEstable();
   comprobaciones();
   if (tiene('--solo-comprobar')) { console.log('\n✔ Todo en orden (no se publicó nada).'); return; }
 
@@ -182,21 +220,18 @@ async function publicar() {
     return 'v' + numero;
   });
   paso('Actualizando la implementación', () => { sh('clasp redeploy ' + ID_IMPLEMENTACION + ' -V ' + numero + ' -d ' + JSON.stringify(mensaje)); });
-  paso('Comprobando que quedó la versión ' + numero, () => {
-    const e = estadoRemoto();
-    if (e.version !== numero) throw new Error('La implementación quedó en ' + e.version + ' y no en ' + numero);
-  });
+  await pasoA('Comprobando que quedó la versión ' + numero, async () => { await esperarVersion(numero); });
   let resultadoHumo;
   try { resultadoHumo = await humo(false); } catch (e) { resultadoHumo = null; console.log('\n✖ La consulta de humo a producción FALLÓ: ' + e.message + '\n  Para volver atrás ahora mismo:  node herramientas/publicar.js --revertir'); }
   anotar({ tipo: 'publicación', version: numero, versionAnterior: nuevoPlan.version, commit: commit, mensaje: mensaje });
-  if (resultadoHumo) console.log('  · Consulta de humo a producción'.padEnd(55) + '✔  ' + resultadoHumo);
-  console.log('\n✔ Publicado: versión ' + numero + '. ' + (resultadoHumo ? 'Producción responde.' : 'REVISA producción.'));
+  if (resultadoHumo) console.log('  · Consulta de humo a ' + ENTORNO.toLowerCase().padEnd(31) + '✔  ' + resultadoHumo);
+  console.log('\n✔ Publicado: versión ' + numero + '. ' + (resultadoHumo ? ENTORNO.charAt(0) + ENTORNO.slice(1).toLowerCase() + ' responde.' : 'REVISA ' + ENTORNO.toLowerCase() + '.'));
   console.log('  Si algo no va bien:  node herramientas/publicar.js --revertir   (vuelve a la ' + (nuevoPlan.version === null ? 'anterior' : 'versión ' + nuevoPlan.version) + ')');
   process.exit(resultadoHumo ? 0 : 1);
 }
 
 async function revertir() {
-  const e = estadoRemoto();
+  const e = await estadoRemotoEstable();
   if (e.version === null) fallar('Producción está en HEAD (sin versión fija); no hay una versión a la que volver.');
   const pedida = valorDe('--revertir');
   let destino;
@@ -219,10 +254,10 @@ async function revertir() {
   if (r.toLowerCase() !== 'si' && r.toLowerCase() !== 'sí') fallar('Cancelado. No se cambió nada.');
 
   paso('Actualizando la implementación a la versión ' + destino, () => { sh('clasp redeploy ' + ID_IMPLEMENTACION + ' -V ' + destino + ' -d ' + JSON.stringify('Reversión a la v' + destino + ' (desde la v' + e.version + ')')); });
-  paso('Comprobando que quedó la versión ' + destino, () => { const n = estadoRemoto(); if (n.version !== destino) throw new Error('Quedó en ' + n.version); });
+  await pasoA('Comprobando que quedó la versión ' + destino, async () => { await esperarVersion(destino); });
   anotar({ tipo: 'reversión', version: destino, versionAnterior: e.version, mensaje: 'Reversión a la v' + destino });
-  console.log('  · Consulta de humo a producción'.padEnd(55) + '✔  ' + await comprobarYa());
-  console.log('\n✔ Producción volvió a la versión ' + destino + '. Para publicar de nuevo lo actual:  node herramientas/publicar.js');
+  { const h = await comprobarYa(); console.log('  · Consulta de humo a ' + ENTORNO.toLowerCase().padEnd(31) + (h.startsWith('sin respuesta') ? '⚠  ' : '✔  ') + h); }
+  console.log('\n✔ ' + ENTORNO.charAt(0) + ENTORNO.slice(1).toLowerCase() + ' volvió a la versión ' + destino + '. Para publicar de nuevo lo actual:  node herramientas/publicar.js');
 }
 
 (async () => {
