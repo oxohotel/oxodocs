@@ -48,7 +48,7 @@
 
 /* El registro es más largo (incluye la lista de propiedades): la tarjeta crece para que el botón no quede cortado */
 .auth-container.carousel-register {
-  height: 790px !important;
+  height: 920px !important;
   transition: height 0.6s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -245,8 +245,31 @@ input[type="password"]::-webkit-contacts-auto-fill-button {
 }
 
 /* Lista de propiedades del registro (varias a la vez) */
+.propiedades-buscador {
+  width: 100%;
+  box-sizing: border-box;
+  margin-bottom: 8px;
+  padding: 10px 14px;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 500;
+  background: #FFFFFF;
+  color: var(--text-dark);
+}
+
+.propiedades-buscador:focus {
+  outline: none;
+  border-color: var(--secondary-color);
+  box-shadow: 0 0 0 3px rgba(196, 151, 43, 0.15);
+}
+
+.propiedad-item[hidden] {
+  display: none;
+}
+
 .propiedades-lista {
-  max-height: 108px;
+  max-height: 200px;
   overflow-y: auto;
   border: 1px solid var(--border-color);
   border-radius: 12px;

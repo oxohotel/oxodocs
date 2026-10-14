@@ -133,10 +133,11 @@
 
           <div class="form-group">
             <label class="form-label" id="registerHotelesLabel">Propiedades a las que necesitas acceso</label>
+            <input type="search" id="registerHotelesBuscar" class="propiedades-buscador" placeholder="Buscar propiedad…" autocomplete="off" aria-label="Buscar propiedad" hidden>
             <div class="propiedades-lista" id="registerHoteles" role="group" aria-labelledby="registerHotelesLabel">
               <p class="propiedades-estado">Cargando propiedades…</p>
             </div>
-            <span class="form-hint">Puedes elegir varias. El administrador de cada propiedad aprueba la suya.</span>
+            <span class="form-hint">Puedes elegir varias. El administrador de cada propiedad aprueba la suya. <strong id="registerHotelesContador"></strong></span>
             <span class="error-message" id="registerHotelesError"></span>
           </div>
 

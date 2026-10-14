@@ -510,6 +510,7 @@
     if (result.success) {
       logRegisterAction(result.userId, email);
       document.getElementById("registerForm").reset();
+      if (typeof filtrarPropiedadesRegistro_ === "function") { filtrarPropiedadesRegistro_(); actualizarContadorPropiedades_(); }
       clearAllErrors("registerForm");
       showNotification(result.message, "success", 3000);
       setButtonEnabled("registerBtn", true);
@@ -564,6 +565,19 @@
           return '<label class="propiedad-item"><input type="checkbox" name="registerHotel" value="' + escaparHtml(h.idHotel) + '"><span>' + escaparHtml(h.nombre) + '</span></label>';
         }).join("");
         _propiedadesRegistroCargadas = true;
+
+        // Buscador (se muestra solo cuando la lista cargó) y contador de seleccionadas
+        const buscador = document.getElementById("registerHotelesBuscar");
+        if (buscador) {
+          buscador.hidden = false;
+          buscador.value = "";
+          if (!buscador.dataset.listo) {
+            buscador.dataset.listo = "1";
+            buscador.addEventListener("input", filtrarPropiedadesRegistro_);
+          }
+        }
+        caja.addEventListener("change", actualizarContadorPropiedades_);
+        actualizarContadorPropiedades_();
       })
       .withFailureHandler(function () {
         _propiedadesRegistroCargando = false;
@@ -572,6 +586,43 @@
         if (enlace) enlace.addEventListener("click", function (e) { e.preventDefault(); cargarPropiedadesRegistro_(); });
       })
       .obtenerHotelesParaRegistro();
+  }
+
+  /** Texto sin tildes ni mayúsculas, para que "tocancipa" encuentre "Tocancipá". */
+  function normalizarBusqueda_(t) {
+    return String(t == null ? "" : t).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+  }
+
+  /** Filtra la lista de propiedades mientras se escribe. Las ya marcadas siguen marcadas aunque queden ocultas. */
+  function filtrarPropiedadesRegistro_() {
+    const entrada = document.getElementById("registerHotelesBuscar");
+    const caja = document.getElementById("registerHoteles");
+    if (!entrada || !caja) return;
+    const termino = normalizarBusqueda_(entrada.value);
+    let visibles = 0;
+    caja.querySelectorAll(".propiedad-item").forEach(function (item) {
+      const coincide = !termino || normalizarBusqueda_(item.textContent).indexOf(termino) !== -1;
+      item.hidden = !coincide;
+      if (coincide) visibles++;
+    });
+    let vacio = caja.querySelector(".propiedades-sin-resultados");
+    if (!visibles) {
+      if (!vacio) {
+        vacio = document.createElement("p");
+        vacio.className = "propiedades-estado propiedades-sin-resultados";
+        vacio.textContent = "Ninguna propiedad coincide con la búsqueda.";
+        caja.appendChild(vacio);
+      }
+    } else if (vacio) {
+      vacio.remove();
+    }
+  }
+
+  function actualizarContadorPropiedades_() {
+    const contador = document.getElementById("registerHotelesContador");
+    if (!contador) return;
+    const n = propiedadesSeleccionadasRegistro_().length;
+    contador.textContent = n ? "(" + n + (n === 1 ? " seleccionada)" : " seleccionadas)") : "";
   }
 
   function propiedadesSeleccionadasRegistro_() {

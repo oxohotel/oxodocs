@@ -215,7 +215,7 @@ button, input, select, textarea {
 
 /* El registro es más largo (incluye la lista de propiedades): la tarjeta crece para que el botón no quede cortado */
 .auth-container.carousel-register {
-  height: 790px !important;
+  height: 920px !important;
   transition: height 0.6s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -412,8 +412,31 @@ input[type="password"]::-webkit-contacts-auto-fill-button {
 }
 
 /* Lista de propiedades del registro (varias a la vez) */
+.propiedades-buscador {
+  width: 100%;
+  box-sizing: border-box;
+  margin-bottom: 8px;
+  padding: 10px 14px;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 500;
+  background: #FFFFFF;
+  color: var(--text-dark);
+}
+
+.propiedades-buscador:focus {
+  outline: none;
+  border-color: var(--secondary-color);
+  box-shadow: 0 0 0 3px rgba(196, 151, 43, 0.15);
+}
+
+.propiedad-item[hidden] {
+  display: none;
+}
+
 .propiedades-lista {
-  max-height: 108px;
+  max-height: 200px;
   overflow-y: auto;
   border: 1px solid var(--border-color);
   border-radius: 12px;
@@ -6516,10 +6539,11 @@ input[type="password"]::-webkit-contacts-auto-fill-button {
 
           <div class="form-group">
             <label class="form-label" id="registerHotelesLabel">Propiedades a las que necesitas acceso</label>
+            <input type="search" id="registerHotelesBuscar" class="propiedades-buscador" placeholder="Buscar propiedad…" autocomplete="off" aria-label="Buscar propiedad" hidden>
             <div class="propiedades-lista" id="registerHoteles" role="group" aria-labelledby="registerHotelesLabel">
               <p class="propiedades-estado">Cargando propiedades…</p>
             </div>
-            <span class="form-hint">Puedes elegir varias. El administrador de cada propiedad aprueba la suya.</span>
+            <span class="form-hint">Puedes elegir varias. El administrador de cada propiedad aprueba la suya. <strong id="registerHotelesContador"></strong></span>
             <span class="error-message" id="registerHotelesError"></span>
           </div>
 
@@ -9094,6 +9118,7 @@ input[type="password"]::-webkit-contacts-auto-fill-button {
     if (result.success) {
       logRegisterAction(result.userId, email);
       document.getElementById("registerForm").reset();
+      if (typeof filtrarPropiedadesRegistro_ === "function") { filtrarPropiedadesRegistro_(); actualizarContadorPropiedades_(); }
       clearAllErrors("registerForm");
       showNotification(result.message, "success", 3000);
       setButtonEnabled("registerBtn", true);
@@ -9148,6 +9173,19 @@ input[type="password"]::-webkit-contacts-auto-fill-button {
           return '<label class="propiedad-item"><input type="checkbox" name="registerHotel" value="' + escaparHtml(h.idHotel) + '"><span>' + escaparHtml(h.nombre) + '</span></label>';
         }).join("");
         _propiedadesRegistroCargadas = true;
+
+        // Buscador (se muestra solo cuando la lista cargó) y contador de seleccionadas
+        const buscador = document.getElementById("registerHotelesBuscar");
+        if (buscador) {
+          buscador.hidden = false;
+          buscador.value = "";
+          if (!buscador.dataset.listo) {
+            buscador.dataset.listo = "1";
+            buscador.addEventListener("input", filtrarPropiedadesRegistro_);
+          }
+        }
+        caja.addEventListener("change", actualizarContadorPropiedades_);
+        actualizarContadorPropiedades_();
       })
       .withFailureHandler(function () {
         _propiedadesRegistroCargando = false;
@@ -9156,6 +9194,43 @@ input[type="password"]::-webkit-contacts-auto-fill-button {
         if (enlace) enlace.addEventListener("click", function (e) { e.preventDefault(); cargarPropiedadesRegistro_(); });
       })
       .obtenerHotelesParaRegistro();
+  }
+
+  /** Texto sin tildes ni mayúsculas, para que "tocancipa" encuentre "Tocancipá". */
+  function normalizarBusqueda_(t) {
+    return String(t == null ? "" : t).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+  }
+
+  /** Filtra la lista de propiedades mientras se escribe. Las ya marcadas siguen marcadas aunque queden ocultas. */
+  function filtrarPropiedadesRegistro_() {
+    const entrada = document.getElementById("registerHotelesBuscar");
+    const caja = document.getElementById("registerHoteles");
+    if (!entrada || !caja) return;
+    const termino = normalizarBusqueda_(entrada.value);
+    let visibles = 0;
+    caja.querySelectorAll(".propiedad-item").forEach(function (item) {
+      const coincide = !termino || normalizarBusqueda_(item.textContent).indexOf(termino) !== -1;
+      item.hidden = !coincide;
+      if (coincide) visibles++;
+    });
+    let vacio = caja.querySelector(".propiedades-sin-resultados");
+    if (!visibles) {
+      if (!vacio) {
+        vacio = document.createElement("p");
+        vacio.className = "propiedades-estado propiedades-sin-resultados";
+        vacio.textContent = "Ninguna propiedad coincide con la búsqueda.";
+        caja.appendChild(vacio);
+      }
+    } else if (vacio) {
+      vacio.remove();
+    }
+  }
+
+  function actualizarContadorPropiedades_() {
+    const contador = document.getElementById("registerHotelesContador");
+    if (!contador) return;
+    const n = propiedadesSeleccionadasRegistro_().length;
+    contador.textContent = n ? "(" + n + (n === 1 ? " seleccionada)" : " seleccionadas)") : "";
   }
 
   function propiedadesSeleccionadasRegistro_() {
