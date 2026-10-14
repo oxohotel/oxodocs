@@ -303,10 +303,10 @@
 
 .usuarios-lista-encabezado {
   display: grid;
-  grid-template-columns: minmax(140px, 1.1fr) minmax(160px, 1.3fr) minmax(150px, 175px) minmax(160px, 175px) minmax(150px, 175px) minmax(90px, 100px);
-  gap: 20px;
+  grid-template-columns: minmax(120px, 1fr) minmax(150px, 1.2fr) minmax(140px, 160px) minmax(150px, 165px) minmax(170px, 220px) minmax(190px, 290px);
+  gap: 16px;
   padding: 0 24px 10px;
-  min-width: 940px;
+  min-width: 1020px;
   box-sizing: border-box;
   font-size: 11px;
   font-weight: 800;
@@ -326,10 +326,10 @@
 
 .usuario-fila {
   display: grid;
-  grid-template-columns: minmax(140px, 1.1fr) minmax(160px, 1.3fr) minmax(150px, 175px) minmax(160px, 175px) minmax(150px, 175px) minmax(90px, 100px);
+  grid-template-columns: minmax(120px, 1fr) minmax(150px, 1.2fr) minmax(140px, 160px) minmax(150px, 165px) minmax(170px, 220px) minmax(190px, 290px);
   align-items: center;
-  gap: 20px;
-  min-width: 940px;
+  gap: 16px;
+  min-width: 1020px;
   box-sizing: border-box;
   background: var(--home-card-bg);
   border: 1px solid var(--home-border);
@@ -386,9 +386,10 @@
 
 .usuario-acciones-celda {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: flex-end;
-  gap: 10px;
+  gap: 8px;
 }
 
 .btn-accion-icono {
@@ -549,8 +550,12 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 6px;
-  margin-top: 8px;
+  gap: 6px 8px;
+  margin-top: 6px;
+}
+
+.solicitudes-bloque:first-child {
+  margin-top: 0;
 }
 
 .solicitudes-titulo {
@@ -605,8 +610,7 @@
 .btn-resolver-solicitud.no { background: #B5473A; color: #FFFFFF; }
 
 .btn-cerrar-solicitud {
-  margin-top: 2px;
-  padding: 4px 10px;
+  padding: 6px 12px;
   border-radius: 999px;
   border: 1px solid #D9A39B;
   background: transparent;

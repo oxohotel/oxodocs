@@ -5266,10 +5266,10 @@ input[type="password"]::-webkit-contacts-auto-fill-button {
 
 .usuarios-lista-encabezado {
   display: grid;
-  grid-template-columns: minmax(140px, 1.1fr) minmax(160px, 1.3fr) minmax(150px, 175px) minmax(160px, 175px) minmax(150px, 175px) minmax(90px, 100px);
-  gap: 20px;
+  grid-template-columns: minmax(120px, 1fr) minmax(150px, 1.2fr) minmax(140px, 160px) minmax(150px, 165px) minmax(170px, 220px) minmax(190px, 290px);
+  gap: 16px;
   padding: 0 24px 10px;
-  min-width: 940px;
+  min-width: 1020px;
   box-sizing: border-box;
   font-size: 11px;
   font-weight: 800;
@@ -5289,10 +5289,10 @@ input[type="password"]::-webkit-contacts-auto-fill-button {
 
 .usuario-fila {
   display: grid;
-  grid-template-columns: minmax(140px, 1.1fr) minmax(160px, 1.3fr) minmax(150px, 175px) minmax(160px, 175px) minmax(150px, 175px) minmax(90px, 100px);
+  grid-template-columns: minmax(120px, 1fr) minmax(150px, 1.2fr) minmax(140px, 160px) minmax(150px, 165px) minmax(170px, 220px) minmax(190px, 290px);
   align-items: center;
-  gap: 20px;
-  min-width: 940px;
+  gap: 16px;
+  min-width: 1020px;
   box-sizing: border-box;
   background: var(--home-card-bg);
   border: 1px solid var(--home-border);
@@ -5349,9 +5349,10 @@ input[type="password"]::-webkit-contacts-auto-fill-button {
 
 .usuario-acciones-celda {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: flex-end;
-  gap: 10px;
+  gap: 8px;
 }
 
 .btn-accion-icono {
@@ -5512,8 +5513,12 @@ input[type="password"]::-webkit-contacts-auto-fill-button {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 6px;
-  margin-top: 8px;
+  gap: 6px 8px;
+  margin-top: 6px;
+}
+
+.solicitudes-bloque:first-child {
+  margin-top: 0;
 }
 
 .solicitudes-titulo {
@@ -5568,8 +5573,7 @@ input[type="password"]::-webkit-contacts-auto-fill-button {
 .btn-resolver-solicitud.no { background: #B5473A; color: #FFFFFF; }
 
 .btn-cerrar-solicitud {
-  margin-top: 2px;
-  padding: 4px 10px;
+  padding: 6px 12px;
   border-radius: 999px;
   border: 1px solid #D9A39B;
   background: transparent;
@@ -13582,8 +13586,8 @@ function mostrarModalSinPermisos_(razon) {
 
       // Propiedades que pidió y siguen pendientes: cada administrador resuelve las suyas
       // (el botón de cerrar va en esta misma columna, no en la de acciones, que es muy angosta)
-      const solicitudesHtml = (solicitudes.length || botonCerrarHtml)
-        ? '<div class="solicitudes-bloque">' + (solicitudes.length ? '<span class="solicitudes-titulo">Solicita:</span>' : '') + solicitudes.map(function (s) {
+      const solicitudesHtml = solicitudes.length
+        ? '<div class="solicitudes-bloque">' + '<span class="solicitudes-titulo">Solicita:</span>' + solicitudes.map(function (s) {
             return '<span class="solicitud-item' + (s.puedeResolver ? '' : ' ajena') + '">' +
               '<span class="solicitud-nombre">' + escaparHtml(s.nombre) + '</span>' +
               (s.puedeResolver
@@ -13591,8 +13595,11 @@ function mostrarModalSinPermisos_(razon) {
                   '<button type="button" class="btn-resolver-solicitud no" data-id-usuario="' + u.id + '" data-id-hotel="' + escaparHtml(s.idHotel) + '" data-decision="denegar" title="Denegar ' + escaparHtml(s.nombre) + '">✕</button>'
                 : '<span class="solicitud-ajena" title="Lo resuelve el administrador de esa propiedad">otro admin</span>') +
             '</span>';
-          }).join('') + botonCerrarHtml + '</div>'
+          }).join('') + '</div>'
         : '';
+
+      // Si pidió propiedades y aún no tiene ninguna, el recuadro "Sin acceso" sobra: ya se ve qué está pidiendo
+      if (solicitudes.length && !String(u.hoteles_permitidos || '').trim()) hotelesCelda = '';
 
       return '<div class="usuario-fila" data-id-usuario="' + u.id + '">' +
         '<div class="usuario-nombre">' + escaparHtml(u.nombre || '') + '</div>' +
@@ -13600,11 +13607,10 @@ function mostrarModalSinPermisos_(razon) {
         '<div>' + rolCelda + '</div>' +
         '<div class="usuario-estado-celda">' +
           '<span class="usuario-estado-badge ' + estadoClase + '">' + escaparHtml(estadoTexto) + '</span>' +
-          botonAprobar +
         '</div>' +
         '<div>' + hotelesCelda + solicitudesHtml + '</div>' +
         '<div class="usuario-acciones-celda">' +
-          accionesHtml +
+          botonAprobar + botonCerrarHtml + accionesHtml +
         '</div>' +
       '</div>';
     }).join('');

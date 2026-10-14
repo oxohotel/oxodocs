@@ -233,8 +233,8 @@
 
       // Propiedades que pidió y siguen pendientes: cada administrador resuelve las suyas
       // (el botón de cerrar va en esta misma columna, no en la de acciones, que es muy angosta)
-      const solicitudesHtml = (solicitudes.length || botonCerrarHtml)
-        ? '<div class="solicitudes-bloque">' + (solicitudes.length ? '<span class="solicitudes-titulo">Solicita:</span>' : '') + solicitudes.map(function (s) {
+      const solicitudesHtml = solicitudes.length
+        ? '<div class="solicitudes-bloque">' + '<span class="solicitudes-titulo">Solicita:</span>' + solicitudes.map(function (s) {
             return '<span class="solicitud-item' + (s.puedeResolver ? '' : ' ajena') + '">' +
               '<span class="solicitud-nombre">' + escaparHtml(s.nombre) + '</span>' +
               (s.puedeResolver
@@ -242,8 +242,11 @@
                   '<button type="button" class="btn-resolver-solicitud no" data-id-usuario="' + u.id + '" data-id-hotel="' + escaparHtml(s.idHotel) + '" data-decision="denegar" title="Denegar ' + escaparHtml(s.nombre) + '">✕</button>'
                 : '<span class="solicitud-ajena" title="Lo resuelve el administrador de esa propiedad">otro admin</span>') +
             '</span>';
-          }).join('') + botonCerrarHtml + '</div>'
+          }).join('') + '</div>'
         : '';
+
+      // Si pidió propiedades y aún no tiene ninguna, el recuadro "Sin acceso" sobra: ya se ve qué está pidiendo
+      if (solicitudes.length && !String(u.hoteles_permitidos || '').trim()) hotelesCelda = '';
 
       return '<div class="usuario-fila" data-id-usuario="' + u.id + '">' +
         '<div class="usuario-nombre">' + escaparHtml(u.nombre || '') + '</div>' +
@@ -251,11 +254,10 @@
         '<div>' + rolCelda + '</div>' +
         '<div class="usuario-estado-celda">' +
           '<span class="usuario-estado-badge ' + estadoClase + '">' + escaparHtml(estadoTexto) + '</span>' +
-          botonAprobar +
         '</div>' +
         '<div>' + hotelesCelda + solicitudesHtml + '</div>' +
         '<div class="usuario-acciones-celda">' +
-          accionesHtml +
+          botonAprobar + botonCerrarHtml + accionesHtml +
         '</div>' +
       '</div>';
     }).join('');
