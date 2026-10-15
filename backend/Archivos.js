@@ -284,7 +284,7 @@ function obtenerCarpetaDrive(idCarpeta) {
 function generarIdArchivo() {
   const lock = LockService.getScriptLock();
   try {
-    lock.waitLock(10000);
+    tomarCandado_(lock, 10000);
     const ss = SpreadsheetApp.openById(DRIVE_CONFIG.SPREADSHEET_ID);
     const hoja = ss.getSheetByName('Archivos');
     const maxRow = hoja.getLastRow();
@@ -301,7 +301,7 @@ function generarIdArchivo() {
     Logger.log('Aviso generarIdArchivo lock: ' + e);
     return 'ARC-' + Date.now().toString().slice(-6);
   } finally {
-    try { lock.releaseLock(); } catch (e) {}
+    liberarCandado_(lock);
   }
 }
 

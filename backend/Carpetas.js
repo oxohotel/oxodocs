@@ -222,7 +222,7 @@ function crearSubcarpeta(idCarpetaPadre, nombreCarpeta, idUsuarioOToken, idUsuar
 
   const lock = LockService.getScriptLock();
   try {
-    lock.waitLock(10000);
+    tomarCandado_(lock, 10000);
     const nombreLimpio = String(nombreCarpeta || '').trim();
     if (!nombreLimpio) return { success: false, message: 'El nombre de la carpeta no puede estar vacío' };
 
@@ -282,7 +282,7 @@ function crearSubcarpeta(idCarpetaPadre, nombreCarpeta, idUsuarioOToken, idUsuar
     Logger.log('Error crearSubcarpeta: ' + error);
     return { success: false, message: error.toString() };
   } finally {
-    try { lock.releaseLock(); } catch (e) {}
+    liberarCandado_(lock);
   }
 }
 
@@ -300,7 +300,7 @@ function crearArea(idHotel, nombreArea, idUsuarioOToken) {
 
   const lock = LockService.getScriptLock();
   try {
-    lock.waitLock(10000);
+    tomarCandado_(lock, 10000);
     const nombreLimpio = String(nombreArea || '').trim();
     if (!nombreLimpio) return { success: false, message: 'El nombre del área no puede estar vacío' };
 
@@ -363,7 +363,7 @@ function crearArea(idHotel, nombreArea, idUsuarioOToken) {
     Logger.log('Error crearArea: ' + error);
     return { success: false, message: error.toString() };
   } finally {
-    try { lock.releaseLock(); } catch (e) {}
+    liberarCandado_(lock);
   }
 }
 
@@ -455,7 +455,7 @@ function eliminarCarpeta(idCarpeta, idUsuarioOToken, idUsuarioFallback) {
 
   const lock = LockService.getScriptLock();
   try {
-    lock.waitLock(10000);
+    tomarCandado_(lock, 10000);
     const ss = SpreadsheetApp.openById(DRIVE_CONFIG.SPREADSHEET_ID);
     const hojaCarpetas = ss.getSheetByName('Carpetas');
     const hojaArchivos = ss.getSheetByName('Archivos');
@@ -515,7 +515,7 @@ function eliminarCarpeta(idCarpeta, idUsuarioOToken, idUsuarioFallback) {
     Logger.log('Error eliminarCarpeta: ' + error);
     return { success: false, message: error.toString() };
   } finally {
-    try { lock.releaseLock(); } catch (e) {}
+    liberarCandado_(lock);
   }
 }
 

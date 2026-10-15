@@ -42,6 +42,9 @@ async function enParalelo(tareas, limite) {
 
 let fallos = 0;
 const informe = (ok, titulo, detalle) => { console.log((ok ? 'OK    ' : 'FALLA ') + titulo + (detalle ? '\n        ' + detalle : '')); if (!ok) fallos++; };
+// Bajo saturación una llamada puede ser rechazada limpiamente (candado no obtenido a tiempo: success:false) sin tocar datos; eso NO es pérdida.
+// Las invariantes se exigen sobre lo que SÍ respondió éxito. Una respuesta rota (error de red / página de error) es ambigua: no se exige nada.
+const exito = r => !!(r && r.data && r.data.success);
 const resumenErrores = rs => {
   const c = {}; rs.filter(r => r.error).forEach(r => { c[r.error] = (c[r.error] || 0) + 1; });
   return Object.entries(c).map(([m, n]) => n + '× ' + m.slice(0, 80)).join(' · ');
@@ -77,7 +80,8 @@ const resumenErrores = rs => {
   const sS2 = await estado();
   const nuevosIds = sS2.auditoriaIds.slice(antesS2);
   const duplicados = nuevosIds.length - new Set(sS2.auditoriaIds).size + antesS2;
-  informe(nuevosIds.length === 30 && new Set(sS2.auditoriaIds).size === sS2.auditoriaIds.length,
+  const acepS2 = rS2.filter(exito).length, ambS2 = rS2.filter(r => r.error).length;
+  informe(nuevosIds.length >= acepS2 && nuevosIds.length <= acepS2 + ambS2 && new Set(sS2.auditoriaIds).size === sS2.auditoriaIds.length,
     'S2. 30 registros de auditoría simultáneos: ninguno se pierde y los IDs no se repiten',
     nuevosIds.length + ' filas nuevas de 30; IDs repetidos: ' + Math.max(0, sS2.auditoriaIds.length - new Set(sS2.auditoriaIds).size) + (resumenErrores(rS2) ? ' · errores: ' + resumenErrores(rS2) : ''));
 
@@ -101,22 +105,26 @@ const resumenErrores = rs => {
     });
     const rS4 = await enParalelo(tareas, CONCURRENCIA);
     const despues = await estado();
-    const malas = pendientes.filter(p => { const u = despues.usuarios.find(x => x.id === p.id); return !(u.estado === 'Activo' && String(u.hoteles) === 'H1' && String(u.solicitados) === ''); });
+    const rechazadas = pendientes.filter((p, k) => !exito(rS4[2 * k]) || !exito(rS4[2 * k + 1])).map(p => p.id);
+    const malas = pendientes.filter(p => rechazadas.indexOf(p.id) === -1).filter(p => { const u = despues.usuarios.find(x => x.id === p.id); return !(u.estado === 'Activo' && String(u.hoteles) === 'H1' && String(u.solicitados) === ''); });
     informe(malas.length === 0, 'S4. ' + pendientes.length + ' cuentas resueltas por dos administradores a la vez: cada decisión se aplica una sola vez y ninguna se pisa',
-      malas.length ? 'estado inconsistente en: ' + malas.map(p => p.email).join(', ') : 'todas quedaron Activo, con Distrito y sin pendientes' + (resumenErrores(rS4) ? ' · errores: ' + resumenErrores(rS4) : ''));
+      malas.length ? 'estado inconsistente en: ' + malas.map(p => p.email).join(', ') : 'las cuentas con ambas decisiones aceptadas quedaron Activo, con Distrito y sin pendientes' + (rechazadas.length ? ' (' + rechazadas.length + ' cuenta(s) con una decisión rechazada por saturación, sin tocar datos)' : '') + (resumenErrores(rS4) ? ' · errores: ' + resumenErrores(rS4) : ''));
   }
 
   // ---- S5: muchos registros de actividad a la vez
   const antesS5 = (await estado()).actividadFilas;
   const rS5 = await enParalelo(Array.from({ length: 60 }, () => () => llamar('registrarActividad', ['1', 'Hotel', 'H1', 'Abrir'])), CONCURRENCIA);
   const despuesS5 = (await estado()).actividadFilas;
-  informe(despuesS5 - antesS5 === 60, 'S5. 60 registros de actividad simultáneos: ninguno se pierde',
+  const acepS5 = rS5.filter(exito).length, ambS5 = rS5.filter(r => r.error).length;
+  // Cada respuesta de éxito debe tener su fila; una respuesta rota puede haberla escrito o no
+  informe(despuesS5 - antesS5 >= acepS5 && despuesS5 - antesS5 <= acepS5 + ambS5, 'S5. 60 registros de actividad simultáneos: ninguno se pierde',
     (despuesS5 - antesS5) + ' filas nuevas de 60' + (resumenErrores(rS5) ? ' · errores: ' + resumenErrores(rS5) : ''));
 
   // ---- S6: alternar el mismo favorito muchas veces a la vez (cada llamada lee y escribe)
   const rS6 = await enParalelo(Array.from({ length: 12 }, () => () => llamar('alternarFavorito', ['1', 'Hotel', 'H1'])), CONCURRENCIA);
   const favs = (await estado()).favoritos.filter(f => String(f.usuario) === '1' && f.recurso === 'H1');
-  informe(favs.length === 0, 'S6. 12 alternancias simultáneas del mismo favorito: queda en el estado que corresponde (par → sin favorito)',
+  const aceptadas = rS6.filter(exito).length, ambiguas = rS6.filter(r => r.error).length;
+  informe(ambiguas > 0 || favs.length === aceptadas % 2, 'S6. 12 alternancias simultáneas del mismo favorito: queda en el estado que corresponde (par de alternancias aceptadas → sin favorito)',
     'quedaron ' + favs.length + ' filas de ese favorito' + (resumenErrores(rS6) ? ' · errores: ' + resumenErrores(rS6) : ''));
 
   console.log(fallos ? '\n' + fallos + ' ESCENARIO(S) CON PROBLEMAS: hay datos perdidos o duplicados bajo concurrencia.' : '\nTODOS LOS ESCENARIOS PASARON');

@@ -185,6 +185,45 @@ function guardarPreferenciasNotificaciones(idUsuario, prefs) {
  */
 /** ID siguiente de la hoja Auditoria leyendo solo la última fila (antes se releía la hoja entera en cada acción, y la hoja
  *  solo crece). Los IDs son consecutivos, así que "último + 1" equivale al máximo + 1 de antes. */
+/**
+ * Agrega una fila sin que dos ejecuciones simultáneas se pisen. appendRow NO es seguro entre ejecuciones concurrentes: en la prueba
+ * real, 30 llamadas simultáneas dejaron solo 9 filas (todas respondieron éxito). Por eso se serializa con el candado del script;
+ * "construirFila" se evalúa ya dentro del candado (para IDs consecutivos). Si ya se tiene el candado (llamada anidada) se reutiliza sin
+ * soltarlo; si no se logra obtener en 30 s se agrega igualmente (mejor un riesgo de pisado que perder el registro).
+ */
+/**
+ * Toma el candado y refresca. Sin el flush posterior, una hoja leída ANTES de tomarlo sigue mostrando los datos de ese momento y se
+ * pisa lo que otra ejecución escribió mientras esperábamos (comprobado en Apps Script real: 8 ejecuciones simultáneas dejaron el
+ * contador en 2; con el flush, en 8). Lanza error si no lo obtiene a tiempo, como waitLock.
+ */
+function tomarCandado_(lock, ms) {
+  lock.waitLock(ms);
+  try { SpreadsheetApp.flush(); } catch (e) {}
+}
+
+/**
+ * Suelta el candado DESPUÉS de forzar la escritura pendiente. Sin el flush, Sheets guarda en lote y otra ejecución que estaba esperando el
+ * candado lo toma y lee datos viejos (la prueba real lo mostró: dos administradores resolviendo la misma cuenta se pisaban).
+ */
+function liberarCandado_(lock) {
+  try { SpreadsheetApp.flush(); } catch (e) {}
+  try { lock.releaseLock(); } catch (e) {}
+}
+
+function agregarFilaSegura_(hoja, construirFila) {
+  const lock = LockService.getScriptLock();
+  const yaLoTenia = lock.hasLock();
+  let lopropio = false;
+  if (!yaLoTenia) {
+    try { tomarCandado_(lock, 30000); lopropio = true; } catch (e) { Logger.log('Aviso: sin candado para agregar fila en ' + hoja.getName()); }
+  }
+  try {
+    hoja.appendRow(construirFila());
+  } finally {
+    if (lopropio) liberarCandado_(lock);
+  }
+}
+
 function siguienteIdAuditoria_(hoja) {
   const ultima = hoja.getLastRow();
   if (ultima <= 1) return 1;
@@ -198,18 +237,18 @@ function registrarAuditoriaSimple_(idUsuario, tipoAccion, descripcion, entidadAf
     const hojaAuditoria = ss.getSheetByName('Auditoria');
     if (!hojaAuditoria) return;
 
-    const nuevoId = siguienteIdAuditoria_(hojaAuditoria);
-
-    hojaAuditoria.appendRow([
-      nuevoId,
-      idUsuario,
-      '',
-      tipoAccion,
-      descripcion,
-      entidadAfectada,
-      new Date(),
-      'Exitosa'
-    ]);
+    agregarFilaSegura_(hojaAuditoria, function () {
+      return [
+        siguienteIdAuditoria_(hojaAuditoria), // el ID se calcula DENTRO del candado, si no dos ejecuciones simultáneas obtienen el mismo
+        idUsuario,
+        '',
+        tipoAccion,
+        descripcion,
+        entidadAfectada,
+        new Date(),
+        'Exitosa'
+      ];
+    });
   } catch (error) {
     Logger.log('Error registrarAuditoriaSimple_: ' + error);
   }

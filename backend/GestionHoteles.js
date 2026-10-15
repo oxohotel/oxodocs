@@ -97,7 +97,7 @@ function crearHotelImpl_(nombreHotel, idModulo, idUsuarioOToken, idUsuarioFallba
 
   const lock = LockService.getScriptLock();
   try {
-    lock.waitLock(20000);
+    tomarCandado_(lock, 20000);
     const ctx = contextoGestionHoteles_();
 
     const modulo = buscarModulo_(ctx, idModulo);
@@ -154,7 +154,7 @@ function crearHotelImpl_(nombreHotel, idModulo, idUsuarioOToken, idUsuarioFallba
     Logger.log('Error crearHotel: ' + error);
     return { success: false, message: 'No se pudo crear el hotel: ' + (error.message || error) };
   } finally {
-    try { lock.releaseLock(); } catch (e) {}
+    liberarCandado_(lock);
   }
 }
 
@@ -168,7 +168,7 @@ function editarHotelImpl_(idHotel, nuevoNombre, idModuloDestino, idUsuarioOToken
 
   const lock = LockService.getScriptLock();
   try {
-    lock.waitLock(20000);
+    tomarCandado_(lock, 20000);
     const ctx = contextoGestionHoteles_();
 
     const hotel = buscarHotel_(ctx, idHotel);
@@ -222,7 +222,7 @@ function editarHotelImpl_(idHotel, nuevoNombre, idModuloDestino, idUsuarioOToken
     Logger.log('Error editarHotel: ' + error);
     return { success: false, message: 'No se pudo editar el hotel: ' + (error.message || error) };
   } finally {
-    try { lock.releaseLock(); } catch (e) {}
+    liberarCandado_(lock);
   }
 }
 
@@ -261,7 +261,7 @@ function eliminarHotelImpl_(idHotel, nombreConfirmacion, idUsuarioOToken, idUsua
   let carpetaHotel = null;
   let enPapelera = false;
   try {
-    lock.waitLock(20000);
+    tomarCandado_(lock, 20000);
     const ctx = contextoGestionHoteles_();
 
     const hotel = buscarHotel_(ctx, idHotel);
@@ -341,7 +341,7 @@ function eliminarHotelImpl_(idHotel, nombreConfirmacion, idUsuarioOToken, idUsua
     Logger.log('Error eliminarHotel: ' + error);
     return { success: false, message: 'No se pudo eliminar el hotel: ' + (error.message || error) };
   } finally {
-    try { lock.releaseLock(); } catch (e) {}
+    liberarCandado_(lock);
   }
 }
 

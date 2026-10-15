@@ -43,8 +43,8 @@ const hojas = {
 const auditoria = [];
 const sandbox = {
   console, Logger: { log: () => {} },
-  SpreadsheetApp: { openById: () => ({ getSheetByName: n => hojas[n] || null }) },
-  LockService: { getScriptLock: () => ({ waitLock() {}, releaseLock() {} }) },
+  SpreadsheetApp: { flush() {}, openById: () => ({ getSheetByName: n => hojas[n] || null }) },
+  LockService: { getScriptLock: () => ({ hasLock() { return false; }, waitLock() {}, releaseLock() {} }) },
   Utilities: { formatDate: () => '2026-10-02' },
   registrarAuditoriaSimple_: (u, a, d) => auditoria.push([String(u), a, d]),
   calcularHashContrasenaConSalt_: p => 'HASH(' + p + ')',

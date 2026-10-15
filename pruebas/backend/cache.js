@@ -48,10 +48,10 @@ const hojas = {
 };
 const sandbox = {
   console, Logger: { log: () => {} }, Date, Math, JSON,
-  SpreadsheetApp: { openById: () => ({ getSheetByName: n => hojas[n] || null, insertSheet: n => (hojas[n] = new Hoja(n, [])) }) },
+  SpreadsheetApp: { flush() {}, openById: () => ({ getSheetByName: n => hojas[n] || null, insertSheet: n => (hojas[n] = new Hoja(n, [])) }) },
   CacheService: CacheServiceMock,
   PropertiesService: { getScriptProperties: () => ({ getProperty: () => '1' }) },
-  LockService: { getScriptLock: () => ({ waitLock() { bloqueos++; }, tryLock() { intentosBloqueo++; return true; }, releaseLock() {} }) },
+  LockService: { getScriptLock: () => ({ hasLock() { return false; }, waitLock() { bloqueos++; }, tryLock() { intentosBloqueo++; return true; }, releaseLock() {} }) },
   Utilities: { formatDate: () => '2026-10-02 10:00:00', getUuid: () => 'uuid-' + Math.random(), base64Encode: () => 'abcdefghijklmnopqrstuvwxyz', computeDigest: () => [], DigestAlgorithm: { SHA_256: 'x' } },
   ScriptApp: { _t: [], getProjectTriggers() { return this._t.slice(); }, deleteTrigger(t) { this._t = this._t.filter(x => x !== t); },
     newTrigger(fn) { const self = this; const t = { fn, getHandlerFunction: () => fn, cada: null }; return { timeBased() { return { everyMinutes(n) { t.cada = n; return { create() { self._t.push(t); return t; } }; } }; } }; } },
@@ -139,10 +139,10 @@ const ids = hojas.Auditoria.filas.slice(1).map(f => f[0]);
 ok(ids.slice(-2).join() === (ultimoId + 1) + ',' + (ultimoId + 2) && hojas.Auditoria.lecturas === 0, '7b. dos registros nuevos reciben ' + (ultimoId + 1) + ' y ' + (ultimoId + 2) + ' y la hoja de Auditoría no se leyó entera (lecturas: ' + hojas.Auditoria.lecturas + ')');
 const vacia = new Hoja('v', [['ID']]); ok(F.siguienteIdAuditoria_(vacia) === 1, '7c. hoja vacía: empieza en 1');
 
-// ---------- 8. Actividad: sin candado al agregar, recorte en bloque
+// ---------- 8. Actividad: candado corto al agregar (la prueba real mostró pérdidas sin él), recorte en bloque
 bloqueos = 0; intentosBloqueo = 0;
 for (let i = 0; i < 50; i++) F.registrarActividad('1', 'Hotel', 'H' + i, 'Abrir');
-ok(hojas.Actividad_Reciente.filas.length === 51 && bloqueos === 0 && intentosBloqueo === 0, '8. 50 registros sin tomar el candado global (bloqueos: ' + (bloqueos + intentosBloqueo) + ')');
+ok(hojas.Actividad_Reciente.filas.length === 51 && bloqueos === 50 && intentosBloqueo === 0, '8. 50 registros: cada uno con candado corto (appendRow no es seguro entre ejecuciones simultáneas); bloqueos: ' + bloqueos);
 vm.runInContext('ACTIVIDAD_LIMITE_FILAS_TEST=1', sandbox);
 const A = hojas.Actividad_Reciente; A.filas = [A.filas[0]];
 for (let i = 0; i < 2999; i++) A.filas.push(['ACT-' + i, '1', 'Hotel', 'H1', 'Abrir', new Date()]);

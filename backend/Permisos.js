@@ -80,7 +80,7 @@ function obtenerUsuariosRestringidosArchivo(idArchivo) {
 function guardarPermisosArchivo(idArchivo, usuariosRestringidos) {
   const lock = LockService.getScriptLock();
   try {
-    lock.waitLock(10000);
+    tomarCandado_(lock, 10000);
 
     const ss = SpreadsheetApp.openById(DRIVE_CONFIG.SPREADSHEET_ID);
     const hojaPermisos = ss.getSheetByName('Permisos_Archivos');
@@ -133,7 +133,7 @@ function guardarPermisosArchivo(idArchivo, usuariosRestringidos) {
     Logger.log('Error en guardarPermisosArchivo: ' + error);
     return { success: false, message: error.toString() };
   } finally {
-    lock.releaseLock();
+    liberarCandado_(lock);
   }
 }
 
@@ -180,7 +180,7 @@ function verificarAccesoArchivo(idArchivo, idUsuario) {
 function removerRestriccionArchivo(idArchivo, idUsuario) {
   const lock = LockService.getScriptLock();
   try {
-    lock.waitLock(10000);
+    tomarCandado_(lock, 10000);
 
     const ss = SpreadsheetApp.openById(DRIVE_CONFIG.SPREADSHEET_ID);
     const hojaPermisos = ss.getSheetByName('Permisos_Archivos');
@@ -208,7 +208,7 @@ function removerRestriccionArchivo(idArchivo, idUsuario) {
     Logger.log('Error en removerRestriccionArchivo: ' + error);
     return { success: false, message: error.toString() };
   } finally {
-    lock.releaseLock();
+    liberarCandado_(lock);
   }
 }
 

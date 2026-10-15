@@ -13,7 +13,7 @@ function alternarFavorito(idUsuarioOToken, tipoRecurso, idRecurso) {
 
   const lock = LockService.getScriptLock();
   try {
-    lock.waitLock(10000);
+    tomarCandado_(lock, 10000);
     const ss = obtenerSpreadsheet_();
     const hoja = ss.getSheetByName('Favoritos');
     if (!hoja) return { success: false, message: 'Hoja Favoritos no encontrada' };
@@ -37,7 +37,7 @@ function alternarFavorito(idUsuarioOToken, tipoRecurso, idRecurso) {
     Logger.log('Error alternarFavorito: ' + error);
     return { success: false, message: error.toString() };
   } finally {
-    try { lock.releaseLock(); } catch (e) {}
+    liberarCandado_(lock);
   }
 }
 

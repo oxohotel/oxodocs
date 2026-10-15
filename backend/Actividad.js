@@ -21,9 +21,9 @@ function registrarActividad(idUsuarioOToken, tipoRecurso, idRecurso, tipoInterac
     const hoja = ss.getSheetByName('Actividad_Reciente');
     if (!hoja) return { success: false, message: 'Hoja Actividad_Reciente no encontrada' };
 
-    // appendRow es atómico: ya no hace falta el candado global en cada registro (serializaba a todos los usuarios).
+    // appendRow NO es seguro entre ejecuciones simultáneas (la prueba real perdió 2 de cada 3 filas): se agrega con candado corto.
     const idActividad = 'ACT-' + new Date().getTime();
-    hoja.appendRow([idActividad, idUsuario, tipoRecurso, idRecurso, tipoInteraccion, new Date()]);
+    agregarFilaSegura_(hoja, function () { return [idActividad, idUsuario, tipoRecurso, idRecurso, tipoInteraccion, new Date()]; });
 
     if (hoja.getLastRow() > ACTIVIDAD_LIMITE_FILAS + 1) recortarActividad_(hoja);
 
@@ -42,7 +42,7 @@ function recortarActividad_(hoja) {
     const exceso = hoja.getLastRow() - 1 - (ACTIVIDAD_LIMITE_FILAS - ACTIVIDAD_HOLGURA_FILAS);
     if (exceso > 0) hoja.deleteRows(2, exceso); // desde la fila 2: justo debajo del encabezado
   } finally {
-    try { lock.releaseLock(); } catch (e) {}
+    liberarCandado_(lock);
   }
 }
 

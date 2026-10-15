@@ -710,7 +710,7 @@ function crearUsuarioPorAdmin(datos, idUsuarioSolicitanteOToken, idUsuarioFallba
 
   const lock = LockService.getScriptLock();
   try {
-    lock.waitLock(15000);
+    tomarCandado_(lock, 15000);
 
     const ss = obtenerSpreadsheet_();
     const hojaUsuarios = ss.getSheetByName('Usuarios');
@@ -810,7 +810,7 @@ function crearUsuarioPorAdmin(datos, idUsuarioSolicitanteOToken, idUsuarioFallba
     Logger.log('Error en crearUsuarioPorAdmin: ' + error);
     return { success: false, message: 'Error al crear el usuario: ' + error.toString() };
   } finally {
-    try { lock.releaseLock(); } catch (e) {}
+    liberarCandado_(lock);
   }
 }
 

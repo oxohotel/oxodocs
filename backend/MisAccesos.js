@@ -92,7 +92,7 @@ function solicitarAccesoPropiedades(idUsuarioOToken, hotelesIds) {
 
   const lock = LockService.getScriptLock();
   try {
-    lock.waitLock(10000);
+    tomarCandado_(lock, 10000);
     const cuenta = filaDeMiCuenta_(ctx.yo.id);
     if (!cuenta) return { success: false, message: 'No se encontró tu cuenta' };
 
@@ -124,7 +124,7 @@ function solicitarAccesoPropiedades(idUsuarioOToken, hotelesIds) {
     Logger.log('Error solicitarAccesoPropiedades: ' + error);
     return { success: false, message: 'No se pudo enviar la solicitud: ' + (error.message || error) };
   } finally {
-    try { lock.releaseLock(); } catch (e) {}
+    liberarCandado_(lock);
   }
 }
 
@@ -135,7 +135,7 @@ function cancelarSolicitudesPropias(idUsuarioOToken, hotelesIds) {
 
   const lock = LockService.getScriptLock();
   try {
-    lock.waitLock(10000);
+    tomarCandado_(lock, 10000);
     const cuenta = filaDeMiCuenta_(ctx.yo.id);
     if (!cuenta) return { success: false, message: 'No se encontró tu cuenta' };
 
@@ -153,6 +153,6 @@ function cancelarSolicitudesPropias(idUsuarioOToken, hotelesIds) {
     Logger.log('Error cancelarSolicitudesPropias: ' + error);
     return { success: false, message: 'No se pudo cancelar: ' + (error.message || error) };
   } finally {
-    try { lock.releaseLock(); } catch (e) {}
+    liberarCandado_(lock);
   }
 }

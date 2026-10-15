@@ -95,6 +95,9 @@ function escribirFilas_(hoja, filas) {
 /** Deja todas las hojas con su encabezado de producción y solo los datos ficticios de partida. */
 function reiniciarEntornoDePruebas_() {
   exigirEntornoDePruebas_();
+  // Una hoja recién creada puede traer otra zona horaria que el script; con zonas distintas las fechas guardadas (vencimiento de códigos) se desplazan
+  const ssPrueba = SpreadsheetApp.openById(DRIVE_CONFIG.SPREADSHEET_ID);
+  if (ssPrueba.getSpreadsheetTimeZone() !== Session.getScriptTimeZone()) ssPrueba.setSpreadsheetTimeZone(Session.getScriptTimeZone());
   Object.keys(ENCABEZADOS_PRUEBA_).forEach(function (nombre) {
     const hoja = hojaDePrueba_(nombre);
     vaciarHoja_(hoja);

@@ -73,9 +73,10 @@ const hojas = {
 const auditoria = [];
 const sandbox = {
   console, Logger: { log: () => {} }, Utilities: { sleep: () => {} },
-  SpreadsheetApp: { openById: () => ({ getSheetByName: n => hojas[n] || null }) },
+  SpreadsheetApp: { flush() {}, openById: () => ({ getSheetByName: n => hojas[n] || null }) },
   DriveApp: { getFolderById: id => { if (!carpetas[id]) throw new Error('no existe ' + id); return carpetas[id]; } },
-  LockService: { getScriptLock: () => ({ waitLock() {}, releaseLock() {} }) },
+  tomarCandado_: (l, ms) => l.waitLock(ms), liberarCandado_: l => l.releaseLock(),
+  LockService: { getScriptLock: () => ({ hasLock() { return false; }, waitLock() {}, releaseLock() {} }) },
   // Roles / sesión simulados: token 'SA' = superadmin (rol 3), 'US' = usuario (rol 1)
   resolverUsuarioSolicitante_: t => ({ SA: { idUsuario: '5' }, US: { idUsuario: '6' } }[t] || null),
   obtenerRolDeUsuario_: id => ({ '5': 3, '6': 1 }[String(id)]),

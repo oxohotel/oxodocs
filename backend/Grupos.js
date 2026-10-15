@@ -55,7 +55,7 @@ function obtenerGruposUsuario(idUsuario) {
 function crearGrupoUsuario(idUsuario, nombreGrupo, arrayIntegrantes) {
   const lock = LockService.getScriptLock();
   try {
-    lock.waitLock(10000);
+    tomarCandado_(lock, 10000);
     const ss = SpreadsheetApp.openById(DRIVE_CONFIG.SPREADSHEET_ID);
     
     let hojaGrupos = ss.getSheetByName('Grupos_Usuarios');
@@ -96,7 +96,7 @@ function crearGrupoUsuario(idUsuario, nombreGrupo, arrayIntegrantes) {
     Logger.log('Error en crearGrupoUsuario: ' + error);
     return { success: false, message: error.toString() };
   } finally {
-    lock.releaseLock();
+    liberarCandado_(lock);
   }
 }
 
@@ -108,7 +108,7 @@ function crearGrupoUsuario(idUsuario, nombreGrupo, arrayIntegrantes) {
 function eliminarGrupoUsuario(idUsuario, idGrupo) {
   const lock = LockService.getScriptLock();
   try {
-    lock.waitLock(10000);
+    tomarCandado_(lock, 10000);
     const ss = SpreadsheetApp.openById(DRIVE_CONFIG.SPREADSHEET_ID);
     const hojaGrupos = ss.getSheetByName('Grupos_Usuarios');
     
@@ -138,6 +138,6 @@ function eliminarGrupoUsuario(idUsuario, idGrupo) {
     Logger.log('Error en eliminarGrupoUsuario: ' + error);
     return { success: false, message: error.toString() };
   } finally {
-    lock.releaseLock();
+    liberarCandado_(lock);
   }
 }

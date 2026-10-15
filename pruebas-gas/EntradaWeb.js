@@ -65,3 +65,31 @@ function prepararEntornoDePruebas() {
   Logger.log('Entorno de pruebas listo. Hoja: ' + DRIVE_CONFIG.SPREADSHEET_ID);
   Logger.log('Listo: ya se pueden hacer ejecuciones web (la clave está en .pruebas-gas.config.json).');
 }
+
+/**
+ * Incrementa un contador en una hoja bajo el candado del script (leer, esperar, escribir). Si el candado serializa de verdad entre
+ * ejecuciones web simultáneas, N llamadas dejan el contador en N. "modo": 'flush' (suelta tras SpreadsheetApp.flush) o 'sinflush'.
+ */
+function probarCandadoWeb(clave, modo, reinicio) {
+  validarClavePruebas_(clave);
+  const hoja = hojaDePrueba_('Favoritos');
+  const lock = LockService.getScriptLock();
+  if (reinicio) { hoja.getRange('Z1').setValue(0); SpreadsheetApp.flush(); return { reiniciado: true }; }
+  // modos: 'flush' | 'sinflush' | 'leerantes' (lee la hoja ANTES del candado) | 'leerantes+flush' (además refresca tras tomarlo)
+  if (modo.indexOf('leerantes') === 0) hoja.getRange('Z1').getValue();
+  lock.waitLock(30000);
+  let n = 0;
+  try {
+    if (modo === 'leerantes+flush') SpreadsheetApp.flush();
+    n = Number(hoja.getRange('Z1').getValue()) || 0;
+    Utilities.sleep(200);
+    hoja.getRange('Z1').setValue(n + 1);
+    SpreadsheetApp.flush();
+  } finally { lock.releaseLock(); }
+  return { leido: n };
+}
+
+function leerContadorPruebaWeb(clave) {
+  validarClavePruebas_(clave);
+  return { valor: Number(hojaDePrueba_('Favoritos').getRange('Z1').getValue()) || 0 };
+}

@@ -48,10 +48,10 @@ const hojas = {
 const correos = []; const correosAcumulados = [];
 const sandbox = {
   console, Logger: { log: () => {} }, Date, Math, JSON,
-  SpreadsheetApp: { openById: () => ({ getSheetByName: n => hojas[n] || null, insertSheet: n => (hojas[n] = new Hoja(n, [])) }) },
+  SpreadsheetApp: { flush() {}, openById: () => ({ getSheetByName: n => hojas[n] || null, insertSheet: n => (hojas[n] = new Hoja(n, [])) }) },
   CacheService: CacheServiceMock,
   PropertiesService: { getScriptProperties: () => ({ getProperty: () => '1' }) },
-  LockService: { getScriptLock: () => ({ waitLock() {}, tryLock() { return true; }, releaseLock() {} }) },
+  LockService: { getScriptLock: () => ({ hasLock() { return false; }, waitLock() {}, tryLock() { return true; }, releaseLock() {} }) },
   Utilities: { formatDate: () => '2026-10-14', getUuid: () => 'uuid-' + Math.random(), base64Encode: () => 'h' + Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2), computeDigest: () => [1, 2, 3], DigestAlgorithm: { SHA_256: 'x' } },
   MailApp: { sendEmail: o => { correos.push(o); correosAcumulados.push(o); } },
   ContentService: { createTextOutput: t => ({ texto: t, setMimeType() { return this; } }), MimeType: { JSON: 'json' } },

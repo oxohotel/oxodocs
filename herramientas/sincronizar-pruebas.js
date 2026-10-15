@@ -72,7 +72,7 @@ fs.copyFileSync(path.join(RAIZ, 'appsscript.json'), path.join(SALIDA, 'appsscrip
 let code = parchear('Code.js', leer('Code.js'));
 const ancla = 'const ACCIONES_PERMITIDAS_ = [';
 if (!code.includes(ancla)) fallar('No se encontró la lista de acciones permitidas en Code.js.');
-code = code.replace(ancla, ancla + "\n  'ejecutarPruebasWeb',\n  'sembrarDatosPruebasWeb',\n  'inspeccionarEstadoPruebasWeb',");
+code = code.replace(ancla, ancla + "\n  'ejecutarPruebasWeb',\n  'sembrarDatosPruebasWeb',\n  'inspeccionarEstadoPruebasWeb',\n  'probarCandadoWeb',\n  'leerContadorPruebaWeb',");
 fs.writeFileSync(path.join(SALIDA, 'Code.js'), code);
 
 const excluidos = ['ImportarUsuarios.js', 'desktop.ini'];

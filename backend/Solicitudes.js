@@ -67,7 +67,7 @@ function prepararResolucion_(idObjetivo, idUsuarioOToken, idUsuarioFallback) {
 function aplicarDecisionesSolicitud_(ctx, decisiones) {
   const lock = LockService.getScriptLock();
   try {
-    lock.waitLock(10000);
+    tomarCandado_(lock, 10000);
 
     // Se relee la fila bajo el candado: otro administrador pudo resolver otra propiedad hace un instante
     const hoja = ctx.hoja;
@@ -133,7 +133,7 @@ function aplicarDecisionesSolicitud_(ctx, decisiones) {
     Logger.log('Error aplicarDecisionesSolicitud_: ' + error);
     return { success: false, message: 'No se pudo resolver la solicitud: ' + (error.message || error) };
   } finally {
-    try { lock.releaseLock(); } catch (e) {}
+    liberarCandado_(lock);
   }
 }
 
@@ -214,10 +214,10 @@ function cerrarSolicitudUsuario(idUsuarioObjetivo, idUsuarioSolicitanteOToken, i
     if (ctx.objetivo.estado === 'Pendiente_Aprobacion' && (ctx.alcance.esSuperadmin || ctx.alcance.global)) {
       const lock = LockService.getScriptLock();
       try {
-        lock.waitLock(10000);
+        tomarCandado_(lock, 10000);
         ctx.hoja.getRange(ctx.fila, ctx.col.estado + 1).setValue(ESTADO_SOLICITUD_CERRADA_);
         invalidarCacheUsuarios_();
-      } finally { try { lock.releaseLock(); } catch (e) {} }
+      } finally { liberarCandado_(lock); }
       registrarAuditoriaSimple_(ctx.solicitante.idUsuario, 'SOLICITUD_ACCESO', 'Cerró la solicitud de ' + ctx.objetivo.email, 'Usuario');
       notificarSolicitante_(ctx.objetivo.email, String(ctx.hoja.getRange(ctx.fila, 2).getValue() || ''), [], [], true);
       return { success: true, aprobados: [], denegados: [], restantes: [], activado: false, cerrada: true, message: 'La solicitud quedó cerrada' };

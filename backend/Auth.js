@@ -81,7 +81,7 @@ function crearSesionUsuario_(usuario) {
       hojaSesiones.appendRow(['ID_Sesion', 'ID_Usuario', 'Token', 'Fecha_Creacion', 'Fecha_Expiracion', 'Estado']);
     }
     const nuevoId = 'SES-' + Date.now();
-    hojaSesiones.appendRow([nuevoId, usuario.ID_Usuario, token, ahora, expiracion, 'Activa']);
+    agregarFilaSegura_(hojaSesiones, function () { return [nuevoId, usuario.ID_Usuario, token, ahora, expiracion, 'Activa']; });
   } catch (e) {
     Logger.log('Aviso persistir Sesiones en Sheet: ' + e);
   }
@@ -188,7 +188,7 @@ function cerrarSesionUsuario(token) {
 function registrarUsuario(nombre, email, password, hotelesSolicitados) {
   const lock = LockService.getScriptLock();
   try {
-    lock.waitLock(10000);
+    tomarCandado_(lock, 10000);
 
     const emailNormalizado = String(email || '').trim().toLowerCase();
     if (!emailNormalizado.endsWith(DOMINIO_CORREO_PERMITIDO)) {
@@ -268,7 +268,7 @@ function registrarUsuario(nombre, email, password, hotelesSolicitados) {
     Logger.log("Error en registrarUsuario: " + error.toString());
     return { success: false, message: "Error al registrar el usuario: " + error.toString(), userId: null };
   } finally {
-    try { lock.releaseLock(); } catch (e) {}
+    liberarCandado_(lock);
   }
 }
 
@@ -306,7 +306,7 @@ function enviarCodigoVerificacion(email, idUsuario) {
       if (idActual >= nuevoId) nuevoId = idActual + 1;
     }
 
-    hoja.appendRow([nuevoId, idUsuarioResuelto || '', email, codigo, ahora, expiracion, 'Activo']);
+    agregarFilaSegura_(hoja, function () { return [nuevoId, idUsuarioResuelto || '', email, codigo, ahora, expiracion, 'Activo']; });
 
     MailApp.sendEmail({
       to: email,
@@ -516,21 +516,23 @@ function registrarAuditoria(actionData) {
       return { success: false };
     }
 
-    const nuevoId = siguienteIdAuditoria_(hojaAuditoria);
-
     const ahora = new Date();
     const fechaHora = Utilities.formatDate(ahora, "GMT-5", "yyyy-MM-dd HH:mm:ss");
 
-    hojaAuditoria.appendRow([
-      nuevoId,
-      actionData.usuarioId || "",
-      actionData.emailUsuario || "",
-      actionData.tipo || "Sin especificar",
-      actionData.descripcion || "",
-      actionData.entidadAfectada || "General",
-      fechaHora,
-      actionData.estado || "Exitosa"
-    ]);
+    let nuevoId;
+    agregarFilaSegura_(hojaAuditoria, function () {
+      nuevoId = siguienteIdAuditoria_(hojaAuditoria); // dentro del candado: IDs sin repetir
+      return [
+        nuevoId,
+        actionData.usuarioId || "",
+        actionData.emailUsuario || "",
+        actionData.tipo || "Sin especificar",
+        actionData.descripcion || "",
+        actionData.entidadAfectada || "General",
+        fechaHora,
+        actionData.estado || "Exitosa"
+      ];
+    });
 
     Logger.log("Auditoría registrada: " + nuevoId);
     return { success: true };

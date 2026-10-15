@@ -23,7 +23,7 @@ const hojas = {
 let aperturas = 0, fallar = null;
 const sandbox = {
   console, Logger: { log: () => {} },
-  SpreadsheetApp: { openById: () => { aperturas++; return { getSheetByName: n => hojas[n] || null }; } },
+  SpreadsheetApp: { flush() {}, openById: () => { aperturas++; return { getSheetByName: n => hojas[n] || null }; } },
   PropertiesService: { getScriptProperties: () => ({ getProperty: () => '1' }) },
   CacheService: { getScriptCache: () => ({ get: () => null, put() {}, remove() {} }) },
   obtenerUsuarioPorToken: t => (t === 'tokU' ? { idUsuario: '3', rol: 1, idRol: 1 } : null)
