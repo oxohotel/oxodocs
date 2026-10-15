@@ -206,6 +206,7 @@ function calentarCaches() {
     leerHojaConCache_('Modulos', { forzar: true, ttl: CACHE_TTL_CALENTADO_ });
     leerHojaConCache_('Hoteles', { forzar: true, ttl: CACHE_TTL_CALENTADO_ });
     try { CacheService.getScriptCache().put('oxo:calentado', '1', 1500); } catch (e) {} // marca: el calentamiento está activo
+    if (typeof vigilarRespaldos_ === 'function') vigilarRespaldos_(); // backend/Respaldos.js: avisa si hace días que no hay copia de seguridad
     return { success: true, ms: Date.now() - inicio };
   } catch (error) {
     Logger.log('Error calentarCaches: ' + error);

@@ -34,3 +34,18 @@ Reglas del flujo:
 
 - **Node y navegador** (`pruebas/`): `node herramientas/correr-pruebas.js [--navegador]`. Las de navegador necesitan `cd pruebas && npm install` una vez.
 - **Apps Script real** (`pruebas-gas/`): ver `pruebas-gas/README.md`.
+
+## Copia de seguridad de la base de datos
+
+Todo el orden del sistema vive en el Google Sheet. `backend/Respaldos.js` hace una copia completa cada noche (~3 a.m.) en la carpeta de Drive **«OXO Docs - Respaldos»** (en el Drive de la cuenta dueña del script), la verifica (misma cantidad de pestañas y de filas en Usuarios, Carpetas y Archivos) y aplica la retención: las de los últimos 30 días, la más antigua de cada mes de los últimos 6 y siempre las 3 más recientes. Lo demás va a la papelera de Drive (recuperable ~30 días). Si falla, avisa por correo a la cuenta dueña y a los superadministradores; y si pasan 36 horas sin copia buena, vuelve a avisar (una vez al día).
+
+Desde el editor de Apps Script (Ejecutar → función):
+
+| Función | Para qué |
+|---|---|
+| `instalarRespaldoDiario` | Una sola vez: crea el disparador diario, hace la primera copia y activa la vigilancia |
+| `respaldarHojas` | Hace una copia ahora |
+| `estadoDeRespaldos` | Muestra si está activo, la última copia buena, el último error y cuántas copias hay |
+| `desinstalarRespaldoDiario` | Quita el disparador (las copias ya hechas se quedan) |
+
+**Recuperar datos.** Abre la copia que quieras en la carpeta de respaldos (el nombre lleva la fecha y hora). Para recuperar una pestaña o unas filas: cópialas desde la copia y pégalas (solo valores) en la pestaña del Sheet real. No cambies el Sheet real por una copia entera: el sistema usa el ID del Sheet real. Para deshacer algo muy reciente también sirve Archivo → Historial de versiones del Sheet real.

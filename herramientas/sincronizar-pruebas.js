@@ -61,6 +61,8 @@ function parchear(nombre, texto) {
   let t = texto;
   if (t.includes(idHojaProduccion)) t = t.split(idHojaProduccion).join(config.spreadsheetId);
   if (t.includes(idCarpetaProduccion)) t = t.split(idCarpetaProduccion).join('PRUEBAS-SIN-CARPETA-RAIZ');
+  // Las copias de seguridad de pruebas van a su propia carpeta, nunca a la de producción (puede ser la misma cuenta de Drive)
+  t = t.split("var RESPALDO_CARPETA_NOMBRE_ = 'OXO Docs - Respaldos';").join("var RESPALDO_CARPETA_NOMBRE_ = 'OXO Docs - Respaldos (PRUEBAS)';");
   reemplazosCorreo += t.split('MailApp.sendEmail(').length - 1;
   t = t.split('MailApp.sendEmail(').join('capturarCorreo_(');
   return t;

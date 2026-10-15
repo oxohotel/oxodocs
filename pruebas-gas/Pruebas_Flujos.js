@@ -153,6 +153,26 @@ function registrarPruebasFlujos_() {
       afirmar_(buscarGlobal('a', '1').hoteles.length >= 1, 'el superadministrador encuentra de todas');
     }, { soloReal: true });
 
+    prueba_('copia de seguridad real: copia la hoja de pruebas en Drive, la verifica y se puede borrar', function () {
+      const r = respaldarHojas();
+      afirmar_(r.success === true, 'la copia debía hacerse: ' + (r.message || ''));
+      const copia = DriveApp.getFileById(r.id);
+      try {
+        afirmar_(copia.getName().indexOf('OXO Docs - Respaldo ') === 0, 'nombre con el prefijo de las copias: ' + copia.getName());
+        const carpeta = carpetaDeRespaldos_();
+        afirmar_(/PRUEBAS/.test(carpeta.getName()), 'la carpeta de las copias de PRUEBAS está separada de la de producción: ' + carpeta.getName());
+        const ssCopia = SpreadsheetApp.openById(r.id);
+        const ssOrigen = obtenerSpreadsheet_();
+        afirmarIgual_(ssCopia.getSheets().length, ssOrigen.getSheets().length, 'misma cantidad de pestañas');
+        afirmarIgual_(ssCopia.getSheetByName('Usuarios').getLastRow(), ssOrigen.getSheetByName('Usuarios').getLastRow(), 'mismas filas en Usuarios');
+        const estado = leerEstadoRespaldo_();
+        afirmarIgual_(estado.ultimoId, r.id, 'el estado recuerda la última copia');
+        nota_('copia de la hoja de pruebas: ' + r.ms + ' ms (' + ssCopia.getSheets().length + ' pestañas); copias guardadas: ' + r.conservadas);
+      } finally {
+        copia.setTrashed(true); // la prueba deja la carpeta limpia
+      }
+    }, { soloReal: true });
+
     prueba_('doPost real: sin sesión no se ejecuta nada, la identidad la pone el servidor y una cuenta desactivada pierde el acceso', function () {
       const llamar = function (p) { return JSON.parse(doPost({ postData: { contents: JSON.stringify(p) } }).getContent()); };
       const token = tokenDePrueba_(5); // usuario normal
