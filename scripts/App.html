@@ -33,6 +33,12 @@
       mostrarVistaHome();
     } else {
       mostrarVistaAuth();
+      try {
+        if (sessionStorage.getItem("oxoSesionExpirada")) {
+          sessionStorage.removeItem("oxoSesionExpirada");
+          showNotification("Tu sesión venció o se cerró. Inicia sesión de nuevo.", "info", 4500);
+        }
+      } catch (e) {}
       // Tras cerrar sesión la página se recarga (ver iniciarCierreSesion); aquí se muestra el aviso.
       try {
         if (sessionStorage.getItem("oxoSesionCerrada")) {

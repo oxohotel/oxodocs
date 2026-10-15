@@ -163,7 +163,8 @@ const tipos = M().filas.slice(1).map(f => f[3]).join(',');
 ok(tipos === 'LENTA,CUOTA,ERROR', '9b. se registran lentas, errores de cuota y otros errores → ' + tipos);
 // doPost registra pero nunca guarda los argumentos (contraseñas)
 vm.runInContext('METRICA_UMBRAL_MS_=-1; function pruebaAccion(a){ return {ok:true}; } ACCIONES_PERMITIDAS_.push("pruebaAccion");', sandbox);
-const salida = llamarDoPost({ action: 'pruebaAccion', args: ['clave-secreta-123'] });
+const tokenMetricas = F.crearSesionUsuario_({ ID_Usuario: '3', Nombre_Completo: 'Us', Email: 'us@x.com', ID_Rol: 1, Rol: 'Usuario' });
+const salida = llamarDoPost({ action: 'pruebaAccion', args: ['clave-secreta-123'], token: tokenMetricas });
 ok(J(JSON.parse(salida.texto)) === J({ success: true, data: { ok: true } }), '9c. doPost responde igual que antes');
 ok(!JSON.stringify(M().filas).includes('clave-secreta-123') && M().filas.some(f => f[1] === 'pruebaAccion'), '9d. la métrica guarda la acción pero NUNCA los argumentos');
 const salidaErr = llamarDoPost({ action: 'noExiste', args: [] });

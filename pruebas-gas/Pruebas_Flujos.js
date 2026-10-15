@@ -115,5 +115,44 @@ function registrarPruebasFlujos_() {
       afirmarIgual_(vistoPor(4), 'a,b', 'el de TODOS ve las dos');
       afirmarIgual_(vistoPor(1), 'a,b', 'el superadmin ve las dos');
     }, { soloReal: true });
+
+    prueba_('doPost real: sin sesión no se ejecuta nada, la identidad la pone el servidor y una cuenta desactivada pierde el acceso', function () {
+      const llamar = function (p) { return JSON.parse(doPost({ postData: { contents: JSON.stringify(p) } }).getContent()); };
+      const token = tokenDePrueba_(5); // usuario normal
+      // Parte de un estado conocido: otras pruebas pudieron dejar esta cuenta desactivada
+      const filaNormal = filaDeUsuarioPrueba_('normal@pruebas.oxo').fila;
+      hojaDePrueba_('Usuarios').getRange(filaNormal, 5).setValue(1);
+      hojaDePrueba_('Usuarios').getRange(filaNormal, 6).setValue('Activo');
+      hojaDePrueba_('Usuarios').getRange(filaNormal, 8).setValue('H1');
+      invalidarCacheUsuarios_();
+      nuevaEjecucion_();
+
+      const sinToken = llamar({ action: 'obtenerMisAccesos', args: ['5'] });
+      afirmarIgual_(sinToken.codigo, 'SESION_INVALIDA', 'sin token se rechaza aunque se mande el id');
+      afirmarIgual_(llamar({ action: 'obtenerDatosInicio', args: [null, '1', false], token: 'inventado' }).codigo, 'SESION_INVALIDA', 'con un token inventado se rechaza');
+
+      const propio = llamar({ action: 'obtenerMisAccesos', args: [], token: token });
+      afirmar_(propio.success === true && propio.data.success === true, 'con su token ve sus accesos: ' + JSON.stringify(propio).slice(0, 120));
+
+      // Se hace pasar por el superadministrador (id 1) en los argumentos: el servidor lo ignora
+      const falso = llamar({ action: 'obtenerUsuariosParaGestion', args: ['1', '1'], token: token });
+      afirmar_(falso.success === true && falso.data.success === false, 'mandar el id del superadministrador no da sus permisos: ' + JSON.stringify(falso).slice(0, 120));
+
+      // La bitácora queda a nombre de la sesión
+      llamar({ action: 'registrarAuditoria', args: [{ usuarioId: '1', emailUsuario: 'sa@pruebas.oxo', tipo: 'Login', descripcion: 'firmada por otro', entidadAfectada: 'Usuarios' }], token: token });
+      const ultima = hojaDePrueba_('Auditoria').getDataRange().getValues().pop();
+      afirmarIgual_(String(ultima[1]), '5', 'la auditoría se registra con el usuario de la sesión (no con el id que mandó el navegador)');
+
+      // Desactivar la cuenta le quita el acceso de inmediato aunque conserve su token
+      hojaDePrueba_('Usuarios').getRange(filaNormal, 6).setValue('Inactivo');
+      invalidarCacheUsuarios_();
+      nuevaEjecucion_();
+      afirmarIgual_(llamar({ action: 'obtenerMisAccesos', args: [], token: token }).codigo, 'SESION_INVALIDA', 'cuenta desactivada: el mismo token deja de funcionar');
+      hojaDePrueba_('Usuarios').getRange(filaNormal, 6).setValue('Activo');
+      invalidarCacheUsuarios_();
+
+      // Las acciones públicas siguen sin sesión
+      afirmar_(llamar({ action: 'obtenerVersionCacheGlobal', args: [] }).success === true, 'el ping sigue siendo público');
+    }, { soloReal: true });
   });
 }

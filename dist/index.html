@@ -35,6 +35,27 @@
         if (escriturasEnCurso_ > 0) { e.preventDefault(); e.returnValue = ''; }
       });
 
+      // Identidad de cada petición: el servidor decide quién llama SOLO por este token (nunca por un ID enviado en los argumentos).
+      function tokenDeSesion_() {
+        try {
+          var u = JSON.parse(localStorage.getItem('currentUser') || 'null');
+          return u && u.token ? u.token : null;
+        } catch (e) { return null; }
+      }
+
+      // Si el servidor dice que la sesión no vale (venció, se cerró o la cuenta fue desactivada) se vuelve al inicio de sesión.
+      var cerrandoPorSesionInvalida_ = false;
+      function sesionInvalida_() {
+        if (cerrandoPorSesionInvalida_) return;
+        cerrandoPorSesionInvalida_ = true;
+        try {
+          localStorage.removeItem('currentUser');
+          Object.keys(localStorage).forEach(function (k) { if (k.indexOf('oxoCache:') === 0) localStorage.removeItem(k); });
+          sessionStorage.setItem('oxoSesionExpirada', '1');
+        } catch (e) {}
+        window.location.reload();
+      }
+
       function esperar_(ms) {
         return new Promise(function (resolve) { setTimeout(resolve, ms); });
       }
@@ -78,7 +99,8 @@
                     },
                     body: JSON.stringify({
                       action: prop,
-                      args: args
+                      args: args,
+                      token: tokenDeSesion_()
                     })
                   });
 
@@ -88,6 +110,7 @@
 
                   var resJson = await response.json();
                   liberar();
+                  if (resJson && resJson.codigo === 'SESION_INVALIDA') { sesionInvalida_(); return; }
                   if (resJson && resJson.success) {
                     if (typeof successCallback === 'function') {
                       successCallback(resJson.data);
@@ -9296,7 +9319,6 @@ input[type="password"]::-webkit-contacts-auto-fill-button {
     const result = await registerUser({ nombre, email, password, hoteles: propiedades });
 
     if (result.success) {
-      logRegisterAction(result.userId, email);
       document.getElementById("registerForm").reset();
       if (typeof filtrarPropiedadesRegistro_ === "function") { filtrarPropiedadesRegistro_(); actualizarContadorPropiedades_(); }
       clearAllErrors("registerForm");
@@ -15918,6 +15940,12 @@ const GOOGLE_PICKER_CONFIG = {
       mostrarVistaHome();
     } else {
       mostrarVistaAuth();
+      try {
+        if (sessionStorage.getItem("oxoSesionExpirada")) {
+          sessionStorage.removeItem("oxoSesionExpirada");
+          showNotification("Tu sesión venció o se cerró. Inicia sesión de nuevo.", "info", 4500);
+        }
+      } catch (e) {}
       // Tras cerrar sesión la página se recarga (ver iniciarCierreSesion); aquí se muestra el aviso.
       try {
         if (sessionStorage.getItem("oxoSesionCerrada")) {

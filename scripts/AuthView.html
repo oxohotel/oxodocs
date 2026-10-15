@@ -508,7 +508,6 @@
     const result = await registerUser({ nombre, email, password, hoteles: propiedades });
 
     if (result.success) {
-      logRegisterAction(result.userId, email);
       document.getElementById("registerForm").reset();
       if (typeof filtrarPropiedadesRegistro_ === "function") { filtrarPropiedadesRegistro_(); actualizarContadorPropiedades_(); }
       clearAllErrors("registerForm");

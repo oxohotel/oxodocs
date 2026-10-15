@@ -314,9 +314,50 @@ F.cancelarSolicitudesPropias(tokJo); hojas.Hoteles.filas = hojas.Hoteles.filas.f
 // Auditoría y acciones permitidas
 ok(hojas.Auditoria.filas.some(f => /Pidió acceso a: 84DC, Hotel Secreto/.test(String(f[4]))) && hojas.Auditoria.filas.some(f => /Canceló su solicitud/.test(String(f[4]))), '14y. quedan en la auditoría lo que pidió y lo que canceló');
 ok(['obtenerMisAccesos', 'solicitarAccesoPropiedades', 'cancelarSolicitudesPropias'].every(n => F.ACCIONES_PERMITIDAS_.includes(n)), '14z. las tres acciones están en la lista de permitidas');
-nuevaEjecucion(); const porWeb = llamarDoPost({ action: 'obtenerMisAccesos', args: [tokJo] });
-ok(porWeb.success === true && porWeb.data.success === true && porWeb.data.permitidos.length === 2, '14zz. por la vía web (doPost) con un token válido responde sus accesos');
+nuevaEjecucion(); const porWeb = llamarDoPost({ action: 'obtenerMisAccesos', args: [tokJo], token: tokJo });
+ok(porWeb.success === true && porWeb.data.success === true && porWeb.data.permitidos.length === 2, '14zz. por la vía web (doPost) con un token válido responde sus accesos ' + JSON.stringify(porWeb).slice(0, 200));
 ok(llamarDoPost({ action: 'contextoMisAccesos_', args: [tokJo] }).success === false && llamarDoPost({ action: 'filaDeMiCuenta_', args: ['1'] }).success === false, '14zzz. las funciones internas de este flujo no se pueden llamar desde la web');
+
+// ---------- 15. Autenticación de la vía web: sin sesión válida no se ejecuta nada y la identidad la pone el servidor
+const SIN_SESION = r => r.success === false && r.codigo === 'SESION_INVALIDA';
+nuevaEjecucion();
+ok(SIN_SESION(llamarDoPost({ action: 'obtenerMisAccesos', args: [String(idDe('jo@oxohotel.com'))] })), '15a. sin token, aunque se mande el ID de una persona real, se rechaza');
+ok(SIN_SESION(llamarDoPost({ action: 'obtenerUsuariosParaGestion', args: ['1', '1'], token: 'token-inventado' })), '15b. con un token inventado se rechaza (y el ID del superadministrador no sirve de nada)');
+ok(SIN_SESION(llamarDoPost({ action: 'obtenerDatosInicio', args: [null, '1', false] })), '15c. la pantalla de inicio tampoco responde con solo un ID');
+
+const tokNormal = sesionDe('normal@oxohotel.com', 1);
+nuevaEjecucion();
+const gestion = llamarDoPost({ action: 'obtenerUsuariosParaGestion', args: ['1', '1'], token: tokNormal });
+ok(gestion.success === true && gestion.data.success === false && gestion.data.usuarios.length === 0, '15d. un usuario normal que manda el ID del superadministrador sigue siendo un usuario normal (no ve la gestión): ' + JSON.stringify(gestion).slice(0, 120));
+nuevaEjecucion();
+const cambio = llamarDoPost({ action: 'cambiarRolUsuario', args: [String(idDe('jo@oxohotel.com')), 3, '1', '1'], token: tokNormal });
+ok(cambio.success === true && cambio.data.success === false, '15e. no puede cambiar roles haciéndose pasar por el superadministrador: ' + JSON.stringify(cambio).slice(0, 120));
+
+// La auditoría la firma el servidor, no el navegador
+const antesAud = hojas.Auditoria.filas.length;
+nuevaEjecucion();
+llamarDoPost({ action: 'registrarAuditoria', args: [{ usuarioId: '1', emailUsuario: 'sa@oxohotel.com', tipo: 'Login', descripcion: 'falsa', entidadAfectada: 'Usuarios' }], token: tokNormal });
+const filaAud = hojas.Auditoria.filas[hojas.Auditoria.filas.length - 1];
+ok(hojas.Auditoria.filas.length === antesAud + 1 && String(filaAud[1]) === String(idDe('normal@oxohotel.com')) && filaAud[2] === 'normal@oxohotel.com', '15f. una auditoría con otro usuario en el cuerpo queda a nombre de quien tiene la sesión (' + filaAud[1] + ' / ' + filaAud[2] + ')');
+
+// Una cuenta desactivada pierde el acceso de inmediato aunque conserve su token
+const filaNormal = hojas.Usuarios.filas.findIndex(f => f[2] === 'normal@oxohotel.com');
+const estadoAntes = hojas.Usuarios.filas[filaNormal][5];
+nuevaEjecucion();
+ok(llamarDoPost({ action: 'obtenerMisAccesos', args: [], token: tokNormal }).success === true, '15g. con la cuenta activa, su token funciona');
+hojas.Usuarios.filas[filaNormal][5] = 'Inactivo'; almacen.clear(); nuevaEjecucion();
+ok(SIN_SESION(llamarDoPost({ action: 'obtenerMisAccesos', args: [], token: tokNormal })), '15h. al desactivar la cuenta, el mismo token deja de funcionar');
+hojas.Usuarios.filas[filaNormal][5] = estadoAntes; almacen.clear();
+
+// Cerrar sesión: el token deja de valer
+nuevaEjecucion();
+const tokCierre = sesionDe('normal@oxohotel.com', 1);
+llamarDoPost({ action: 'cerrarSesionUsuario', args: [tokCierre] });
+almacen.clear(); nuevaEjecucion();
+ok(SIN_SESION(llamarDoPost({ action: 'obtenerMisAccesos', args: [], token: tokCierre })), '15i. tras cerrar sesión el token ya no sirve');
+
+// Las acciones públicas siguen funcionando sin sesión
+ok(llamarDoPost({ action: 'obtenerVersionCacheGlobal', args: [] }).success === true && llamarDoPost({ action: 'obtenerHotelesParaRegistro', args: [] }).success === true, '15j. registro, inicio de sesión y ping siguen siendo públicos');
 
 // ---------- 13. Lista de acciones
 ok(['resolverSolicitudesUsuario', 'cerrarSolicitudUsuario', 'aprobarUsuario', 'obtenerHotelesParaRegistro'].every(n => F.ACCIONES_PERMITIDAS_.includes(n)) && !F.ACCIONES_PERMITIDAS_.includes('resolverSolicitudHotel'), '13. las acciones que usa la pantalla están permitidas y la de una sola propiedad (sin uso) ya no');

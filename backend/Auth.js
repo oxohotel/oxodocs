@@ -249,6 +249,7 @@ function registrarUsuario(nombre, email, password, hotelesSolicitados) {
       hojaUsuarios.appendRow(filaNueva);
     }
     invalidarCacheUsuarios_();
+    registrarAuditoriaSimple_(nuevoId, 'Registro', 'Nuevo usuario registrado: ' + emailNormalizado, 'Usuarios');
 
     const envio = enviarCodigoVerificacion(emailNormalizado, nuevoId);
     if (!envio.success) {

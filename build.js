@@ -86,6 +86,27 @@ function generateApiBridgeScript() {
         if (escriturasEnCurso_ > 0) { e.preventDefault(); e.returnValue = ''; }
       });
 
+      // Identidad de cada petición: el servidor decide quién llama SOLO por este token (nunca por un ID enviado en los argumentos).
+      function tokenDeSesion_() {
+        try {
+          var u = JSON.parse(localStorage.getItem('currentUser') || 'null');
+          return u && u.token ? u.token : null;
+        } catch (e) { return null; }
+      }
+
+      // Si el servidor dice que la sesión no vale (venció, se cerró o la cuenta fue desactivada) se vuelve al inicio de sesión.
+      var cerrandoPorSesionInvalida_ = false;
+      function sesionInvalida_() {
+        if (cerrandoPorSesionInvalida_) return;
+        cerrandoPorSesionInvalida_ = true;
+        try {
+          localStorage.removeItem('currentUser');
+          Object.keys(localStorage).forEach(function (k) { if (k.indexOf('oxoCache:') === 0) localStorage.removeItem(k); });
+          sessionStorage.setItem('oxoSesionExpirada', '1');
+        } catch (e) {}
+        window.location.reload();
+      }
+
       function esperar_(ms) {
         return new Promise(function (resolve) { setTimeout(resolve, ms); });
       }
@@ -129,7 +150,8 @@ function generateApiBridgeScript() {
                     },
                     body: JSON.stringify({
                       action: prop,
-                      args: args
+                      args: args,
+                      token: tokenDeSesion_()
                     })
                   });
 
@@ -139,6 +161,7 @@ function generateApiBridgeScript() {
 
                   var resJson = await response.json();
                   liberar();
+                  if (resJson && resJson.codigo === 'SESION_INVALIDA') { sesionInvalida_(); return; }
                   if (resJson && resJson.success) {
                     if (typeof successCallback === 'function') {
                       successCallback(resJson.data);

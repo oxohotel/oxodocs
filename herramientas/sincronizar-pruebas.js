@@ -73,6 +73,10 @@ let code = parchear('Code.js', leer('Code.js'));
 const ancla = 'const ACCIONES_PERMITIDAS_ = [';
 if (!code.includes(ancla)) fallar('No se encontró la lista de acciones permitidas en Code.js.');
 code = code.replace(ancla, ancla + "\n  'ejecutarPruebasWeb',\n  'sembrarDatosPruebasWeb',\n  'inspeccionarEstadoPruebasWeb',\n  'probarCandadoWeb',\n  'leerContadorPruebaWeb',");
+// Las entradas web de pruebas se protegen con su propia clave (CLAVE_PRUEBAS), no con una sesión: son públicas para el despachador
+const anclaPublicas = 'const ACCIONES_PUBLICAS_ = [';
+if (!code.includes(anclaPublicas)) fallar('No se encontró la lista de acciones públicas en Code.js.');
+code = code.replace(anclaPublicas, anclaPublicas + "\n  'ejecutarPruebasWeb',\n  'sembrarDatosPruebasWeb',\n  'inspeccionarEstadoPruebasWeb',\n  'probarCandadoWeb',\n  'leerContadorPruebaWeb',");
 fs.writeFileSync(path.join(SALIDA, 'Code.js'), code);
 
 const excluidos = ['ImportarUsuarios.js', 'desktop.ini'];

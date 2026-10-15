@@ -19,9 +19,9 @@ if (!config.webAppUrl || !config.clave) { console.error('La configuración debe 
 const iConc = process.argv.indexOf('--concurrencia');
 const CONCURRENCIA = iConc !== -1 ? Math.max(1, parseInt(process.argv[iConc + 1], 10) || 20) : 20;
 
-async function llamar(accion, args) {
+async function llamar(accion, args, token) {
   try {
-    const r = await fetch(config.webAppUrl, { method: 'POST', redirect: 'follow', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action: accion, args: args || [] }) });
+    const r = await fetch(config.webAppUrl, { method: 'POST', redirect: 'follow', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action: accion, args: args || [], token: token || null }) });
     const j = await r.json();
     if (!j.success) return { error: j.message || 'sin éxito' };
     return { data: j.data };
@@ -76,7 +76,7 @@ const resumenErrores = rs => {
 
   // ---- S2: auditoría simultánea (el ID se calcula sin candado)
   const antesS2 = (await estado()).auditoriaIds.length;
-  const rS2 = await enParalelo(Array.from({ length: 30 }, (_, i) => () => llamar('registrarAuditoria', [{ usuarioId: 1, emailUsuario: 'sa@pruebas.oxo', tipo: 'Carga', descripcion: 'prueba ' + i, entidadAfectada: 'Usuario' }])), CONCURRENCIA);
+  const rS2 = await enParalelo(Array.from({ length: 30 }, (_, i) => () => llamar('registrarAuditoria', [{ usuarioId: 1, emailUsuario: 'sa@pruebas.oxo', tipo: 'Carga', descripcion: 'prueba ' + i, entidadAfectada: 'Usuario' }], tokens[1])), CONCURRENCIA);
   const sS2 = await estado();
   const nuevosIds = sS2.auditoriaIds.slice(antesS2);
   const duplicados = nuevosIds.length - new Set(sS2.auditoriaIds).size + antesS2;
@@ -86,7 +86,7 @@ const resumenErrores = rs => {
     nuevosIds.length + ' filas nuevas de 30; IDs repetidos: ' + Math.max(0, sS2.auditoriaIds.length - new Set(sS2.auditoriaIds).size) + (resumenErrores(rS2) ? ' · errores: ' + resumenErrores(rS2) : ''));
 
   // ---- S3: una persona pide varias propiedades a la vez (cada llamada modifica la misma celda)
-  const rS3 = await enParalelo(['H2', 'H3', 'H4', 'HC'].map(h => () => llamar('solicitarAccesoPropiedades', [tokens[5], [h]])), CONCURRENCIA);
+  const rS3 = await enParalelo(['H2', 'H3', 'H4', 'HC'].map(h => () => llamar('solicitarAccesoPropiedades', [tokens[5], [h]], tokens[5])), CONCURRENCIA);
   const u5 = (await estado()).usuarios.find(u => String(u.id) === '5');
   const pedidas = String(u5.solicitados).split(',').filter(Boolean).sort();
   informe(pedidas.join() === 'H2,H3,H4,HC', 'S3. 4 solicitudes simultáneas sobre la misma cuenta: no se pierde ninguna (sin "última escritura gana")',
@@ -100,8 +100,8 @@ const resumenErrores = rs => {
   } else {
     const tareas = [];
     pendientes.forEach(p => {
-      tareas.push(() => llamar('resolverSolicitudesUsuario', [p.id, ['H1'], [], tokens[2], '2']));
-      tareas.push(() => llamar('resolverSolicitudesUsuario', [p.id, [], ['H2'], tokens[3], '3']));
+      tareas.push(() => llamar('resolverSolicitudesUsuario', [p.id, ['H1'], [], tokens[2], '2'], tokens[2]));
+      tareas.push(() => llamar('resolverSolicitudesUsuario', [p.id, [], ['H2'], tokens[3], '3'], tokens[3]));
     });
     const rS4 = await enParalelo(tareas, CONCURRENCIA);
     const despues = await estado();
@@ -113,7 +113,7 @@ const resumenErrores = rs => {
 
   // ---- S5: muchos registros de actividad a la vez
   const antesS5 = (await estado()).actividadFilas;
-  const rS5 = await enParalelo(Array.from({ length: 60 }, () => () => llamar('registrarActividad', ['1', 'Hotel', 'H1', 'Abrir'])), CONCURRENCIA);
+  const rS5 = await enParalelo(Array.from({ length: 60 }, () => () => llamar('registrarActividad', ['1', 'Hotel', 'H1', 'Abrir'], tokens[1])), CONCURRENCIA);
   const despuesS5 = (await estado()).actividadFilas;
   const acepS5 = rS5.filter(exito).length, ambS5 = rS5.filter(r => r.error).length;
   // Cada respuesta de éxito debe tener su fila; una respuesta rota puede haberla escrito o no
@@ -121,7 +121,7 @@ const resumenErrores = rs => {
     (despuesS5 - antesS5) + ' filas nuevas de 60' + (resumenErrores(rS5) ? ' · errores: ' + resumenErrores(rS5) : ''));
 
   // ---- S6: alternar el mismo favorito muchas veces a la vez (cada llamada lee y escribe)
-  const rS6 = await enParalelo(Array.from({ length: 12 }, () => () => llamar('alternarFavorito', ['1', 'Hotel', 'H1'])), CONCURRENCIA);
+  const rS6 = await enParalelo(Array.from({ length: 12 }, () => () => llamar('alternarFavorito', ['1', 'Hotel', 'H1'], tokens[1])), CONCURRENCIA);
   const favs = (await estado()).favoritos.filter(f => String(f.usuario) === '1' && f.recurso === 'H1');
   const aceptadas = rS6.filter(exito).length, ambiguas = rS6.filter(r => r.error).length;
   informe(ambiguas > 0 || favs.length === aceptadas % 2, 'S6. 12 alternancias simultáneas del mismo favorito: queda en el estado que corresponde (par de alternancias aceptadas → sin favorito)',
