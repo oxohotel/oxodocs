@@ -183,14 +183,6 @@ function guardarPreferenciasNotificaciones(idUsuario, prefs) {
  * junta todos los .js en un solo scope global, así que dos funciones con el mismo nombre pero
  * distinta firma se pisan entre sí y la que sobrevive rompe silenciosamente a la otra.
  */
-/** ID siguiente de la hoja Auditoria leyendo solo la última fila (antes se releía la hoja entera en cada acción, y la hoja
- *  solo crece). Los IDs son consecutivos, así que "último + 1" equivale al máximo + 1 de antes. */
-/**
- * Agrega una fila sin que dos ejecuciones simultáneas se pisen. appendRow NO es seguro entre ejecuciones concurrentes: en la prueba
- * real, 30 llamadas simultáneas dejaron solo 9 filas (todas respondieron éxito). Por eso se serializa con el candado del script;
- * "construirFila" se evalúa ya dentro del candado (para IDs consecutivos). Si ya se tiene el candado (llamada anidada) se reutiliza sin
- * soltarlo; si no se logra obtener en 30 s se agrega igualmente (mejor un riesgo de pisado que perder el registro).
- */
 /**
  * Toma el candado y refresca. Sin el flush posterior, una hoja leída ANTES de tomarlo sigue mostrando los datos de ese momento y se
  * pisa lo que otra ejecución escribió mientras esperábamos (comprobado en Apps Script real: 8 ejecuciones simultáneas dejaron el
@@ -210,12 +202,30 @@ function liberarCandado_(lock) {
   try { lock.releaseLock(); } catch (e) {}
 }
 
-function agregarFilaSegura_(hoja, construirFila) {
+/**
+ * Agrega una fila sin que dos ejecuciones simultáneas se pisen. appendRow NO es seguro entre ejecuciones concurrentes: en la prueba
+ * real, 30 llamadas simultáneas dejaron solo 9 filas (todas respondieron éxito). Por eso se serializa con el candado del script.
+ *  - "construirFila" se evalúa ya dentro del candado (para IDs consecutivos).
+ *  - Con { soloEscribir: true } (la fila no depende de leer la hoja) no se refresca al tomar el candado: se retiene menos tiempo y
+ *    caben más escrituras por segundo.
+ *  - Si ya se tiene el candado (llamada anidada) se reutiliza sin soltarlo.
+ *  - Si no se consigue tras dos esperas de 30 s se lanza un error: antes se agregaba igualmente sin candado y, con muchas
+ *    escrituras a la vez, esa fila podía perderse sin avisar. Los llamadores ya tratan el error (el registro es de mejor esfuerzo).
+ */
+function agregarFilaSegura_(hoja, construirFila, opciones) {
   const lock = LockService.getScriptLock();
   const yaLoTenia = lock.hasLock();
+  const soloEscribir = !!(opciones && opciones.soloEscribir);
   let lopropio = false;
   if (!yaLoTenia) {
-    try { tomarCandado_(lock, 30000); lopropio = true; } catch (e) { Logger.log('Aviso: sin candado para agregar fila en ' + hoja.getName()); }
+    for (let intento = 1; intento <= 2 && !lopropio; intento++) {
+      try {
+        if (soloEscribir) lock.waitLock(30000); else tomarCandado_(lock, 30000);
+        lopropio = true;
+      } catch (e) {
+        if (intento === 2) throw new Error('No se pudo obtener el candado para escribir en ' + hoja.getName() + ' (demasiadas escrituras a la vez)');
+      }
+    }
   }
   try {
     hoja.appendRow(construirFila());

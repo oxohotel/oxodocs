@@ -58,7 +58,7 @@ const sandbox = {
   ScriptApp: { getProjectTriggers: () => [], deleteTrigger() {}, newTrigger() { return { timeBased() { return { everyMinutes() { return { create() {} }; } }; } }; } }
 };
 vm.createContext(sandbox);
-['Drive.js', 'Inicio.js', 'Cache.js', 'Metricas.js', 'Archivos.js', 'Roles.js', 'AlcanceAdmin.js', 'Usuario.js', 'Hoteles.js', 'Correos.js', 'Registro.js', 'Solicitudes.js', 'MisAccesos.js', 'Mantenimiento.js', 'GestionHoteles.js', 'Auth.js']
+['Drive.js', 'Inicio.js', 'Cache.js', 'Metricas.js', 'Acceso.js', 'Archivos.js', 'Roles.js', 'AlcanceAdmin.js', 'Usuario.js', 'Hoteles.js', 'Correos.js', 'Registro.js', 'Solicitudes.js', 'MisAccesos.js', 'Mantenimiento.js', 'GestionHoteles.js', 'Auth.js']
   .forEach(f => vm.runInContext(fs.readFileSync(REPO + 'backend/' + f, 'utf8'), sandbox, { filename: f }));
 vm.runInContext(fs.readFileSync(REPO + 'Code.js', 'utf8'), sandbox, { filename: 'Code.js' });
 vm.runInContext('this.F={crearSesionUsuario_,obtenerMisAccesos,solicitarAccesoPropiedades,cancelarSolicitudesPropias,resolverSolicitudesUsuario,registrarUsuario,verificarCodigoRegistro,obtenerHotelesParaRegistro,obtenerUsuariosParaGestion,resolverSolicitudHotel,aprobarUsuario,cerrarSolicitudUsuario,contarPendientesAprobacion_,obtenerModulosConHoteles,prepararResolucion_,aplicarDecisionesSolicitud_,quitarHotelDeAccesosDeUsuarios_,normalizarRolesDeUsuarios,normalizarRolesDeUsuariosAplicar,cambiarEstadoUsuario,obtenerDatosInicio,validarCredenciales,ACCIONES_PERMITIDAS_}', sandbox);

@@ -52,12 +52,14 @@
   function botonesGestionCarpetaHtml(idCarpeta) {
     if (!sesionPuede('Gestionar_Hoteles_Carpetas')) return '';
     return (
+      '<span class="gestion-grupo">' +
       '<button type="button" class="btn-gestion-carpeta" data-accion="renombrar" data-id-carpeta="' + idCarpeta + '" title="Renombrar">' +
         '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>' +
       '</button>' +
       '<button type="button" class="btn-gestion-carpeta btn-gestion-peligro" data-accion="eliminar" data-id-carpeta="' + idCarpeta + '" title="Eliminar">' +
         '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>' +
-      '</button>'
+      '</button>' +
+      '</span>'
     );
   }
 
@@ -182,12 +184,13 @@
       '</button>';
     }
 
-    if (autorizado || sesionPuede('Eliminar_Documentos')) {
+    // Eliminar es solo de Administrador y Superadministrador (el servidor lo vuelve a comprobar)
+    if (esAdmin) {
       html += '<button type="button" class="btn-gestion-carpeta btn-gestion-peligro" data-accion="eliminar-archivo" data-id-archivo="' + archivo.id + '" title="Eliminar">' +
         '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>' +
       '</button>';
     }
-    return html;
+    return html ? '<span class="gestion-grupo">' + html + '</span>' : '';
   }
 
   /** "obtenerArchivo(idArchivo)" debe devolver el objeto archivo completo (nombre, driveFileId) —

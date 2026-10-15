@@ -72,6 +72,37 @@ function registrarPruebasRendimiento_() {
       afirmar_(cierre.ms < 8000 && validar.ms < 8000, 'cerrar/validar no deben depender del tamaño de la hoja (' + cierre.ms + ' / ' + validar.ms + ' ms)');
     }, { soloReal: true });
 
+    prueba_('limpiar sesiones: con 5.000 filas viejas y unas pocas vigentes se queda solo con lo útil, en bloque y rápido', function () {
+      const sesiones = hojaDePrueba_('Sesiones');
+      vaciarHoja_(sesiones);
+      asegurarFilas_(sesiones, 5100);
+      const dia = 24 * 60 * 60 * 1000, ahora = Date.now();
+      const filas = [];
+      for (let i = 0; i < 5000; i++) filas.push(['SES-V' + i, 9, 'viejo-' + i, new Date(ahora - 30 * dia), new Date(ahora - 29 * dia), i % 2 ? 'Cerrada' : 'Expirada']);
+      filas.push(['SES-R1', 5, 'reciente-1', new Date(ahora - 2 * dia), new Date(ahora - 1 * dia), 'Expirada']);
+      filas.push(['SES-A1', 5, 'vigente-1', new Date(ahora), new Date(ahora + dia), 'Activa']);
+      filas.push(['SES-A2', 6, 'vigente-2', new Date(ahora), new Date(ahora + dia), 'Activa']);
+      sesiones.getRange(2, 1, filas.length, 6).setValues(filas);
+      nuevaEjecucion_();
+
+      const t = medir_(function () { return limpiarSesionesEnHoja_(sesiones, 7); });
+      afirmarIgual_(t.resultado.eliminadas, 5000, 'filas eliminadas');
+      afirmarIgual_(t.resultado.conservadas, 3, 'filas conservadas');
+      const quedan = sesiones.getDataRange().getValues();
+      afirmarIgual_(quedan.length, 4, 'encabezado + 3 sesiones');
+      afirmarIgual_(quedan.slice(1).map(function (f) { return f[0]; }).join(), 'SES-R1,SES-A1,SES-A2', 'quedan las recientes y vigentes, en orden');
+      afirmar_(quedan[0][0] === 'ID_Sesion', 'el encabezado sigue intacto');
+      nota_('limpiar 5.003 sesiones (eliminar 5.000): ' + t.ms + ' ms');
+      afirmar_(t.ms < 30000, 'no debe tardar más de 30 s (' + t.ms + ' ms)');
+
+      // Una sesión vigente sigue validándose tras la limpieza (token real, sin caché)
+      const token = tokenDePrueba_(5);
+      limpiarSesionesEnHoja_(sesiones, 7);
+      CacheService.getScriptCache().remove('session_' + token);
+      nuevaEjecucion_();
+      afirmar_(obtenerUsuarioPorToken(token) !== null, 'una sesión recién creada sigue valiendo después de limpiar');
+    }, { soloReal: true });
+
     prueba_('tamaño real del caché de usuarios con 600 personas', function () {
       sembrarUsuariosMasivos_(600);
       nuevaEjecucion_();

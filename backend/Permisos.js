@@ -6,8 +6,13 @@
 /**
  * Obtiene lista de todos los usuarios del sistema para mostrar en selector de permisos
  */
-function obtenerListaUsuariosParaPermisos() {
+function obtenerListaUsuariosParaPermisos(idUsuario) {
   try {
+    // Solo personas que comparten alguna propiedad con quien consulta (no el directorio completo de la empresa)
+    const alcanceConsultante = alcanceDeHoteles_(idUsuario);
+    const comparten = {};
+    obtenerUsuariosLite_().usuarios.forEach(function (u) { if (usuarioComparteAlcance_(alcanceConsultante, u)) comparten[u.id] = true; });
+
     const ss = SpreadsheetApp.openById(DRIVE_CONFIG.SPREADSHEET_ID);
     const hojaUsuarios = ss.getSheetByName('Usuarios');
     if (!hojaUsuarios) {
@@ -19,7 +24,7 @@ function obtenerListaUsuariosParaPermisos() {
 
     // Saltar encabezado (fila 0)
     for (let i = 1; i < datos.length; i++) {
-      if (datos[i][5] === 'Activo') { // Solo usuarios activos
+      if (datos[i][5] === 'Activo' && comparten[String(datos[i][0]).trim()]) { // Solo usuarios activos y dentro del alcance
         usuarios.push({
           id: String(datos[i][0]),
           nombre: datos[i][1],

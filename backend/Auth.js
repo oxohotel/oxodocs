@@ -81,7 +81,8 @@ function crearSesionUsuario_(usuario) {
       hojaSesiones.appendRow(['ID_Sesion', 'ID_Usuario', 'Token', 'Fecha_Creacion', 'Fecha_Expiracion', 'Estado']);
     }
     const nuevoId = 'SES-' + Date.now();
-    agregarFilaSegura_(hojaSesiones, function () { return [nuevoId, usuario.ID_Usuario, token, ahora, expiracion, 'Activa']; });
+    agregarFilaSegura_(hojaSesiones, function () { return [nuevoId, usuario.ID_Usuario, token, ahora, expiracion, 'Activa']; }, { soloEscribir: true });
+    limpiarSesionesSiHaceFalta_(hojaSesiones); // backend/Sesiones.js: solo actúa si la hoja pasó el límite
   } catch (e) {
     Logger.log('Aviso persistir Sesiones en Sheet: ' + e);
   }
@@ -304,7 +305,7 @@ function enviarCodigoVerificacion(email, idUsuario) {
       if (idActual >= nuevoId) nuevoId = idActual + 1;
     }
 
-    agregarFilaSegura_(hoja, function () { return [nuevoId, idUsuarioResuelto || '', email, codigo, ahora, expiracion, 'Activo']; });
+    agregarFilaSegura_(hoja, function () { return [nuevoId, idUsuarioResuelto || '', email, codigo, ahora, expiracion, 'Activo']; }, { soloEscribir: true });
 
     MailApp.sendEmail({
       to: email,

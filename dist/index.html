@@ -3217,6 +3217,50 @@ input[type="password"]::-webkit-contacts-auto-fill-button {
   color: var(--danger-color);
 }
 
+/* Acciones de gestión (renombrar, privacidad, eliminar): en la vista de filas van en línea; en la de tarjetas se agrupan arriba a la
+   izquierda y aparecen al pasar el cursor (o al enfocarlas con el teclado). En pantallas táctiles, sin cursor, se ven siempre. */
+.gestion-grupo {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.archivo-card:not(.vista-filas) .gestion-grupo,
+.carpeta-card:not(.vista-filas) .gestion-grupo {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 2;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.archivo-card:not(.vista-filas):hover .gestion-grupo,
+.carpeta-card:not(.vista-filas):hover .gestion-grupo,
+.archivo-card:not(.vista-filas) .gestion-grupo:focus-within,
+.carpeta-card:not(.vista-filas) .gestion-grupo:focus-within {
+  opacity: 1;
+}
+
+.archivo-card:not(.vista-filas) .gestion-grupo .btn-gestion-carpeta,
+.carpeta-card:not(.vista-filas) .gestion-grupo .btn-gestion-carpeta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 5px;
+  background: var(--home-card-bg);
+  border: 1px solid var(--home-border);
+  box-shadow: var(--home-shadow);
+}
+
+@media (hover: none) {
+  .archivo-card:not(.vista-filas) .gestion-grupo,
+  .carpeta-card:not(.vista-filas) .gestion-grupo {
+    opacity: 1;
+  }
+}
+
 /* Skeleton loading */
 .archivo-skeleton {
   padding: 18px 16px;
@@ -8278,12 +8322,14 @@ input[type="password"]::-webkit-contacts-auto-fill-button {
   function botonesGestionCarpetaHtml(idCarpeta) {
     if (!sesionPuede('Gestionar_Hoteles_Carpetas')) return '';
     return (
+      '<span class="gestion-grupo">' +
       '<button type="button" class="btn-gestion-carpeta" data-accion="renombrar" data-id-carpeta="' + idCarpeta + '" title="Renombrar">' +
         '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>' +
       '</button>' +
       '<button type="button" class="btn-gestion-carpeta btn-gestion-peligro" data-accion="eliminar" data-id-carpeta="' + idCarpeta + '" title="Eliminar">' +
         '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>' +
-      '</button>'
+      '</button>' +
+      '</span>'
     );
   }
 
@@ -8408,12 +8454,13 @@ input[type="password"]::-webkit-contacts-auto-fill-button {
       '</button>';
     }
 
-    if (autorizado || sesionPuede('Eliminar_Documentos')) {
+    // Eliminar es solo de Administrador y Superadministrador (el servidor lo vuelve a comprobar)
+    if (esAdmin) {
       html += '<button type="button" class="btn-gestion-carpeta btn-gestion-peligro" data-accion="eliminar-archivo" data-id-archivo="' + archivo.id + '" title="Eliminar">' +
         '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>' +
       '</button>';
     }
-    return html;
+    return html ? '<span class="gestion-grupo">' + html + '</span>' : '';
   }
 
   /** "obtenerArchivo(idArchivo)" debe devolver el objeto archivo completo (nombre, driveFileId) —

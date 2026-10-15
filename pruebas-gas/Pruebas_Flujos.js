@@ -116,6 +116,43 @@ function registrarPruebasFlujos_() {
       afirmarIgual_(vistoPor(1), 'a,b', 'el superadmin ve las dos');
     }, { soloReal: true });
 
+    prueba_('autorización por propiedad con hojas reales (búsqueda con TextFinder): carpetas, archivos y propiedades ajenas se rechazan', function () {
+      const carpetas = hojaDePrueba_('Carpetas'), archivos = hojaDePrueba_('Archivos');
+      vaciarHoja_(carpetas); vaciarHoja_(archivos);
+      carpetas.getRange(2, 1, 3, 7).setValues([['C-1', 'H1', '', 'IT Distrito', 'd1', new Date(), ''], ['C-2', 'H2', '', 'IT 84DC', 'd2', new Date(), ''], ['C-3', 'H2', '', 'Sub 84DC', 'd3', new Date(), 'C-2']]);
+      archivos.getRange(2, 1, 2, 13).setValues([['ARC-001', 'C-1', 'drive-1', 'a.pdf', 'pdf', 'PDF', 'Activo', 'x', 'application/pdf', 'u', new Date(), new Date(), new Date()], ['ARC-002', 'C-2', 'drive-2', 'b.pdf', 'pdf', 'PDF', 'Activo', 'x', 'application/pdf', 'u', new Date(), new Date(), new Date()]]);
+      const filaNormal = filaDeUsuarioPrueba_('normal@pruebas.oxo').fila;
+      hojaDePrueba_('Usuarios').getRange(filaNormal, 5).setValue(1);
+      hojaDePrueba_('Usuarios').getRange(filaNormal, 6).setValue('Activo');
+      hojaDePrueba_('Usuarios').getRange(filaNormal, 8).setValue('H1');
+      invalidarCacheUsuarios_();
+      nuevaEjecucion_();
+
+      const normal = '5', admin1 = '2', todos = '4', sa = '1';
+      afirmarIgual_(verificarAccesoAObjetivo_('obtenerContenidoCarpeta', ['C-1'], normal), null, 'carpeta de su propiedad');
+      afirmarIgual_(verificarAccesoAObjetivo_('obtenerContenidoCarpeta', ['C-2'], normal), 'No tienes acceso a esa propiedad', 'carpeta de otra propiedad');
+      afirmarIgual_(verificarAccesoAObjetivo_('obtenerRutaCarpeta', ['C-3'], normal), 'No tienes acceso a esa propiedad', 'subcarpeta de otra propiedad');
+      afirmarIgual_(verificarAccesoAObjetivo_('crearSubcarpeta', ['C-3', 'x'], todos), null, 'un administrador con TODOS entra a todas');
+      afirmarIgual_(verificarAccesoAObjetivo_('renombrarArchivo', ['ARC-002', 'x'], normal), 'No tienes acceso a esa propiedad', 'archivo de otra propiedad');
+      afirmarIgual_(verificarAccesoAObjetivo_('renombrarArchivo', ['ARC-001', 'x'], normal), null, 'archivo propio');
+      afirmarIgual_(verificarAccesoAObjetivo_('eliminarArchivo', ['drive-2'], admin1), 'No tienes acceso a esa propiedad', 'por id de Drive, de otra propiedad');
+      afirmarIgual_(verificarAccesoAObjetivo_('eliminarArchivo', ['drive-que-no-es-del-repositorio'], sa), 'Ese archivo no pertenece al repositorio', 'ni el superadmin manda a la papelera un archivo ajeno al repositorio');
+      afirmarIgual_(verificarAccesoAObjetivo_('editarHotel', ['H2', 'x'], admin1), 'No tienes acceso a esa propiedad', 'editar una propiedad ajena');
+      afirmarIgual_(verificarAccesoAObjetivo_('obtenerContenidoCarpeta', ['C-NO-EXISTE'], normal), null, 'una carpeta inexistente la resuelve la propia función');
+
+      // Por la vía web real: la función no llega a ejecutarse
+      const llamar = function (p) { return JSON.parse(doPost({ postData: { contents: JSON.stringify(p) } }).getContent()); };
+      const ajena = llamar({ action: 'obtenerContenidoCarpeta', args: ['C-2', '1'], token: tokenDePrueba_(5) });
+      afirmar_(ajena.success === true && ajena.data.success === false && /No tienes acceso/.test(ajena.data.message), 'doPost rechaza la carpeta ajena: ' + JSON.stringify(ajena).slice(0, 120));
+
+      // Búsqueda filtrada
+      nuevaEjecucion_();
+      const b = buscarGlobal('a', '5');
+      afirmar_(b.hoteles.every(function (h) { return h.idHotel === 'H1'; }) && b.carpetas.every(function (c) { return c.idHotel === 'H1'; }), 'buscarGlobal solo devuelve su propiedad: ' + JSON.stringify(b).slice(0, 140));
+      nuevaEjecucion_();
+      afirmar_(buscarGlobal('a', '1').hoteles.length >= 1, 'el superadministrador encuentra de todas');
+    }, { soloReal: true });
+
     prueba_('doPost real: sin sesión no se ejecuta nada, la identidad la pone el servidor y una cuenta desactivada pierde el acceso', function () {
       const llamar = function (p) { return JSON.parse(doPost({ postData: { contents: JSON.stringify(p) } }).getContent()); };
       const token = tokenDePrueba_(5); // usuario normal

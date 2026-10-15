@@ -445,8 +445,8 @@ function eliminarFilasPorIdsEnHojaLote_(hoja, nombreColumnaId, idsSet) {
 /** Elimina una carpeta (área o subcarpeta) Y TODA su subrama: subcarpetas descendientes y
  *  cualquier archivo dentro de cualquiera de ellas. Optimizado en lote para evitar timeouts. */
 function eliminarCarpeta(idCarpeta, idUsuarioOToken, idUsuarioFallback) {
-  if (!usuarioTienePermiso(idUsuarioOToken, 'Gestionar_Hoteles_Carpetas', idUsuarioFallback)) {
-    return { success: false, message: 'No tienes permiso para eliminar carpetas' };
+  if (!usuarioEsAdministrador_(idUsuarioOToken, idUsuarioFallback)) {
+    return { success: false, message: 'Solo los administradores pueden eliminar carpetas' };
   }
 
   const solicitante = typeof resolverUsuarioSolicitante_ === 'function'

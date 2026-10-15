@@ -23,7 +23,7 @@ function registrarActividad(idUsuarioOToken, tipoRecurso, idRecurso, tipoInterac
 
     // appendRow NO es seguro entre ejecuciones simultáneas (la prueba real perdió 2 de cada 3 filas): se agrega con candado corto.
     const idActividad = 'ACT-' + new Date().getTime();
-    agregarFilaSegura_(hoja, function () { return [idActividad, idUsuario, tipoRecurso, idRecurso, tipoInteraccion, new Date()]; });
+    agregarFilaSegura_(hoja, function () { return [idActividad, idUsuario, tipoRecurso, idRecurso, tipoInteraccion, new Date()]; }, { soloEscribir: true });
 
     if (hoja.getLastRow() > ACTIVIDAD_LIMITE_FILAS + 1) recortarActividad_(hoja);
 
@@ -79,10 +79,12 @@ function obtenerActividadReciente(idUsuario, limite) {
       .sort(function (a, b) { return new Date(b.fechaHora) - new Date(a.fechaHora); })
       .slice(0, limite);
 
+    const alcance = alcanceDeHoteles_(idUsuario); // la actividad de una propiedad que ya no es suya no se muestra
     const actividad = ordenados
       .map(function (a) {
         const recurso = resolverRecurso_(a.tipoRecurso, a.idRecurso);
         if (!recurso.existe) return null;
+        if (!alcancePermiteHotel_(alcance, recurso.idHotel)) return null;
         recurso.tipoInteraccion = a.tipoInteraccion;
         recurso.fechaHora = a.fechaHora ? a.fechaHora.toString() : '';
         return recurso;

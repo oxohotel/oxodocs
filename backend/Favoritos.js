@@ -87,10 +87,12 @@ function obtenerFavoritosDetallados(idUsuario) {
 
     propios.sort(function (a, b) { return new Date(b.fechaMarcado) - new Date(a.fechaMarcado); });
 
+    const alcance = alcanceDeHoteles_(idUsuario); // un favorito de una propiedad que ya no es suya no se muestra
     const favoritos = propios
       .map(function (f) {
         const recurso = resolverRecurso_(f.tipoRecurso, f.idRecurso);
         if (!recurso.existe) return null;
+        if (!alcancePermiteHotel_(alcance, recurso.idHotel)) return null;
         recurso.fechaMarcado = f.fechaMarcado ? f.fechaMarcado.toString() : '';
         return recurso;
       })

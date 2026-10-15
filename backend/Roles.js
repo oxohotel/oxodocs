@@ -268,6 +268,14 @@ function resolverUsuarioSolicitante_(idUsuarioOToken, idUsuarioFallback) {
  * Verifica si un usuario tiene un permiso específico, evaluando su ID_Rol en la base de datos.
  * Acepta tanto un ID de usuario como un token de sesión emitido por el servidor y un fallback.
  */
+/** Eliminar carpetas y archivos es solo de Administrador (rol 2) y Superadministrador (rol 3), sin depender de permisos sueltos de la hoja Roles. */
+function usuarioEsAdministrador_(idUsuarioOToken, idUsuarioFallback) {
+  const solicitante = resolverUsuarioSolicitante_(idUsuarioOToken, idUsuarioFallback);
+  if (!solicitante || !solicitante.idUsuario) return false;
+  const info = obtenerInfoRol_(obtenerRolDeUsuario_(solicitante.idUsuario));
+  return !!info && (String(info.id) === '2' || String(info.id) === '3');
+}
+
 function usuarioTienePermiso(idUsuarioOToken, nombrePermiso, idUsuarioFallback) {
   const solicitante = resolverUsuarioSolicitante_(idUsuarioOToken, idUsuarioFallback);
   if (!solicitante || !solicitante.idUsuario) return false;

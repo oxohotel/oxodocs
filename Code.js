@@ -109,6 +109,9 @@ const ARGUMENTOS_DE_IDENTIDAD_ = {
   actualizarNombreUsuario: [0],
   actualizarPermisosExistentes: [1],
   alternarFavorito: [0],
+  buscarGlobal: [1],
+  obtenerArchivoPorIdOUrl: [1],
+  obtenerListaUsuariosParaPermisos: [0],
   aprobarUsuario: [1, 2],
   asignarHotelesAUsuario: [2, 3],
   cambiarContrasenaUsuario: [0],
@@ -225,6 +228,10 @@ function doPost(e) {
           return ContentService.createTextOutput(JSON.stringify(RESPUESTA_SESION_INVALIDA_)).setMimeType(ContentService.MimeType.JSON);
         }
         args = aplicarIdentidadDeSesion_(action, args, sesion, payload.token);
+        const sinAcceso = verificarAccesoAObjetivo_(action, args, sesion.idUsuario); // backend/Acceso.js
+        if (sinAcceso) {
+          return ContentService.createTextOutput(JSON.stringify({ success: true, data: { success: false, message: sinAcceso } })).setMimeType(ContentService.MimeType.JSON);
+        }
       }
       const result = globalScope[action].apply(null, args);
       const salida = ContentService.createTextOutput(JSON.stringify({

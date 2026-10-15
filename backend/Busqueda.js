@@ -3,7 +3,7 @@
  * (hoja "Hoteles") y carpetas (hoja "Carpetas"). Documentos/personas se agregarán
  * cuando existan hojas "Archivos"/asignaciones reales que respaldar.
  */
-function buscarGlobal(termino) {
+function buscarGlobal(termino, idUsuario) {
   const resultadoVacio = { hoteles: [], carpetas: [] };
   const t = String(termino || '').trim().toLowerCase();
   if (!t) return resultadoVacio;
@@ -47,9 +47,12 @@ function buscarGlobal(termino) {
       }
     }
 
+    // Solo se encuentra lo de las propiedades a las que la persona tiene acceso (backend/Acceso.js)
+    const alcance = alcanceDeHoteles_(idUsuario);
+    const visibles = function (r) { return alcancePermiteHotel_(alcance, r.idHotel); };
     return {
-      hoteles: hoteles.slice(0, 8),
-      carpetas: carpetas.slice(0, 8)
+      hoteles: hoteles.filter(visibles).slice(0, 8),
+      carpetas: carpetas.filter(visibles).slice(0, 8)
     };
   } catch (error) {
     Logger.log('Error en buscarGlobal: ' + error.toString());

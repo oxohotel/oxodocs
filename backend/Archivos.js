@@ -346,9 +346,9 @@ function validarPropiedadOAdmin_(idArchivoODriveId, idUsuarioOToken, esDriveId =
 }
 
 function eliminarArchivo(driveFileId, idUsuarioOToken, idUsuarioFallback) {
-  const auth = validarPropiedadOAdmin_(driveFileId, idUsuarioOToken, true, idUsuarioFallback);
-  if (!auth.autorizado) {
-    return { success: false, message: auth.mensaje };
+  // Antes también podía quien subió el archivo; ahora eliminar es solo de Administrador y Superadministrador
+  if (!usuarioEsAdministrador_(idUsuarioOToken, idUsuarioFallback)) {
+    return { success: false, message: 'Solo los administradores pueden eliminar archivos' };
   }
 
   const solicitante = typeof resolverUsuarioSolicitante_ === 'function'
@@ -555,7 +555,7 @@ function guardarArchivosMultiplesDesdeDrive(idCarpeta, arrayItems, idUsuarioOTok
 /**
  * Obtiene los metadatos de un archivo de Drive a partir de su ID o URL completa.
  */
-function obtenerArchivoPorIdOUrl(idOUrl) {
+function obtenerArchivoPorIdOUrl(idOUrl, idUsuario) {
   try {
     const str = String(idOUrl || '').trim();
     let fileId = str;
@@ -569,6 +569,10 @@ function obtenerArchivoPorIdOUrl(idOUrl) {
     const file = DriveApp.getFileById(fileId);
     if (!file || file.isTrashed()) {
       return { success: false, message: 'Archivo no encontrado o está en la papelera' };
+    }
+    // El script ve todo el Drive del dueño: solo se muestran los archivos a los que esta persona ya tiene acceso (backend/Acceso.js)
+    if (!usuarioPuedeUsarArchivoDrive_(file, idUsuario)) {
+      return { success: false, message: 'Tu cuenta no tiene acceso a ese archivo. Pide a su propietario que lo comparta contigo.' };
     }
 
     return {
@@ -598,6 +602,9 @@ function guardarArchivoDesdePreview(idCarpeta, fileId, nombreArchivo, mimeType, 
     }
 
     const archivoOriginal = DriveApp.getFileById(fileId);
+    if (!usuarioPuedeUsarArchivoDrive_(archivoOriginal, idUsuario)) {
+      return { success: false, message: 'Tu cuenta no tiene acceso a ese archivo. Pide a su propietario que lo comparta contigo.' };
+    }
 
     const ss = SpreadsheetApp.openById(DRIVE_CONFIG.SPREADSHEET_ID);
     const hojaCarpetas = ss.getSheetByName('Carpetas');
