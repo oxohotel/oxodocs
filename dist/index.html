@@ -56,6 +56,10 @@
         window.location.reload();
       }
 
+      // Botón "Recargar sistema": mientras dura la recarga, las peticiones piden al servidor vaciar su caché de carpetas y archivos
+      var refrescarHasta_ = 0;
+      window.oxoPedirRefrescoDeCache = function (ms) { refrescarHasta_ = ms ? Date.now() + ms : 0; };
+
       function esperar_(ms) {
         return new Promise(function (resolve) { setTimeout(resolve, ms); });
       }
@@ -100,7 +104,8 @@
                     body: JSON.stringify({
                       action: prop,
                       args: args,
-                      token: tokenDeSesion_()
+                      token: tokenDeSesion_(),
+                      refrescar: Date.now() < refrescarHasta_ ? true : undefined
                     })
                   });
 
@@ -10044,6 +10049,10 @@ input[type="password"]::-webkit-contacts-auto-fill-button {
     if (sidebar) sidebar.classList.add("recargando");
     const inicio = Date.now();
 
+    // Las peticiones de esta recarga piden al servidor vaciar también su caché de carpetas y archivos (el de usuarios y hoteles
+    // lo vacía la propia petición del menú, que va marcada como "forzar")
+    if (typeof window.oxoPedirRefrescoDeCache === "function") window.oxoPedirRefrescoDeCache(15000);
+
     // Sin copias guardadas: así cada vista muestra su esqueleto y llega información fresca del servidor
     if (typeof limpiarCachesVista_ === "function") limpiarCachesVista_();
 
@@ -10085,6 +10094,7 @@ input[type="password"]::-webkit-contacts-auto-fill-button {
           if (boton) { boton.classList.remove("girando"); boton.disabled = false; }
           if (sidebar) sidebar.classList.remove("recargando");
           _recargandoSistema = false;
+          if (typeof window.oxoPedirRefrescoDeCache === "function") window.oxoPedirRefrescoDeCache(0);
           const limitado = !!(resultados[0] && resultados[0].limitado);
           if (limitado) {
             showNotification("Datos actualizados. Si cambiaste algo directamente en la hoja de cálculo, puede tardar unos minutos en verse.", "info", 4500);

@@ -10,12 +10,11 @@
  *  sin perder los niveles intermedios en la miga de pan. */
 function obtenerRutaCarpeta(idCarpeta) {
   try {
-    const ss = SpreadsheetApp.openById(DRIVE_CONFIG.SPREADSHEET_ID);
-    const hoja = ss.getSheetByName('Carpetas');
-    if (!hoja) return { success: false, message: 'Hoja Carpetas no encontrada', ruta: [] };
+    const carpetasCache = leerCarpetasConCache_(obtenerSpreadsheet_());
+    if (!carpetasCache.existe) return { success: false, message: 'Hoja Carpetas no encontrada', ruta: [] };
 
-    const idx = indiceEncabezados_(hoja);
-    const datos = hoja.getDataRange().getValues();
+    const idx = indiceDeEncabezados_(carpetasCache.encabezados);
+    const datos = [carpetasCache.encabezados].concat(carpetasCache.filas);
     const porId = {};
     for (let i = 1; i < datos.length; i++) {
       const id = String(datos[i][idx['ID_Carpeta']]);
@@ -46,11 +45,11 @@ function obtenerRutaCarpeta(idCarpeta) {
 /** Áreas (nivel superior, ID_Padre en blanco) de un hotel — lo que se ve al entrar a un hotel. */
 function obtenerCarpetasDelHotel(idHotel, idUsuarioOToken, idUsuarioFallback) {
   try {
-    const ss = SpreadsheetApp.openById(DRIVE_CONFIG.SPREADSHEET_ID);
-    const hojaCarpetas = ss.getSheetByName('Carpetas');
-    const hojaHoteles = ss.getSheetByName('Hoteles');
+    const ss = obtenerSpreadsheet_();
+    const carpetasCache = leerCarpetasConCache_(ss);
+    const valoresHoteles = leerHojaConCache_('Hoteles'); // con caché (backend/Cache.js)
 
-    if (!hojaCarpetas || !hojaHoteles) {
+    if (!carpetasCache.existe || !valoresHoteles) {
       return { success: false, message: 'Hojas requeridas no encontradas', carpetas: [] };
     }
 
@@ -91,8 +90,8 @@ function obtenerCarpetasDelHotel(idHotel, idUsuarioOToken, idUsuarioFallback) {
       }
     }
 
-    const idxHoteles = indiceEncabezados_(hojaHoteles);
-    const datosHoteles = hojaHoteles.getDataRange().getValues();
+    const idxHoteles = indiceDeEncabezados_(valoresHoteles[0] || []);
+    const datosHoteles = valoresHoteles;
     let hotelEncontrado = false;
     for (let i = 1; i < datosHoteles.length; i++) {
       if (String(datosHoteles[i][idxHoteles['ID_Hotel']]) === String(idHotel)) { hotelEncontrado = true; break; }
@@ -101,9 +100,9 @@ function obtenerCarpetasDelHotel(idHotel, idUsuarioOToken, idUsuarioFallback) {
       return { success: false, message: 'Hotel no encontrado', carpetas: [] };
     }
 
-    const resumenArchivosPorCarpeta = calcularResumenArchivosPorCarpeta_(ss);
-    const idx = indiceEncabezados_(hojaCarpetas);
-    const datos = hojaCarpetas.getDataRange().getValues();
+    const resumenArchivosPorCarpeta = resumenArchivosPorCarpetaConCache_(ss);
+    const idx = indiceDeEncabezados_(carpetasCache.encabezados);
+    const datos = [carpetasCache.encabezados].concat(carpetasCache.filas);
     const carpetas = [];
 
     for (let i = 1; i < datos.length; i++) {
@@ -131,16 +130,16 @@ function obtenerCarpetasDelHotel(idHotel, idUsuarioOToken, idUsuarioFallback) {
 function obtenerContenidoCarpeta(idCarpeta, idUsuario) {
   const reloj = cronometro_();
   try {
-    const ss = SpreadsheetApp.openById(DRIVE_CONFIG.SPREADSHEET_ID);
-    const hojaCarpetas = ss.getSheetByName('Carpetas');
-    if (!hojaCarpetas) {
+    const ss = obtenerSpreadsheet_();
+    const carpetasCache = leerCarpetasConCache_(ss);
+    if (!carpetasCache.existe) {
       return { success: false, message: 'Hoja Carpetas no encontrada', subcarpetas: [], archivos: [] };
     }
 
-    const resumenArchivosPorCarpeta = calcularResumenArchivosPorCarpeta_(ss);
+    const resumenArchivosPorCarpeta = resumenArchivosPorCarpetaConCache_(ss);
     reloj.marca('resumenArchivos');
-    const idx = indiceEncabezados_(hojaCarpetas);
-    const datos = hojaCarpetas.getDataRange().getValues();
+    const idx = indiceDeEncabezados_(carpetasCache.encabezados);
+    const datos = [carpetasCache.encabezados].concat(carpetasCache.filas);
     reloj.marca('leerCarpetas');
 
     const subcarpetas = [];
@@ -151,8 +150,10 @@ function obtenerContenidoCarpeta(idCarpeta, idUsuario) {
     }
 
     reloj.marca('subcarpetas');
-    let archivosResultado = obtenerArchivosDeUnaCarpeta(idCarpeta);
+    let archivosResultado = archivosDeUnaCarpetaConCache_(idCarpeta);
     reloj.marca('archivos');
+    // La lista guardada es compartida: se copia antes de filtrarla para no alterar lo que otras llamadas lean de la memoria
+    if (archivosResultado.success && archivosResultado.archivos) archivosResultado = { success: true, archivos: archivosResultado.archivos.slice() };
 
     // Filtrar archivos bloqueados si se proporciona idUsuario
     if (archivosResultado.success && archivosResultado.archivos && idUsuario) {
@@ -160,7 +161,7 @@ function obtenerContenidoCarpeta(idCarpeta, idUsuario) {
     }
     reloj.marca('permisos');
 
-    const carpetaActual = resolverCarpeta_(ss, idCarpeta);
+    const carpetaActual = resolverCarpetaDesdeFilas_(datos, idx, idCarpeta);
     reloj.marca('resolverCarpeta');
     registrarMetrica_('obtenerContenidoCarpeta.partes', reloj.total(), null, reloj.detalle(), 3000);
 
@@ -176,16 +177,37 @@ function obtenerContenidoCarpeta(idCarpeta, idUsuario) {
   }
 }
 
+/** Lo mismo que resolverCarpeta_ (backend/Recursos.js) pero a partir de las filas ya leídas de Carpetas y de las propiedades con caché:
+ *  no vuelve a leer ninguna hoja. Devuelve { existe:false } si la carpeta no está. */
+function resolverCarpetaDesdeFilas_(datos, idx, idCarpeta) {
+  let fila = null;
+  for (let i = 1; i < datos.length; i++) {
+    if (String(datos[i][idx['ID_Carpeta']]) === String(idCarpeta)) { fila = datos[i]; break; }
+  }
+  if (!fila) return { existe: false };
+
+  const idHotel = fila[idx['ID_Hotel']];
+  let nombreHotel = '';
+  const valoresHoteles = leerHojaConCache_('Hoteles');
+  if (valoresHoteles && valoresHoteles.length) {
+    const ih = indiceDeEncabezados_(valoresHoteles[0]);
+    const fh = valoresHoteles.slice(1).filter(function (f) { return String(f[ih['ID_Hotel']]) === String(idHotel); })[0];
+    nombreHotel = fh ? (fh[ih['Nombre_Hotel']] || '') : '';
+  }
+  const nombre = fila[idx['Nombre_Carpeta']] || 'Carpeta';
+  return { existe: true, tipoRecurso: 'Carpeta', idRecurso: idCarpeta, nombre: nombre, contexto: nombreHotel, idHotel: idHotel, nombreHotel: nombreHotel };
+}
+
 /** Filtra archivos bloqueados para un usuario específico
  *  Devuelve solo los archivos que el usuario SÍ puede ver */
 function filtrarArchivosNoRestringidos_(archivos, idUsuario, ss) {
   try {
-    const hojaPermisos = ss.getSheetByName('Permisos_Archivos');
-    if (!hojaPermisos) {
+    const tablaPermisos = tablaDePermisosDeArchivosConCache_(ss);
+    if (!tablaPermisos.existe) {
       return archivos; // Si no existe la hoja de permisos, devolver todos
     }
 
-    const datosPermisos = hojaPermisos.getDataRange().getValues();
+    const datosPermisos = [[]].concat(tablaPermisos.filas); // la fila 0 hace de encabezado, como en la hoja
     const idUsuarioStr = String(idUsuario);
 
     // Crear set de IDs de archivos restringidos para este usuario

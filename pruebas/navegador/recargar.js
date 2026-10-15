@@ -16,7 +16,7 @@ let fallos = 0; const ok = (c, m) => { console.log((c ? 'OK   ' : 'FALLA') + ' '
     if (/script\.google\.com\/macros/.test(u)) {
       const cors = { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*' };
       if (req.method() === 'OPTIONS') return req.respond({ status: 204, headers: cors });
-      const b = JSON.parse(req.postData() || '{}'); llamadas.push({ a: b.action, args: b.args });
+      const b = JSON.parse(req.postData() || '{}'); llamadas.push({ a: b.action, args: b.args, r: b.refrescar });
       let data;
       if (b.action === 'obtenerDatosInicio') { const a = b.args || []; data = { modulos: responder('obtenerModulosConHoteles', a), idsFavoritos: responder('obtenerIdsFavoritosUsuario', [a[1]]), actividad: responder('obtenerActividadReciente', [a[1], 4]), favoritos: responder('obtenerFavoritosDetallados', [a[1]]) }; if (a[2] === true) data.refrescoForzado = !limitarRefresco; }
       else if (b.action === 'crearArea') data = { success: true };
@@ -65,9 +65,13 @@ let fallos = 0; const ok = (c, m) => { console.log((c ? 'OK   ' : 'FALLA') + ' '
   await page.evaluate(() => document.getElementById('btnRecargar').click()); await dormir(400);
   const esq = await page.evaluate(() => document.querySelectorAll('.home-content .hotel-carpetas-container #carpetasGrid .carpeta-skeleton').length);
   ok(esq > 0 && cuenta('obtenerCarpetasDelHotel') === 1, '3. en las áreas de un hotel se ve el esqueleto y se vuelven a pedir las áreas (esqueletos: ' + esq + ')');
+  ok(llamadas.filter(l => ['obtenerCarpetasDelHotel', 'obtenerDatosInicio'].includes(l.a)).every(l => l.r === true), '3a. las peticiones de la recarga piden al servidor vaciar su caché de carpetas y archivos (refrescar: true)');
   await dormir(2500);
   ok(await page.evaluate(() => document.querySelectorAll('#carpetasGrid .carpeta-card').length > 0 && !!document.querySelector('.btn-hotel-carpetas[data-hotel-id="H1"].active')), '3b. las áreas vuelven y el hotel sigue marcado en el menú');
   lentoMs = 0;
+  llamadas = [];
+  await page.evaluate(() => document.querySelector('.btn-hotel-carpetas[data-hotel-id="H1"]').click()); await dormir(700);
+  ok(cuenta('obtenerCarpetasDelHotel') >= 1 && llamadas.every(l => l.r === undefined), '3c. fuera de la recarga, la navegación normal NO pide vaciar el caché (se aprovecha)');
 
   // ---- 4. Dentro de una carpeta
   await page.evaluate(() => document.querySelector('.carpeta-card').click());

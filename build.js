@@ -107,6 +107,10 @@ function generateApiBridgeScript() {
         window.location.reload();
       }
 
+      // Botón "Recargar sistema": mientras dura la recarga, las peticiones piden al servidor vaciar su caché de carpetas y archivos
+      var refrescarHasta_ = 0;
+      window.oxoPedirRefrescoDeCache = function (ms) { refrescarHasta_ = ms ? Date.now() + ms : 0; };
+
       function esperar_(ms) {
         return new Promise(function (resolve) { setTimeout(resolve, ms); });
       }
@@ -151,7 +155,8 @@ function generateApiBridgeScript() {
                     body: JSON.stringify({
                       action: prop,
                       args: args,
-                      token: tokenDeSesion_()
+                      token: tokenDeSesion_(),
+                      refrescar: Date.now() < refrescarHasta_ ? true : undefined
                     })
                   });
 

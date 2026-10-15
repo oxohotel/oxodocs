@@ -86,7 +86,7 @@ const sandbox = {
 };
 vm.createContext(sandbox);
 // Drive.js real (conReintentos_, obtenerOCrearSubcarpeta_, DRIVE_CONFIG) y el archivo nuevo
-vm.runInContext(['Drive.js', 'Inicio.js', 'Cache.js', 'GestionHoteles.js'].map(f => fs.readFileSync(REPO + f, 'utf8')).join(String.fromCharCode(10)) +
+vm.runInContext(['Drive.js', 'Inicio.js', 'Cache.js', 'CacheArchivos.js', 'GestionHoteles.js'].map(f => fs.readFileSync(REPO + f, 'utf8')).join(String.fromCharCode(10)) +
   '\nthis.crearHotel=crearHotel;this.editarHotel=editarHotel;this.eliminarHotel=eliminarHotel;this.AREAS=DRIVE_CONFIG.AREAS_FIJAS;', sandbox);
 
 let fallos = 0;

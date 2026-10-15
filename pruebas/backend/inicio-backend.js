@@ -29,7 +29,7 @@ const sandbox = {
   obtenerUsuarioPorToken: t => (t === 'tokU' ? { idUsuario: '3', rol: 1, idRol: 1 } : null)
 };
 vm.createContext(sandbox);
-['Drive.js', 'Inicio.js', 'Cache.js', 'Metricas.js', 'Acceso.js', 'Roles.js', 'AlcanceAdmin.js', 'Registro.js', 'Solicitudes.js', 'Hoteles.js', 'Actividad.js', 'Favoritos.js', 'Recursos.js'].forEach(f => vm.runInContext(fs.readFileSync(REPO + f, 'utf8'), sandbox, { filename: f }));
+['Drive.js', 'Inicio.js', 'Cache.js', 'CacheArchivos.js', 'Metricas.js', 'Acceso.js', 'Roles.js', 'AlcanceAdmin.js', 'Registro.js', 'Solicitudes.js', 'Hoteles.js', 'Actividad.js', 'Favoritos.js', 'Recursos.js'].forEach(f => vm.runInContext(fs.readFileSync(REPO + f, 'utf8'), sandbox, { filename: f }));
 vm.runInContext('this.F={obtenerDatosInicio,obtenerModulosConHoteles,obtenerIdsFavoritosUsuario,obtenerActividadReciente,obtenerFavoritosDetallados,contarPendientesAprobacion_}', sandbox);
 const F = sandbox.F;
 let fallos = 0; const ok = (c, m) => { console.log((c ? 'OK   ' : 'FALLA') + ' ' + m); if (!c) fallos++; };

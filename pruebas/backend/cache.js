@@ -61,7 +61,7 @@ const sandbox = {
   calcularHashContrasenaConSalt_: p => 'HASH(' + p + ')'
 };
 vm.createContext(sandbox);
-['Drive.js', 'Inicio.js', 'Cache.js', 'Roles.js', 'AlcanceAdmin.js', 'Usuario.js', 'Hoteles.js', 'Actividad.js', 'Recursos.js', 'Favoritos.js', 'Registro.js', 'Solicitudes.js', 'Metricas.js', 'Acceso.js', 'GestionHoteles.js', 'Auth.js'].forEach(f => vm.runInContext(fs.readFileSync(REPO + 'backend/' + f, 'utf8'), sandbox, { filename: f }));
+['Drive.js', 'Inicio.js', 'Cache.js', 'CacheArchivos.js', 'Roles.js', 'AlcanceAdmin.js', 'Usuario.js', 'Hoteles.js', 'Actividad.js', 'Recursos.js', 'Favoritos.js', 'Registro.js', 'Solicitudes.js', 'Metricas.js', 'Acceso.js', 'GestionHoteles.js', 'Auth.js'].forEach(f => vm.runInContext(fs.readFileSync(REPO + 'backend/' + f, 'utf8'), sandbox, { filename: f }));
 vm.runInContext(fs.readFileSync(REPO + 'Code.js', 'utf8'), sandbox, { filename: 'Code.js' });
 vm.runInContext('this.F={crearSesionUsuario_,obtenerDatosInicio,calentarCaches,obtenerRolDeUsuario_,obtenerModulosConHoteles,cambiarEstadoUsuario,asignarHotelesAUsuario,siguienteIdAuditoria_,registrarAuditoriaSimple_,registrarActividad,registrarMetrica_,obtenerResumenMetricas,doPost,obtenerUsuariosLite_,invalidarCacheUsuarios_,leerUsuariosParaAlcance_,registrarAuditoria}', sandbox);
 const F = sandbox.F;

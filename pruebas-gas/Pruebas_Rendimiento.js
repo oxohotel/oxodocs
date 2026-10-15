@@ -103,6 +103,51 @@ function registrarPruebasRendimiento_() {
       afirmar_(obtenerUsuarioPorToken(token) !== null, 'una sesión recién creada sigue valiendo después de limpiar');
     }, { soloReal: true });
 
+    prueba_('abrir una carpeta con 500 carpetas y 5.000 archivos: con caché no lee ninguna hoja y responde mucho más rápido', function () {
+      const carpetas = hojaDePrueba_('Carpetas'), archivos = hojaDePrueba_('Archivos');
+      vaciarHoja_(carpetas); vaciarHoja_(archivos);
+      asegurarFilas_(carpetas, 600); asegurarFilas_(archivos, 5100);
+      const colTamano = obtenerOAgregarColumna_(archivos, 'Tamaño_Bytes');
+      const ahora = new Date();
+      const filasCarpetas = [];
+      for (let n = 1; n <= 500; n++) filasCarpetas.push(['C-' + n, 'H1', '', 'Carpeta ' + n, 'd-' + n, ahora, n > 20 ? 'C-' + (1 + (n % 20)) : '']);
+      carpetas.getRange(2, 1, filasCarpetas.length, 7).setValues(filasCarpetas);
+      const filasArchivos = [];
+      for (let n = 1; n <= 5000; n++) {
+        const f = ['ARC-' + n, 'C-' + (1 + (n % 500)), 'df-' + n, 'archivo ' + n + '.pdf', 'pdf', 'PDF', 'Activo', 'Persona', 'application/pdf', 'https://x/' + n, ahora, ahora, ahora];
+        while (f.length < colTamano) f.push('');
+        f[colTamano] = 1000 + n;
+        filasArchivos.push(f);
+      }
+      archivos.getRange(2, 1, filasArchivos.length, colTamano + 1).setValues(filasArchivos);
+
+      invalidarCacheArchivos_();
+      nuevaEjecucion_();
+      const frio = medir_(function () { return obtenerContenidoCarpeta('C-1', '1'); });
+      afirmar_(frio.resultado.success === true && frio.resultado.archivos.length === 10, 'debe devolver los 10 archivos de la carpeta (devolvió ' + (frio.resultado.archivos && frio.resultado.archivos.length) + ')');
+      nuevaEjecucion_();
+      const lecturasAntes = _lecturasDeHoja_;
+      const caliente = medir_(function () { return obtenerContenidoCarpeta('C-1', '1'); });
+      afirmarIgual_(_lecturasDeHoja_ - lecturasAntes, 0, 'en caliente no debe leerse ninguna hoja');
+      afirmarIgual_(JSON.stringify(caliente.resultado), JSON.stringify(frio.resultado), 'el resultado desde el caché es idéntico al de la lectura directa');
+      nuevaEjecucion_();
+      const otra = medir_(function () { return obtenerContenidoCarpeta('C-2', '1'); });
+      nuevaEjecucion_();
+      const areas = medir_(function () { return obtenerCarpetasDelHotel('H1', null, '1'); });
+      nuevaEjecucion_();
+      const areasCal = medir_(function () { return obtenerCarpetasDelHotel('H1', null, '1'); });
+      nota_('abrir carpeta (500 carpetas, 5.000 archivos): sin caché ' + frio.ms + ' ms, con caché ' + caliente.ms + ' ms; otra carpeta (primera vez) ' + otra.ms + ' ms; áreas del hotel ' + areas.ms + ' → ' + areasCal.ms + ' ms');
+      afirmar_(caliente.ms < frio.ms, 'con caché (' + caliente.ms + ' ms) debe ser más rápido que sin caché (' + frio.ms + ' ms)');
+      afirmarIgual_(areasCal.resultado.carpetas.length, 20, 'las 20 áreas de primer nivel del hotel');
+
+      // Invalidar de verdad: la siguiente apertura vuelve a leer las hojas (con el caché real de Google, no el simulado)
+      invalidarCacheArchivos_();
+      nuevaEjecucion_();
+      const lecturasInv = _lecturasDeHoja_;
+      obtenerContenidoCarpeta('C-1', '1');
+      afirmar_(_lecturasDeHoja_ - lecturasInv > 0, 'tras invalidar se vuelven a leer las hojas (no se sirven datos viejos)');
+    }, { soloReal: true });
+
     prueba_('tamaño real del caché de usuarios con 600 personas', function () {
       sembrarUsuariosMasivos_(600);
       nuevaEjecucion_();

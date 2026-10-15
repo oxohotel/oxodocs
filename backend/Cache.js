@@ -189,6 +189,7 @@ function refrescarCachesForzado_() {
   } catch (e) {}
   invalidarCacheUsuarios_();
   invalidarCacheHoteles_();
+  if (typeof invalidarCacheArchivos_ === 'function') invalidarCacheArchivos_(); // carpetas, archivos y permisos (backend/CacheArchivos.js)
   // Si hay disparador de calentamiento, se vuelve a llenar YA con el TTL largo (si no, quedaría con TTL corto hasta el próximo ciclo)
   if (calentamientoActivo) calentarCaches();
   return true;

@@ -71,7 +71,7 @@ const sandbox = {
   __archivosDrive: {}
 };
 vm.createContext(sandbox);
-['Drive.js', 'Inicio.js', 'Cache.js', 'Metricas.js', 'Acceso.js', 'Roles.js', 'Usuario.js', 'Recursos.js', 'Favoritos.js', 'Actividad.js', 'Busqueda.js', 'Permisos.js', 'Archivos.js', 'Auth.js']
+['Drive.js', 'Inicio.js', 'Cache.js', 'CacheArchivos.js', 'Metricas.js', 'Acceso.js', 'Roles.js', 'Usuario.js', 'Recursos.js', 'Favoritos.js', 'Actividad.js', 'Busqueda.js', 'Permisos.js', 'Archivos.js', 'Auth.js']
   .forEach(f => vm.runInContext(fs.readFileSync(REPO + 'backend/' + f, 'utf8'), sandbox, { filename: f }));
 vm.runInContext(fs.readFileSync(REPO + 'Code.js', 'utf8'), sandbox, { filename: 'Code.js' });
 vm.runInContext(`

@@ -228,12 +228,18 @@ function doPost(e) {
           return ContentService.createTextOutput(JSON.stringify(RESPUESTA_SESION_INVALIDA_)).setMimeType(ContentService.MimeType.JSON);
         }
         args = aplicarIdentidadDeSesion_(action, args, sesion, payload.token);
+        if (payload.refrescar === true) refrescarCacheDeArchivosSiToca_(); // backend/CacheArchivos.js (botón "Recargar sistema")
         const sinAcceso = verificarAccesoAObjetivo_(action, args, sesion.idUsuario); // backend/Acceso.js
         if (sinAcceso) {
           return ContentService.createTextOutput(JSON.stringify({ success: true, data: { success: false, message: sinAcceso } })).setMimeType(ContentService.MimeType.JSON);
         }
       }
       const result = globalScope[action].apply(null, args);
+      if (accionInvalidaCacheDeArchivos_(action)) {
+        // Primero se fuerza la escritura pendiente: si no, otra ejecución podría leer la hoja vieja y guardarla como si fuera nueva
+        try { SpreadsheetApp.flush(); } catch (errFlush) {}
+        invalidarCacheArchivos_();
+      }
       const salida = ContentService.createTextOutput(JSON.stringify({
         success: true,
         data: result
