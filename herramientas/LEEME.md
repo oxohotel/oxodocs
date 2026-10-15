@@ -9,6 +9,8 @@ Todas se ejecutan con `node herramientas/<nombre>.js`. Ninguna escribe en produc
 | **`verificar-acciones.js`** | Comprueba que la lista de acciones permitidas de `Code.js` coincide con lo que usa el frontend |
 | **`sincronizar-pruebas.js`** | Prepara y sube el código al proyecto de Apps Script de **pruebas** (sin correos reales, sin Drive, sin la hoja de producción) |
 | **`prueba-concurrencia.js`** | Ejecuciones simultáneas contra el proyecto de pruebas, para comprobar que los candados evitan pérdidas y duplicados |
+| **`ejecutar-pruebas-gas.js`** | Corre las pruebas reales (Apps Script de pruebas) suite por suite desde la computadora (`--sincronizar` sube antes el código) |
+| **`medir-velocidad.js`** | Mide lo que tarda cada paso que hace una persona (iniciar sesión, inicio, propiedad, carpetas, búsqueda, archivo, cerrar sesión) con una cuenta real: `OXO_EMAIL=… OXO_CLAVE=… node herramientas/medir-velocidad.js`. Las credenciales solo se leen del entorno |
 | **`prueba-carga.js`** | Simula N personas entrando al sistema (solo lecturas). Requiere confirmación explícita |
 
 ## Publicar y volver atrás

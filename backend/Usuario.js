@@ -224,6 +224,32 @@ function agregarFilaSegura_(hoja, construirFila) {
   }
 }
 
+/**
+ * Número de fila (1-indexado) de la primera celda de la columna "columna" (1-indexada) que sea igual a "valor" (sin distinguir mayúsculas,
+ * celda completa), o -1. Usa la búsqueda de Sheets (TextFinder), que no descarga la hoja entera: con miles de filas es mucho más rápido
+ * que leerla completa y recorrerla. Si TextFinder no está disponible o falla, recorre la columna.
+ */
+function buscarFilaEnColumna_(hoja, columna, valor) {
+  const ultima = hoja.getLastRow();
+  if (ultima < 2) return -1;
+  const buscado = String(valor).trim();
+  if (!buscado) return -1;
+  try {
+    const rango = hoja.getRange(2, columna, ultima - 1, 1);
+    if (typeof rango.createTextFinder === 'function') {
+      const celda = rango.createTextFinder(buscado).matchEntireCell(true).matchCase(false).findNext();
+      return celda ? celda.getRow() : -1;
+    }
+  } catch (e) {
+    Logger.log('Aviso buscarFilaEnColumna_ (se recorre la columna): ' + e);
+  }
+  const col = hoja.getRange(2, columna, ultima - 1, 1).getValues();
+  for (let i = 0; i < col.length; i++) {
+    if (String(col[i][0]).trim().toLowerCase() === buscado.toLowerCase()) return i + 2;
+  }
+  return -1;
+}
+
 function siguienteIdAuditoria_(hoja) {
   const ultima = hoja.getLastRow();
   if (ultima <= 1) return 1;

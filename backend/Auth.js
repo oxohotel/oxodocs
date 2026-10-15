@@ -74,7 +74,7 @@ function crearSesionUsuario_(usuario) {
 
   // Persistir en la hoja Sesiones para durabilidad
   try {
-    const ss = SpreadsheetApp.openById(DRIVE_CONFIG.SPREADSHEET_ID);
+    const ss = obtenerSpreadsheet_();
     let hojaSesiones = ss.getSheetByName('Sesiones');
     if (!hojaSesiones) {
       hojaSesiones = ss.insertSheet('Sesiones');
@@ -114,16 +114,18 @@ function obtenerUsuarioPorToken(token) {
 
   // 2. Si expiró de la caché o no está, consultar la hoja Sesiones
   try {
-    const ss = SpreadsheetApp.openById(DRIVE_CONFIG.SPREADSHEET_ID);
+    const ss = obtenerSpreadsheet_();
     const hojaSesiones = ss.getSheetByName('Sesiones');
     if (!hojaSesiones) return null;
 
-    const datos = hojaSesiones.getDataRange().getValues();
+    // Se busca la fila del token (sin descargar toda la hoja, que crece con cada inicio de sesión)
+    const filaToken = buscarFilaEnColumna_(hojaSesiones, 3, tokenStr);
+    const datos = filaToken === -1 ? [] : [null, hojaSesiones.getRange(filaToken, 1, 1, 6).getValues()[0]];
     for (let i = datos.length - 1; i >= 1; i--) {
       if (String(datos[i][2]) === tokenStr && datos[i][5] === 'Activa') {
         const fechaExp = datos[i][4];
         if (fechaExp && new Date() > new Date(fechaExp)) {
-          hojaSesiones.getRange(i + 1, 6).setValue('Expirada');
+          hojaSesiones.getRange(filaToken, 6).setValue('Expirada');
           return null;
         }
 
@@ -167,16 +169,11 @@ function cerrarSesionUsuario(token) {
   } catch (e) {}
 
   try {
-    const ss = SpreadsheetApp.openById(DRIVE_CONFIG.SPREADSHEET_ID);
+    const ss = obtenerSpreadsheet_();
     const hojaSesiones = ss.getSheetByName('Sesiones');
     if (hojaSesiones) {
-      const datos = hojaSesiones.getDataRange().getValues();
-      for (let i = datos.length - 1; i >= 1; i--) {
-        if (String(datos[i][2]) === tokenStr) {
-          hojaSesiones.getRange(i + 1, 6).setValue('Cerrada');
-          break;
-        }
-      }
+      const fila = buscarFilaEnColumna_(hojaSesiones, 3, tokenStr);
+      if (fila !== -1) hojaSesiones.getRange(fila, 6).setValue('Cerrada');
     }
   } catch (e) {
     Logger.log('Aviso cerrarSesionUsuario: ' + e);
@@ -393,17 +390,20 @@ function validarCredenciales(email, password) {
       return { success: false, message: "Por favor ingresa tu correo y contraseña", user: null };
     }
 
-    const spreadsheet = SpreadsheetApp.openById(DRIVE_CONFIG.SPREADSHEET_ID);
+    const spreadsheet = obtenerSpreadsheet_();
     const hojaUsuarios = spreadsheet.getSheetByName("Usuarios");
 
     if (!hojaUsuarios) {
       return { success: false, message: "Error: No se encontró la tabla de Usuarios", user: null };
     }
 
-    const datos = hojaUsuarios.getDataRange().getValues();
-    if (!datos || datos.length <= 1) {
+    if (hojaUsuarios.getLastRow() <= 1) {
       return { success: false, message: "No hay usuarios registrados en el sistema", user: null };
     }
+
+    // Se busca solo la fila de ese correo (antes se descargaba y recorría la hoja de todos los usuarios en cada inicio de sesión)
+    const filaUsuario = buscarFilaEnColumna_(hojaUsuarios, 3, emailBuscado);
+    const datos = filaUsuario === -1 ? [] : [null, hojaUsuarios.getRange(filaUsuario, 1, 1, hojaUsuarios.getLastColumn()).getValues()[0]];
 
     for (let i = 1; i < datos.length; i++) {
       const row = datos[i];
@@ -442,7 +442,7 @@ function validarCredenciales(email, password) {
           if (verificacion.requiereMigracion) {
             try {
               const nuevoHashConSalt = calcularHashContrasenaConSalt_(passwordStr);
-              hojaUsuarios.getRange(i + 1, 4).setValue(nuevoHashConSalt);
+              hojaUsuarios.getRange(filaUsuario, 4).setValue(nuevoHashConSalt);
               Logger.log('🔒 Contraseña de usuario ' + row[0] + ' migrada transparentemente a hash con salt');
             } catch (errMigracion) {
               Logger.log('Aviso al migrar hash de usuario: ' + errMigracion);
