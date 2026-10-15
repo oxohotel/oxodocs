@@ -3,7 +3,7 @@
 const fs = require('fs'), vm = require('vm');
 const REPO = require('path').join(__dirname, '..', '..') + '/';
 
-const lecturas = { Carpetas: 0, Archivos: 0, Permisos_Archivos: 0, Hoteles: 0, Modulos: 0 };
+const lecturas = { Carpetas: 0, Archivos: 0, Permisos_Archivos: 0, Hoteles: 0, Modulos: 0, Favoritos: 0, Actividad_Reciente: 0 };
 let alLeerArchivos = null; // gancho: se ejecuta en medio de una lectura de la hoja Archivos (para simular una carrera)
 class Hoja {
   constructor(n, filas) { this.nombre = n; this.filas = filas.map(f => f.slice()); }
@@ -13,6 +13,7 @@ class Hoja {
   getLastRow() { return this.filas.length; }
   getLastColumn() { return this.ancho(); }
   appendRow(f) { this.filas.push(f.slice()); }
+  deleteRow(n) { this.filas.splice(n - 1, 1); }
   getRange(r, c, nr = 1, nc = 1) {
     const s = this;
     const asegurar = (fila, col) => { while (s.filas.length < fila) s.filas.push([]); while (s.filas[fila - 1].length < col) s.filas[fila - 1].push(''); };
@@ -49,6 +50,9 @@ const hojas = {
     ['A2', 'C1', 'df2', 'secreto.pdf', 'pdf', 'PDF', 'Activo', 'Ana', 'application/pdf', 'u2', FECHA, new Date(2026, 6, 1), FECHA, 2000],
     ['A3', 'C3', 'df3', 'presupuesto.xlsx', 'xlsx', 'Excel', 'Activo', 'Ana', 'x', 'u3', FECHA, FECHA, FECHA, 500]]),
   Permisos_Archivos: new Hoja('Permisos_Archivos', [['ID', 'ID_Archivo', 'ID_Usuario'], [1, 'A2', 5]]),
+  Favoritos: new Hoja('Favoritos', [['ID_Favorito', 'ID_Usuario', 'Tipo_Recurso', 'ID_Recurso', 'Fecha_Marcado'],
+    ['F1', 6, 'Hotel', 'H1', new Date(2026, 6, 1)], ['F2', 6, 'Carpeta', 'C1', new Date(2026, 6, 2)], ['F3', 5, 'Archivo', 'A1', new Date(2026, 6, 3)], ['F4', 6, 'Archivo', 'A1', new Date(2026, 6, 4)]]),
+  Actividad_Reciente: new Hoja('Actividad_Reciente', [['ID_Actividad', 'ID_Usuario', 'Tipo_Recurso', 'ID_Recurso', 'Tipo_Interaccion', 'Fecha_Hora']]),
   Sesiones: new Hoja('Sesiones', [['ID_Sesion', 'ID_Usuario', 'Token', 'Fecha_Creacion', 'Fecha_Expiracion', 'Estado']]),
   Auditoria: new Hoja('Auditoria', [['ID_Auditoria', 'ID_Usuario', 'Email_Usuario', 'Tipo_Accion', 'Descripcion', 'Entidad_Afectada', 'Fecha_Hora', 'Estado']])
 };
@@ -64,7 +68,7 @@ const sandbox = {
   DriveApp: { getFileById: () => ({ getSize: () => 1 }) }
 };
 vm.createContext(sandbox);
-['Drive.js', 'Inicio.js', 'Cache.js', 'CacheArchivos.js', 'Metricas.js', 'Acceso.js', 'Roles.js', 'Usuario.js', 'Recursos.js', 'Carpetas.js', 'Archivos.js', 'Permisos.js', 'Auth.js']
+['Drive.js', 'Inicio.js', 'Cache.js', 'CacheArchivos.js', 'Metricas.js', 'Acceso.js', 'Roles.js', 'Usuario.js', 'Recursos.js', 'Carpetas.js', 'Archivos.js', 'Permisos.js', 'Favoritos.js', 'Actividad.js', 'Auth.js']
   .forEach(f => vm.runInContext(fs.readFileSync(REPO + 'backend/' + f, 'utf8'), sandbox, { filename: f }));
 vm.runInContext(fs.readFileSync(REPO + 'Code.js', 'utf8'), sandbox, { filename: 'Code.js' });
 vm.runInContext(`
@@ -75,14 +79,14 @@ vm.runInContext(`
   function actualizarPermisosExistentes(idArchivo, idUsuario, restringidos) { var h = SpreadsheetApp.openById('x').getSheetByName('Permisos_Archivos'); h.filas = [h.filas[0]]; restringidos.forEach(function (u, i) { h.filas.push([i + 2, idArchivo, u]); }); return { success: true }; }
   function accionNuevaQueEscribe(idCarpeta) { var h = SpreadsheetApp.openById('x').getSheetByName('Carpetas'); h.filas.find(function (r) { return r[0] === idCarpeta; })[3] = 'Cambiada por una acción nueva'; return { success: true }; }
   ACCIONES_PERMITIDAS_.push('accionNuevaQueEscribe');
-  this.F = { obtenerContenidoCarpeta, obtenerCarpetasDelHotel, obtenerRutaCarpeta, crearSesionUsuario_, refrescarCachesForzado_, generacionArchivosFresca_, accionInvalidaCacheDeArchivos_, ACCIONES_PERMITIDAS_, ACCIONES_QUE_NO_TOCAN_ARCHIVOS_, invalidarCacheArchivos_ };
+  this.F = { obtenerFavoritosDetallados, obtenerIdsFavoritosUsuario, obtenerActividadReciente, registrarActividad, alternarFavorito, obtenerContenidoCarpeta, obtenerCarpetasDelHotel, obtenerRutaCarpeta, crearSesionUsuario_, refrescarCachesForzado_, generacionArchivosFresca_, accionInvalidaCacheDeArchivos_, ACCIONES_PERMITIDAS_, ACCIONES_QUE_NO_TOCAN_ARCHIVOS_, invalidarCacheArchivos_ };
 `, sandbox);
 const F = sandbox.F;
 const nuevaEjecucion = () => vm.runInContext('_memoCache_={};_spreadsheetEjecucion_=null;_cacheIndiceHojas_={};_genArchivos_=null;_lecturasDeHoja_=0', sandbox);
 const llamarDoPost = p => { nuevaEjecucion(); sandbox.__e = { postData: { contents: JSON.stringify(p) } }; return JSON.parse(vm.runInContext('doPost(__e)', sandbox).texto); };
 const sesion = id => { const u = hojas.Usuarios.filas.find(f => String(f[0]) === String(id)); return F.crearSesionUsuario_({ ID_Usuario: id, Nombre_Completo: u[1], Email: u[2], ID_Rol: u[4], Rol: 'x' }); };
 const reset = () => Object.keys(lecturas).forEach(k => { lecturas[k] = 0; });
-const totalLecturas = () => lecturas.Carpetas + lecturas.Archivos + lecturas.Permisos_Archivos + lecturas.Hoteles;
+const totalLecturas = () => lecturas.Carpetas + lecturas.Archivos + lecturas.Permisos_Archivos + lecturas.Hoteles + lecturas.Favoritos + lecturas.Actividad_Reciente;
 const abrir = (idCarpeta, idUsuario) => { nuevaEjecucion(); return F.obtenerContenidoCarpeta(idCarpeta, idUsuario); };
 const nombres = r => r.archivos.map(a => a.nombre).join(',');
 
@@ -193,5 +197,52 @@ ok(abrir('C1', '6').subcarpetas[0].nombre !== 'Editada a mano en la hoja', '8f. 
 reloj += 20 * 1000;
 llamarDoPost({ action: 'obtenerContenidoCarpeta', args: ['C1', '6'], token: tokR, refrescar: true });
 ok(abrir('C1', '6').subcarpetas[0].nombre === 'Editada a mano en la hoja', '8g. ...pero tras pulsar Recargar sistema sí aparece');
+
+// ---------- 9. Favoritos y actividad de la pantalla de inicio
+F.invalidarCacheArchivos_(); reset();
+const ids1 = (nuevaEjecucion(), F.obtenerIdsFavoritosUsuario('6')), det1 = (nuevaEjecucion(), F.obtenerFavoritosDetallados('6'));
+const lecFav = lecturas.Favoritos;
+ok(ids1.favoritos.join() === 'Hotel|H1,Carpeta|C1,Archivo|A1' && det1.favoritos.map(f => f.nombre).join() === 'contrato.pdf,IT,Distrito', '9. favoritos de una persona: claves y detalle ordenado del más reciente al más antiguo → ' + det1.favoritos.map(f => f.nombre).join());
+ok(lecFav <= 2, '9b. la hoja Favoritos se lee una vez por ejecución como mucho al llenar el caché (lecturas: ' + lecFav + ')');
+reset();
+const ids2 = (nuevaEjecucion(), F.obtenerIdsFavoritosUsuario('6')), det2 = (nuevaEjecucion(), F.obtenerFavoritosDetallados('6'));
+ok(totalLecturas() === 0 && JSON.stringify(ids2) === JSON.stringify(ids1) && JSON.stringify(det2) === JSON.stringify(det1), '9c. desde el caché no se lee ninguna hoja (ni Favoritos, ni Archivos, ni Carpetas, ni Hoteles) y el resultado es idéntico');
+llamarDoPost({ action: 'alternarFavorito', args: ['6', 'Carpeta', 'C2'], token: sesion(6) });
+const det3 = (nuevaEjecucion(), F.obtenerFavoritosDetallados('6'));
+ok(det3.favoritos.map(f => f.nombre).join() === 'Cambiada por una acción nueva,contrato.pdf,IT,Distrito' && (nuevaEjecucion(), F.obtenerIdsFavoritosUsuario('6')).favoritos.includes('Carpeta|C2'), '9d. marcar un favorito nuevo se ve de inmediato (alternarFavorito invalida por defecto) → ' + det3.favoritos.map(f => f.nombre).join());
+llamarDoPost({ action: 'alternarFavorito', args: ['6', 'Carpeta', 'C2'], token: sesion(6) });
+ok((nuevaEjecucion(), F.obtenerFavoritosDetallados('6')).favoritos.map(f => f.nombre).join() === 'contrato.pdf,IT,Distrito', '9e. y desmarcarlo también');
+llamarDoPost({ action: 'renombrarCarpeta', args: ['C1', 'IT renombrada'], token: sesion(1) });
+ok((nuevaEjecucion(), F.obtenerFavoritosDetallados('6')).favoritos.some(f => f.nombre === 'IT renombrada'), '9f. al renombrar una carpeta el favorito ya muestra el nombre nuevo (el detalle se resuelve de nuevo)');
+llamarDoPost({ action: 'renombrarCarpeta', args: ['C1', 'IT'], token: sesion(1) });
+
+// Actividad: lectura acotada al final de la hoja, caché por persona e invalidación propia
+const actividad = hojas.Actividad_Reciente;
+actividad.filas.length = 1; // se empieza de cero: lo registrado por pruebas anteriores no cuenta
+const base = Date.now() - 2 * 24 * 60 * 60 * 1000; // filas cronológicas, todas anteriores a lo que se registre ahora (así se agregan de verdad)
+let n = 0; const recursosVarios = ['Carpeta|C1', 'Carpeta|C2', 'Carpeta|C3', 'Carpeta|C9', 'Hotel|H1', 'Hotel|H2', 'Archivo|A1', 'Archivo|A3'];
+const agregar = (usuario, rec) => { const [t, i] = rec.split('|'); actividad.filas.push(['ACT-' + (++n), usuario, t, i, 'Abrir', new Date(base + n * 60000)]); };
+for (let i = 0; i < 2000; i++) agregar(i % 7 === 0 ? 6 : 100 + (i % 50), recursosVarios[(i * 3) % recursosVarios.length]); // 2.000 filas (la persona 6 aparece una de cada 7)
+agregar(5, 'Hotel|H1'); // una persona con una sola actividad
+function esperadaPor(usuario, limite) {
+  const porRec = {};
+  actividad.filas.slice(1).filter(f => String(f[1]) === String(usuario)).forEach(f => { const k = f[2] + '|' + f[3]; if (!porRec[k] || f[5] > porRec[k].f) porRec[k] = { f: f[5], k }; });
+  return Object.values(porRec).sort((a, b) => b.f - a.f).slice(0, limite).map(x => x.k);
+}
+F.invalidarCacheArchivos_(); reset(); nuevaEjecucion();
+const act6 = F.obtenerActividadReciente('6', 4);
+const claves = act6.actividad.map(a => a.tipoRecurso + '|' + a.idRecurso);
+const esperada = esperadaPor('6', 4).filter(k => !['Hotel|H2', 'Carpeta|C9'].includes(k)); // H2 y C9 son de otra propiedad: no se muestran
+ok(claves.join() === esperada.join() && claves.length === 4, '9g. la actividad reciente leyendo solo el final de la hoja da lo mismo que leerla entera → ' + claves.join(', ') + ' | esperada ' + esperada.join(', '));
+ok(lecturas.Actividad_Reciente === 0, '9h. con 2.000 filas no se descarga la hoja completa (solo una ventana del final: lecturas completas ' + lecturas.Actividad_Reciente + ')');
+nuevaEjecucion(); const act77 = F.obtenerActividadReciente('5', 4);
+ok(act77.actividad.length === 1 && act77.actividad[0].idRecurso === 'H1' && lecturas.Actividad_Reciente === 1, '9i. quien tiene poca actividad no alcanza a llenar la ventana y se lee la hoja entera, sin perder nada (lecturas completas ' + lecturas.Actividad_Reciente + ')');
+reset(); nuevaEjecucion(); const act6b = F.obtenerActividadReciente('6', 4); nuevaEjecucion(); F.obtenerActividadReciente('5', 4);
+ok(lecturas.Actividad_Reciente === 0 && JSON.stringify(act6b) === JSON.stringify(act6), '9j. la segunda vez sale del caché, idéntica y sin leer la hoja');
+llamarDoPost({ action: 'registrarActividad', args: ['6', 'Carpeta', 'C4', 'Abrir'], token: sesion(6) });
+reset(); nuevaEjecucion(); const act6c = F.obtenerActividadReciente('6', 4);
+ok(act6c.actividad[0].idRecurso === 'C4', '9k. lo que la persona acaba de abrir aparece al instante en su actividad reciente');
+nuevaEjecucion(); F.obtenerActividadReciente('5', 4);
+ok(lecturas.Actividad_Reciente === 0, '9l. y solo se rehízo la lista de ELLA: la de la otra persona siguió en el caché (sin leer la hoja entera, que es lo que le costaría)');
 
 console.log(fallos ? '\n' + fallos + ' FALLA(S)' : '\nTODAS LAS PRUEBAS PASARON'); process.exit(fallos ? 1 : 0);

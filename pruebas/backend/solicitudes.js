@@ -359,6 +359,20 @@ ok(SIN_SESION(llamarDoPost({ action: 'obtenerMisAccesos', args: [], token: tokCi
 // Las acciones públicas siguen funcionando sin sesión
 ok(llamarDoPost({ action: 'obtenerVersionCacheGlobal', args: [] }).success === true && llamarDoPost({ action: 'obtenerHotelesParaRegistro', args: [] }).success === true, '15j. registro, inicio de sesión y ping siguen siendo públicos');
 
+// ---------- 16. "Mis accesos" decide con SU fila al instante, sin vaciar el caché de usuarios de todo el sistema
+nuevaEjecucion(); F.obtenerModulosConHoteles(null, '1');           // llena el caché de usuarios
+const llaveUsuarios = [...almacen.keys()].filter(k => /^oxo:usuarios_lite/.test(k));
+ok(llaveUsuarios.length > 0, '16. el caché de usuarios está lleno antes de consultar "Mis accesos"');
+nuevaEjecucion(); const antesMis = F.obtenerMisAccesos(tokJo);
+ok(antesMis.success && [...almacen.keys()].some(k => /^oxo:usuarios_lite$/.test(k)), '16b. consultar "Mis accesos" ya NO borra el caché de usuarios de todos');
+const filaJo = hojas.Usuarios.filas.findIndex(f => String(f[2]).toLowerCase() === 'jo@oxohotel.com');
+const colPerm = hojas.Usuarios.filas[0].indexOf('Hoteles_Permitidos');
+const permisosAntes = hojas.Usuarios.filas[filaJo][colPerm];
+hojas.Usuarios.filas[filaJo][colPerm] = 'H1,H2';                    // un administrador aprobó 84DC (el caché de usuarios sigue con lo anterior)
+nuevaEjecucion(); const despuesMis = F.obtenerMisAccesos(tokJo);
+ok(despuesMis.permitidos.map(h => h.idHotel).sort().join() === 'H1,H2', '16c. aun así "Mis accesos" ya muestra el acceso nuevo, porque lee la fila propia al instante: ' + despuesMis.permitidos.map(h => h.idHotel).join());
+hojas.Usuarios.filas[filaJo][colPerm] = permisosAntes; almacen.clear();
+
 // ---------- 13. Lista de acciones
 ok(['resolverSolicitudesUsuario', 'cerrarSolicitudUsuario', 'aprobarUsuario', 'obtenerHotelesParaRegistro'].every(n => F.ACCIONES_PERMITIDAS_.includes(n)) && !F.ACCIONES_PERMITIDAS_.includes('resolverSolicitudHotel'), '13. las acciones que usa la pantalla están permitidas y la de una sola propiedad (sin uso) ya no');
 ok(llamarDoPost({ action: 'prepararResolucion_', args: [] }).success === false && llamarDoPost({ action: 'notificarSolicitante_', args: [] }).success === false, '13b. las funciones internas del flujo no se pueden invocar desde la web');

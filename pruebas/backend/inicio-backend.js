@@ -45,7 +45,9 @@ for (const [token, id, etiqueta] of [['tokU', '3', 'usuario con TODOS'], [null, 
   ok(aperturas === 1, etiqueta + ': la hoja de cálculo se abre ' + aperturas + ' vez en una sola llamada (4 llamadas sueltas: ' + aperturasSueltas + ' aperturas, ya con el handle compartido por llamada)');
 }
 // Una parte que falla no tumba las demás
+vm.runInContext('_memoCache_ = {}; invalidarCacheArchivos_();', sandbox); // los favoritos ya estaban guardados: se invalida para provocar la lectura de la hoja
 hojas.Favoritos.getDataRange = () => { throw new Error('boom'); };
+vm.runInContext('_spreadsheetEjecucion_=null;_cacheIndiceHojas_={}', sandbox);
 const parcial = F.obtenerDatosInicio('tokU', '3');
 ok(parcial.idsFavoritos && parcial.idsFavoritos.success === false && Array.isArray(parcial.modulos) && parcial.actividad.success === true, 'si falla la hoja de favoritos, hoteles y actividad igual se devuelven');
 console.log(fallos ? '\n' + fallos + ' FALLA(S)' : '\nTODAS LAS PRUEBAS PASARON'); process.exit(fallos ? 1 : 0);

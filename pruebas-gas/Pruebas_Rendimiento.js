@@ -148,6 +148,45 @@ function registrarPruebasRendimiento_() {
       afirmar_(_lecturasDeHoja_ - lecturasInv > 0, 'tras invalidar se vuelven a leer las hojas (no se sirven datos viejos)');
     }, { soloReal: true });
 
+    prueba_('pantalla de inicio y Mis accesos con volumen realista: tiempos por parte (600 personas, 3.000 actividades, 6.000 favoritos, 500 carpetas, 5.000 archivos)', function () {
+      sembrarUsuariosMasivos_(600);
+      const carpetas = hojaDePrueba_('Carpetas'), archivos = hojaDePrueba_('Archivos'), actividad = hojaDePrueba_('Actividad_Reciente'), favoritos = hojaDePrueba_('Favoritos');
+      [carpetas, archivos, actividad, favoritos].forEach(vaciarHoja_);
+      asegurarFilas_(carpetas, 600); asegurarFilas_(archivos, 5100); asegurarFilas_(actividad, 3100); asegurarFilas_(favoritos, 6100);
+      const colTamano = obtenerOAgregarColumna_(archivos, 'Tamaño_Bytes');
+      const ahora = new Date(), dia = 24 * 60 * 60 * 1000;
+      const filasC = [];
+      for (let n = 1; n <= 500; n++) filasC.push(['C-' + n, 'H1', '', 'Carpeta ' + n, 'd-' + n, ahora, n > 20 ? 'C-' + (1 + (n % 20)) : '']);
+      carpetas.getRange(2, 1, 500, 7).setValues(filasC);
+      const filasA = [];
+      for (let n = 1; n <= 5000; n++) { const f = ['ARC-' + n, 'C-' + (1 + (n % 500)), 'df-' + n, 'archivo ' + n + '.pdf', 'pdf', 'PDF', 'Activo', 'Persona', 'application/pdf', 'https://x/' + n, ahora, ahora, ahora]; while (f.length < colTamano) f.push(''); f[colTamano] = 1000 + n; filasA.push(f); }
+      archivos.getRange(2, 1, 5000, colTamano + 1).setValues(filasA);
+      const filasAct = [];
+      for (let n = 0; n < 3000; n++) filasAct.push(['ACT-' + n, 100 + (n % 600), n % 3 === 0 ? 'Hotel' : (n % 3 === 1 ? 'Carpeta' : 'Archivo'), n % 3 === 0 ? 'H1' : (n % 3 === 1 ? 'C-' + (1 + (n % 500)) : 'ARC-' + (1 + (n % 5000))), 'Abrir', new Date(ahora.getTime() - (3000 - n) * 60000)]);
+      actividad.getRange(2, 1, 3000, 6).setValues(filasAct);
+      const filasF = [];
+      for (let n = 0; n < 6000; n++) filasF.push([n + 1, 100 + (n % 600), n % 3 === 0 ? 'Hotel' : (n % 3 === 1 ? 'Carpeta' : 'Archivo'), n % 3 === 0 ? 'H1' : (n % 3 === 1 ? 'C-' + (1 + ((n * 7) % 500)) : 'ARC-' + (1 + ((n * 13) % 5000))), new Date(ahora.getTime() - n * 1000)]);
+      favoritos.getRange(2, 1, 6000, 5).setValues(filasF);
+      limpiarCachesDePrueba_(); invalidarCacheArchivos_(); nuevaEjecucion_();
+
+      const usuario = '100';
+      const token = crearSesionUsuario_({ ID_Usuario: 100, Nombre_Completo: 'Persona', Email: 'persona.nombre.largo.100@pruebas.oxo', ID_Rol: 1, Rol: 'Usuario' });
+      const partes = [
+        ['hoteles', function () { return obtenerModulosConHoteles(token, usuario); }],
+        ['idsFavoritos', function () { return obtenerIdsFavoritosUsuario(usuario); }],
+        ['actividad', function () { return obtenerActividadReciente(usuario, 4); }],
+        ['favoritos', function () { return obtenerFavoritosDetallados(usuario); }],
+        ['pendientes', function () { return contarPendientesAprobacion_(token, usuario); }],
+        ['misAccesos', function () { return obtenerMisAccesos(token); }]
+      ];
+      const medidas = {};
+      partes.forEach(function (p) { nuevaEjecucion_(); medidas[p[0]] = medir_(p[1]).ms; });
+      nuevaEjecucion_(); const totalFrio = medir_(function () { return obtenerDatosInicio(token, usuario); }).ms;
+      nuevaEjecucion_(); const totalCaliente = medir_(function () { return obtenerDatosInicio(token, usuario); }).ms;
+      nota_('INICIO por partes (ms): ' + Object.keys(medidas).map(function (k) { return k + ' ' + medidas[k]; }).join(' · ') + ' | obtenerDatosInicio completo: 1ª ' + totalFrio + ' ms, 2ª ' + totalCaliente + ' ms');
+      afirmar_(totalCaliente < 30000, 'la pantalla de inicio no debe tardar más de 30 s (' + totalCaliente + ' ms)');
+    }, { soloReal: true });
+
     prueba_('tamaño real del caché de usuarios con 600 personas', function () {
       sembrarUsuariosMasivos_(600);
       nuevaEjecucion_();

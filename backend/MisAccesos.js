@@ -23,9 +23,8 @@ function contextoMisAccesos_(token) {
   const sesion = sesionPropia_(token);
   if (!sesion) return { error: 'Tu sesión no es válida. Vuelve a iniciar sesión.' };
 
-  invalidarCacheUsuarios_();
-  const usuarios = leerUsuariosParaAlcance_(null);
-  const yo = usuarios.filter(function (u) { return u.id === String(sesion.idUsuario).trim(); })[0];
+  // Se decide sobre la propia cuenta con su fila al instante; ya no se vacía el caché de usuarios de todo el sistema en cada consulta
+  const yo = leerUsuarioFresco_(sesion.idUsuario);
   if (!yo || yo.estado !== 'Activo') return { error: 'Tu cuenta no está activa' };
 
   const catalogo = obtenerHotelesParaRegistro().hoteles || []; // TODAS las propiedades, con su módulo

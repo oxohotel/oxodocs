@@ -22,11 +22,12 @@ if (!URL_API) {
 const EMAIL = process.env.OXO_EMAIL, CLAVE = process.env.OXO_CLAVE;
 if (!URL_API || !EMAIL || !CLAVE) { console.error('Faltan OXO_EMAIL y OXO_CLAVE (variables de entorno) o la URL (--url).'); process.exit(1); }
 
+let TOKEN = null; // desde el inicio de sesión todas las peticiones llevan el token: el servidor decide quién llama solo por él
 async function llamar(accion, argumentos) {
   const t0 = Date.now();
   let datos = null, error = null;
   try {
-    const r = await fetch(URL_API, { method: 'POST', redirect: 'follow', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action: accion, args: argumentos }) });
+    const r = await fetch(URL_API, { method: 'POST', redirect: 'follow', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action: accion, args: argumentos, token: TOKEN }) });
     const texto = await r.text();
     try { const j = JSON.parse(texto); if (j.success) datos = j.data; else error = j.message || 'sin éxito'; } catch (e) { error = 'respuesta no válida (página de error de Google)'; }
   } catch (e) { error = 'red: ' + e.message; }
@@ -53,6 +54,7 @@ const seg = ms => (ms / 1000).toFixed(1).padStart(5) + ' s';
   const u = login.datos && login.datos.user;
   const token = login.datos && login.datos.token;
   if (!token) { console.error('No se pudo iniciar sesión: ' + (login.error || (login.datos && login.datos.message))); process.exit(1); }
+  TOKEN = token;
   const id = u.ID_Usuario;
 
   const ini = await medir('Pantalla de inicio', () => llamar('obtenerDatosInicio', [token, id, false]));

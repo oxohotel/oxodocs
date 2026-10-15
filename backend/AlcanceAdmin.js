@@ -27,6 +27,32 @@ function normalizarEncabezado_(h) {
 }
 
 /** Lee la hoja Usuarios una vez: [{id, email, rolId, hoteles}] */
+/**
+ * La fila de UNA persona leída directamente de la hoja (sin caché), con la misma forma que leerUsuariosParaAlcance_. Sirve para decidir
+ * sobre la propia cuenta con datos al instante (una aprobación recién hecha) sin vaciar el caché de usuarios de todo el sistema.
+ */
+function leerUsuarioFresco_(idUsuario) {
+  const hoja = obtenerSpreadsheet_().getSheetByName('Usuarios');
+  if (!hoja || hoja.getLastRow() < 2) return null;
+  const ancho = hoja.getLastColumn();
+  const enc = hoja.getRange(1, 1, 1, ancho).getValues()[0].map(normalizarColumna_);
+  const col = function (nombres, porDefecto) {
+    const i = enc.findIndex(function (n) { return nombres.indexOf(n) !== -1; });
+    return i !== -1 ? i : porDefecto;
+  };
+  const cId = col(['idusuario', 'id', 'usuarioid'], 0);
+  const fila = buscarFilaEnColumna_(hoja, cId + 1, idUsuario);
+  if (fila === -1) return null;
+  const v = hoja.getRange(fila, 1, 1, ancho).getValues()[0];
+  const cEmail = col(['email', 'correo'], 2), cRol = col(['rol', 'idrol', 'rolid'], 4), cEstado = col(['estado'], 5);
+  const cHot = col(['hotelespermitidos', 'hoteles'], -1), cSol = col(['hotelessolicitados'], -1);
+  const texto = function (i) { return i !== -1 && v[i] !== null && v[i] !== undefined ? String(v[i]).trim() : ''; };
+  return {
+    id: String(v[cId]).trim(), email: texto(cEmail).toLowerCase(), rolId: String(obtenerInfoRol_(v[cRol]).id),
+    hoteles: texto(cHot), estado: texto(cEstado), solicitados: texto(cSol)
+  };
+}
+
 function leerUsuariosParaAlcance_(ss) {
   return obtenerUsuariosLite_().usuarios
     .filter(function (u) { return u.id; })

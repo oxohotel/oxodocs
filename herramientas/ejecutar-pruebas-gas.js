@@ -39,7 +39,12 @@ async function llamar(accion, argumentos) {
   for (const suite of SUITES.filter(s => !filtro || s.toLowerCase().includes(filtro.toLowerCase()))) {
     process.stdout.write(suite.padEnd(20));
     const inicio = Date.now();
-    const j = await llamar('ejecutarPruebasWeb', [config.clave, suite]);
+    let j;
+    try { j = await llamar('ejecutarPruebasWeb', [config.clave, suite]); }
+    catch (e) { // un corte de red no debe tumbar toda la corrida: se reintenta una vez
+      process.stdout.write('(reintentando: ' + e.message + ') ');
+      j = await llamar('ejecutarPruebasWeb', [config.clave, suite]);
+    }
     if (!j.success) { console.log('✖ ' + j.message); fallas++; continue; }
     const r = j.data;
     ok += r.ok; fallas += r.fallas; omitidas += r.omitidas;

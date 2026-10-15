@@ -29,20 +29,22 @@ function generacionArchivos_() {
 
 /** Llamar después de CUALQUIER cambio en las hojas Carpetas, Archivos o Permisos_Archivos (el despachador ya lo hace por todas las acciones). */
 function invalidarCacheArchivos_() {
-  try { CacheService.getScriptCache().put('oxo:genArch', String(Date.now()) + String(Math.floor(Math.random() * 1000)), 21600); } catch (e) {}
+  try { CacheService.getScriptCache().put('oxo:genArch', String(Date.now()) + '-' + Math.floor(Math.random() * 1e9), 21600); } catch (e) {}
   _genArchivos_ = null;
 }
 
 /** Devuelve lo guardado para "nombre" en la generación actual o, si no hay, lo calcula con "calcular" y lo guarda (si nadie invalidó mientras tanto). */
-function conCacheArchivos_(nombre, calcular, esValido) {
-  const gen = generacionArchivos_();
+function conCacheArchivos_(nombre, calcular, esValido, generacionExtra) {
+  // "generacionExtra" (opcional): función que devuelve una generación propia de ese dato (por ejemplo, la de la actividad de una persona)
+  const extra = function () { return generacionExtra ? '|' + generacionExtra() : ''; };
+  const gen = generacionArchivos_() + extra();
   const clave = 'arch:' + nombre + ':' + gen;
   const guardado = cacheObtener_(clave);
   if (guardado !== undefined) return guardado;
 
   _lecturasDeHoja_++;
   const valor = calcular();
-  if ((!esValido || esValido(valor)) && generacionArchivosFresca_() === gen) cacheGuardar_(clave, valor, CACHE_TTL_ARCHIVOS_);
+  if ((!esValido || esValido(valor)) && generacionArchivosFresca_() + extra() === gen) cacheGuardar_(clave, valor, CACHE_TTL_ARCHIVOS_);
   return valor;
 }
 
@@ -121,7 +123,7 @@ function refrescarCacheDeArchivosSiToca_() {
 var ACCIONES_QUE_NO_TOCAN_ARCHIVOS_ = [
   'validarCredenciales', 'registrarUsuario', 'verificarEmailExistente', 'enviarCodigoVerificacion', 'verificarCodigoRegistro',
   'solicitarCodigoRecuperacion', 'validarCodigoRecuperacion', 'restablecerPasswordConCodigo', 'cerrarSesionUsuario',
-  'buscarGlobal', 'registrarActividad', 'registrarAuditoria', 'alternarFavorito',
+  'buscarGlobal', 'registrarActividad', 'registrarAuditoria',
   'actualizarNombreUsuario', 'cambiarContrasenaUsuario', 'guardarPreferenciasNotificaciones', 'crearGrupoUsuario', 'eliminarGrupoUsuario',
   'aprobarUsuario', 'asignarHotelesAUsuario', 'cambiarEstadoUsuario', 'cambiarRolUsuario', 'cerrarSolicitudUsuario', 'crearUsuarioPorAdmin',
   'restablecerContrasenaUsuarioPorAdmin', 'resolverSolicitudesUsuario', 'solicitarAccesoPropiedades', 'cancelarSolicitudesPropias'

@@ -24,6 +24,24 @@ function obtenerIndiceHoja_(ss, nombreHoja, columnaClave) {
   if (_cacheIndiceHojas_[clave]) return _cacheIndiceHojas_[clave];
 
   const resultado = { encabezados: {}, porId: {} };
+
+  // Hoteles y Carpetas ya se guardan en caché (backend/Cache.js y backend/CacheArchivos.js): se indexan desde ahí, sin leer la hoja
+  let datosDeCache = null;
+  if (nombreHoja === 'Hoteles' && typeof leerHojaConCache_ === 'function') datosDeCache = leerHojaConCache_('Hoteles');
+  else if (nombreHoja === 'Carpetas' && typeof leerCarpetasConCache_ === 'function') {
+    const c = leerCarpetasConCache_(ss);
+    datosDeCache = c.existe ? [c.encabezados].concat(c.filas) : null;
+  }
+  if (datosDeCache) {
+    if (datosDeCache.length) {
+      datosDeCache[0].forEach(function (nombre, i) { resultado.encabezados[nombre] = i; });
+      const idxClaveCache = resultado.encabezados[columnaClave];
+      for (let i = 1; i < datosDeCache.length; i++) resultado.porId[String(datosDeCache[i][idxClaveCache])] = datosDeCache[i];
+    }
+    _cacheIndiceHojas_[clave] = resultado;
+    return resultado;
+  }
+
   const hoja = ss.getSheetByName(nombreHoja);
 
   if (hoja) {
@@ -84,14 +102,32 @@ function resolverCarpeta_(ss, idCarpeta) {
   };
 }
 
-function resolverArchivo_(ss, idArchivo) {
+var _busquedasDeArchivo_ = 0; // cuántos archivos se buscaron uno a uno en esta ejecución
+
+/**
+ * Fila de un archivo como objeto { Encabezado: valor } o null. Las primeras búsquedas de la ejecución van directas a la fila (sin
+ * descargar la hoja de archivos, que puede tener miles); si hay muchas (p. ej. una lista de favoritos) es más barato leerla una vez.
+ */
+function leerFilaDeArchivo_(ss, idArchivo) {
+  if (!_cacheIndiceHojas_['Archivos::ID_Archivo'] && _busquedasDeArchivo_ < 3 && typeof filaPorColumna_ === 'function') {
+    _busquedasDeArchivo_++;
+    return filaPorColumna_('Archivos', 'ID_Archivo', String(idArchivo));
+  }
   const indice = obtenerIndiceHoja_(ss, 'Archivos', 'ID_Archivo');
   const fila = indice.porId[String(idArchivo)];
+  if (!fila) return null;
+  const objeto = {};
+  Object.keys(indice.encabezados).forEach(function (n) { objeto[n] = fila[indice.encabezados[n]]; });
+  return objeto;
+}
+
+function resolverArchivo_(ss, idArchivo) {
+  const fila = leerFilaDeArchivo_(ss, idArchivo);
   if (!fila) return { existe: false };
 
-  const idCarpeta = fila[indice.encabezados['ID_Carpeta']];
+  const idCarpeta = fila['ID_Carpeta'];
   const infoCarpeta = resolverCarpeta_(ss, idCarpeta);
-  const nombre = fila[indice.encabezados['Nombre_Archivo']] || 'Archivo';
+  const nombre = fila['Nombre_Archivo'] || 'Archivo';
   const contexto = infoCarpeta.existe
     ? [infoCarpeta.nombreHotel, infoCarpeta.nombre].filter(Boolean).join(' / ')
     : '';
@@ -101,8 +137,8 @@ function resolverArchivo_(ss, idArchivo) {
     nombre: nombre, contexto: contexto,
     idHotel: infoCarpeta.idHotel, nombreHotel: infoCarpeta.nombreHotel,
     idCarpeta: idCarpeta, nombreCarpeta: infoCarpeta.nombre,
-    driveFileId: fila[indice.encabezados['DriveFileId']], driveUrl: fila[indice.encabezados['DriveUrl']],
-    extension: fila[indice.encabezados['Extension']]
+    driveFileId: fila['DriveFileId'], driveUrl: fila['DriveUrl'],
+    extension: fila['Extension']
   };
 }
 
