@@ -10566,6 +10566,20 @@ input[type="password"]::-webkit-contacts-auto-fill-button {
       const tokenCarp = typeof getCurrentUserToken === 'function' ? getCurrentUserToken() : null;
       const idUsuarioCarp = sesionCarp && (sesionCarp.ID_Usuario || sesionCarp.idUsuario) ? (sesionCarp.ID_Usuario || sesionCarp.idUsuario) : null;
 
+      // Si se pide abrir una carpeta que no está entre las áreas conocidas (una subcarpeta anidada), su ruta se pide EN PARALELO con la
+      // lista de áreas en vez de esperar a que esta termine (cada llamada al servidor cuesta 2-3 s aunque no haga nada).
+      let rutaAnticipada = null;
+      // La lista guardada de la última vez (aunque no se esté usando para pintar) sirve para saber si es un área conocida y no pedir la ruta de más.
+      const areasConocidas = Array.isArray(copia) ? copia : (typeof leerCacheVista_ === 'function' ? leerCacheVista_(claveCopia) : null);
+      if (idCarpetaAutoAbrir && !(Array.isArray(areasConocidas) && areasConocidas.some(function (c) { return String(c.id) === String(idCarpetaAutoAbrir); }))) {
+        rutaAnticipada = new Promise(function (resolve) {
+          google.script.run
+            .withSuccessHandler(function (res) { resolve(res); })
+            .withFailureHandler(function () { resolve(null); })
+            .obtenerRutaCarpeta(idCarpetaAutoAbrir);
+        });
+      }
+
       const result = await new Promise((resolve, reject) => {
         google.script.run
           .withSuccessHandler((response) => resolve(response))
@@ -10594,19 +10608,22 @@ input[type="password"]::-webkit-contacts-auto-fill-button {
             // No es un área de nivel superior: es una subcarpeta anidada. Pedimos al backend la
             // cadena completa de ancestros para no perder el/los nivel(es) intermedios en la
             // miga de pan (ver backend/Carpetas.js: obtenerRutaCarpeta).
-            google.script.run
-              .withSuccessHandler(function (res) {
-                if (res && res.success && res.ruta && res.ruta.length) {
-                  const ultimo = res.ruta[res.ruta.length - 1];
-                  abrirCarpeta({ id: ultimo.id, nombre: ultimo.nombre }, idArchivoResaltar, res.ruta);
-                } else {
-                  abrirCarpeta({ id: idCarpetaAutoAbrir, nombre: '' }, idArchivoResaltar);
-                }
-              })
-              .withFailureHandler(function () {
+            const aplicarRuta = function (res) {
+              if (res && res.success && res.ruta && res.ruta.length) {
+                const ultimo = res.ruta[res.ruta.length - 1];
+                abrirCarpeta({ id: ultimo.id, nombre: ultimo.nombre }, idArchivoResaltar, res.ruta);
+              } else {
                 abrirCarpeta({ id: idCarpetaAutoAbrir, nombre: '' }, idArchivoResaltar);
-              })
-              .obtenerRutaCarpeta(idCarpetaAutoAbrir);
+              }
+            };
+            if (rutaAnticipada) {
+              rutaAnticipada.then(aplicarRuta);
+            } else {
+              google.script.run
+                .withSuccessHandler(aplicarRuta)
+                .withFailureHandler(function () { abrirCarpeta({ id: idCarpetaAutoAbrir, nombre: '' }, idArchivoResaltar); })
+                .obtenerRutaCarpeta(idCarpetaAutoAbrir);
+            }
           }
         }
       } else {
