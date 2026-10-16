@@ -43,15 +43,15 @@ const hojas = {
   Hoteles: new Hoja('Hoteles', [['ID_Hotel', 'Nombre_Hotel', 'ID_Modulo', 'DriveFolderId'], ['H1', 'Distrito', 'M1', 'fa'], ['H2', '84DC', 'M1', 'fb']]),
   Carpetas: new Hoja('Carpetas', [['ID_Carpeta', 'ID_Hotel', 'x', 'Nombre_Carpeta', 'ID_Padre', 'DriveFolderId'],
     ['C1', 'H1', '', 'IT Distrito', '', 'd1'], ['C2', 'H2', '', 'IT 84DC', '', 'd2'], ['C3', 'H2', '', 'Subcarpeta 84DC', 'C2', 'd3']]),
-  Archivos: new Hoja('Archivos', [['ID_Archivo', 'ID_Carpeta', 'DriveFileId', 'Nombre_Archivo', 'Extension', 'DriveUrl'],
-    ['A1', 'C1', 'drive-A1', 'contrato-distrito.pdf', 'pdf', 'u1'], ['A2', 'C2', 'drive-A2', 'contrato-84dc.pdf', 'pdf', 'u2']]),
+  Archivos: new Hoja('Archivos', [['ID_Archivo', 'ID_Carpeta', 'DriveFileId', 'Nombre_Archivo', 'Extension', 'DriveUrl', 'Responsable'],
+    ['A1', 'C1', 'drive-A1', 'contrato-distrito.pdf', 'pdf', 'u1', 'NormalDistrito'], ['A2', 'C2', 'drive-A2', 'contrato-84dc.pdf', 'pdf', 'u2', 'Ana'], ['A3', 'C1', 'drive-A3', 'viejo.pdf', 'pdf', 'u3', 'Sistema']]),
   Favoritos: new Hoja('Favoritos', [['ID_Favorito', 'ID_Usuario', 'Tipo_Recurso', 'ID_Recurso', 'Fecha_Marcado'],
     [1, 8, 'Hotel', 'H1', new Date(2026, 0, 1)], [2, 8, 'Hotel', 'H2', new Date(2026, 0, 2)], [3, 5, 'Hotel', 'H2', new Date(2026, 0, 3)]]),
   Actividad_Reciente: new Hoja('Actividad_Reciente', [['ID_Actividad', 'ID_Usuario', 'Tipo_Recurso', 'ID_Recurso', 'Tipo_Interaccion', 'Fecha_Hora'],
     ['ACT-1', 5, 'Carpeta', 'C1', 'Abrir', new Date(2026, 0, 1)], ['ACT-2', 5, 'Carpeta', 'C2', 'Abrir', new Date(2026, 0, 2)]]),
   Sesiones: new Hoja('Sesiones', [['ID_Sesion', 'ID_Usuario', 'Token', 'Fecha_Creacion', 'Fecha_Expiracion', 'Estado']]),
   Auditoria: new Hoja('Auditoria', [['ID_Auditoria', 'ID_Usuario', 'Email_Usuario', 'Tipo_Accion', 'Descripcion', 'Entidad_Afectada', 'Fecha_Hora', 'Estado']]),
-  Permisos_Archivos: new Hoja('Permisos_Archivos', [['ID', 'ID_Archivo', 'ID_Usuario']])
+  Permisos_Archivos: new Hoja('Permisos_Archivos', [['ID', 'ID_Archivo', 'ID_Usuario'], [1, 'A2', 5]])
 };
 
 // Archivos de Drive de mentira para las pruebas de importación
@@ -79,7 +79,7 @@ vm.runInContext(`
   ['obtenerContenidoCarpeta','obtenerRutaCarpeta','crearSubcarpeta','renombrarCarpeta','eliminarCarpeta','guardarArchivoEnDrive','guardarArchivosMultiplesDesdeDrive','renombrarArchivo','actualizarPermisosExistentes','eliminarArchivo','crearArea','editarHotel','eliminarHotel'].forEach(function (n) {
     this[n] = function () { __llamadas.push(n); return { success: true, ejecutada: n }; };
   }, this);
-  this.F = { usuarioEsAdministrador_, crearSesionUsuario_, buscarGlobal, obtenerFavoritosDetallados, obtenerActividadReciente, obtenerListaUsuariosParaPermisos, obtenerArchivoPorIdOUrl, usuarioPuedeUsarArchivoDrive_, alcanceDeHoteles_ };
+  this.F = { validarPrivacidadDeArchivo_, validarPropiedadOAdmin_, usuarioEsAdministrador_, crearSesionUsuario_, buscarGlobal, obtenerFavoritosDetallados, obtenerActividadReciente, obtenerListaUsuariosParaPermisos, obtenerArchivoPorIdOUrl, usuarioPuedeUsarArchivoDrive_, alcanceDeHoteles_ };
 `, sandbox);
 const F = sandbox.F;
 const nuevaEjecucion = () => vm.runInContext('_memoCache_={};_spreadsheetEjecucion_=null;_cacheIndiceHojas_={}', sandbox);
@@ -173,6 +173,45 @@ const esAdm = id => { nuevaEjecucion(); return F.usuarioEsAdministrador_(String(
 ok([1, 2, 3, 4].every(esAdm), '9. superadministrador y administradores (incluido el de una sola propiedad) pueden eliminar carpetas y archivos');
 ok([5, 6, 7, 8].every(id => !esAdm(id)), '9b. los usuarios (rol 1) no pueden, tengan las propiedades que tengan');
 ok(!F.usuarioEsAdministrador_('999') && !F.usuarioEsAdministrador_(''), '9c. una cuenta inexistente o vacía tampoco');
+
+// ---------- 5. Cambiar la privacidad de un archivo ya publicado: administrador o quien lo subió
+const auth = (archivo, id) => { nuevaEjecucion(); return F.validarPropiedadOAdmin_(archivo, String(id), false); };
+ok(auth('A1', 5).autorizado === true, '10. quien subió el archivo (aparece como Responsable por su nombre) puede gestionarlo, aunque sea un usuario normal');
+hojas.Archivos.filas[1][6] = 'normal@oxohotel.com'; almacen.clear();
+ok(auth('A1', 5).autorizado === true, '10b. también si el Responsable quedó guardado con su correo (sin importar mayúsculas)');
+hojas.Archivos.filas[1][6] = 'NormalDistrito'; almacen.clear();
+ok(auth('A1', 8).autorizado === false && /Solo el creador/.test(auth('A1', 8).mensaje), '10c. otra persona que no es administradora NO puede: ' + auth('A1', 8).mensaje);
+ok(auth('A1', 2).autorizado === true && auth('A2', 3).autorizado === true, '10d. un administrador sí puede');
+ok(auth('A3', 5).autorizado === false && auth('A3', 8).autorizado === false, '10e. "Sistema" ya no es un comodín: un archivo sin responsable real solo lo gestionan administradores');
+ok(auth('A9', 5).autorizado === false, '10f. un archivo que no existe no autoriza nada');
+
+// La PRIVACIDAD es más estricta que renombrar: solo un Superadministrador o quien subió el archivo (un administrador, no)
+const priv = (archivo, id) => { nuevaEjecucion(); return F.validarPrivacidadDeArchivo_(archivo, String(id)); };
+ok(priv('A1', 1).autorizado && priv('A2', 1).autorizado && priv('A3', 1).autorizado, '12. un Superadministrador (rol 3) puede cambiar la privacidad de cualquier archivo');
+ok(priv('A1', 5).autorizado === true, '12b. quien subió el archivo puede, sea usuario normal');
+const privAdmin = priv('A1', 2);
+ok(privAdmin.autorizado === false && /Superadministrador/.test(privAdmin.mensaje), '12c. un administrador (rol 2) que NO lo subió no puede cambiar la privacidad: ' + privAdmin.mensaje);
+ok(priv('A2', 3).autorizado === false && priv('A1', 4).autorizado === false, '12d. ni siquiera con acceso a la propiedad o con TODOS (rol 2)');
+ok(priv('A1', 8).autorizado === false, '12e. otra persona normal tampoco');
+hojas.Archivos.filas[3][6] = 'AdminDistrito'; almacen.clear();
+ok(priv('A3', 2).autorizado === true, '12f. pero si el administrador es quien subió ese archivo, sí puede (es su archivo)');
+hojas.Archivos.filas[3][6] = 'Sistema'; almacen.clear();
+ok(priv('A3', 2).autorizado === false && priv('A3', 5).autorizado === false && priv('A3', 1).autorizado === true, '12g. un archivo sin responsable real ("Sistema") solo lo gestiona un Superadministrador');
+ok(priv('A9', 1).autorizado === false, '12h. un archivo inexistente no autoriza nada');
+const adminPorWeb = llamar({ action: 'obtenerPermisosDeArchivo', args: ['A1'], token: T[2] });
+ok(adminPorWeb.data && adminPorWeb.data.success === false, '12i. por la vía web, el administrador no puede ni consultar la privacidad de un archivo ajeno');
+
+const permisosDe = (archivo, token) => llamar({ action: 'obtenerPermisosDeArchivo', args: [archivo], token: token });
+const r1 = permisosDe('A1', T[5]);
+ok(r1.success === true && r1.data.success === true && Array.isArray(r1.data.restringidos) && r1.data.restringidos.length === 0, '11. quien lo subió puede ver su privacidad actual (hoy sin restricciones)');
+const r2 = permisosDe('A2', T[1]);
+ok(r2.data.success === true && r2.data.restringidos.join() === '5', '11b. el superadministrador ve a quién se le oculta un archivo (A2 está oculto para la persona 5): ' + JSON.stringify(r2.data));
+ok(negada(permisosDe('A2', T[5])) , '11c. una persona de otra propiedad no puede ni consultarlo (el despachador la rechaza por propiedad)');
+const r3 = permisosDe('A3', T[5]);
+ok(r3.data && r3.data.success === false, '11d. un usuario normal no puede ver la privacidad de un archivo que no subió: ' + JSON.stringify(r3.data));
+ok(SIN_SESION_ES(llamar({ action: 'obtenerPermisosDeArchivo', args: ['A1'] })), '11e. sin sesión se rechaza');
+function SIN_SESION_ES(r) { return r.success === false && r.codigo === 'SESION_INVALIDA'; }
+ok(vm.runInContext('ACCIONES_PERMITIDAS_', sandbox).includes('obtenerPermisosDeArchivo'), '11f. la acción está en la lista de permitidas');
 
 ok(Object.keys(vm.runInContext('OBJETIVOS_DE_ACCESO_', sandbox)).every(a => vm.runInContext('ACCIONES_PERMITIDAS_', sandbox).includes(a)), '8. todas las acciones declaradas en OBJETIVOS_DE_ACCESO_ existen en la lista de permitidas');
 console.log(fallos ? '\n' + fallos + ' FALLA(S)' : '\nTODAS LAS PRUEBAS PASARON'); process.exit(fallos ? 1 : 0);

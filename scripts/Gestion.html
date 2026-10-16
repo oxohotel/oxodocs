@@ -177,8 +177,9 @@
       '</button>';
     }
 
-    // Botón de Privacidad (candado)
-    if (autorizado) {
+    // Botón de Privacidad (candado): solo un Superadministrador (rol 3) o quien subió el archivo; un administrador (rol 2) que no lo subió, no
+    // (el servidor lo vuelve a comprobar)
+    if (sesionPuede('Gestionar_Roles') || esPropietario) {
       html += '<button type="button" class="btn-gestion-carpeta" data-accion="privacidad-archivo" data-id-archivo="' + archivo.id + '" title="Privacidad">' +
         '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>' +
       '</button>';

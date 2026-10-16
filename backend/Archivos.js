@@ -305,29 +305,26 @@ function generarIdArchivo() {
   }
 }
 
-function validarPropiedadOAdmin_(idArchivoODriveId, idUsuarioOToken, esDriveId = false, idUsuarioFallback) {
-  // 1. Es admin?
-  const esAdmin = usuarioTienePermiso(idUsuarioOToken, 'Gestionar_Hoteles_Carpetas', idUsuarioFallback);
-  if (esAdmin) return { autorizado: true };
-
-  // 2. Resolver usuario
+/**
+ * ¿Quien llama es el Responsable del archivo (quien lo subió)? Se compara su nombre o su correo con el campo Responsable. Devuelve
+ * { encontrado, esResponsable, responsable }. "Sistema" NO es comodín: un archivo sin responsable real no pertenece a nadie en particular.
+ * OJO: resolverUsuarioSolicitante_ devuelve { idUsuario, rol... } y nunca un objeto "usuario" (antes se leía solicitante.usuario.Nombre_Completo,
+ * que no existe, y por eso quien subía un archivo nunca podía gestionarlo). Nombre y correo salen de la lista de usuarios.
+ */
+function esResponsableDelArchivo_(idArchivoODriveId, idUsuarioOToken, esDriveId, idUsuarioFallback) {
   const solicitante = typeof resolverUsuarioSolicitante_ === 'function'
     ? resolverUsuarioSolicitante_(idUsuarioOToken, idUsuarioFallback)
     : null;
+  if (!solicitante || !solicitante.idUsuario) return { encontrado: false, esResponsable: false };
 
-  if (!solicitante || !solicitante.usuario) {
-    // Fallback de seguridad
-    if (usuarioTienePermiso(idUsuarioOToken, 'Eliminar_Documentos', idUsuarioFallback)) return { autorizado: true };
-    return { autorizado: false, mensaje: 'No autorizado' };
-  }
+  const yo = obtenerUsuariosLite_().usuarios.filter(function (u) { return u.id === String(solicitante.idUsuario).trim(); })[0];
+  if (!yo) return { encontrado: false, esResponsable: false };
+  const nombreUsuario = String(yo.nombre || '').trim();
+  const emailUsuario = String(yo.email || '').trim().toLowerCase();
 
-  const nombreUsuario = solicitante.usuario.Nombre_Completo;
-  const emailUsuario = solicitante.usuario.Email;
-
-  // 3. Buscar Responsable
   const ss = SpreadsheetApp.openById(DRIVE_CONFIG.SPREADSHEET_ID);
   const hoja = ss.getSheetByName('Archivos');
-  if (!hoja) return { autorizado: false, mensaje: 'Error de BD' };
+  if (!hoja) return { encontrado: false, esResponsable: false };
 
   const datos = hoja.getDataRange().getValues();
   const colBusqueda = esDriveId ? datos[0].indexOf('DriveFileId') : datos[0].indexOf('ID_Archivo');
@@ -336,13 +333,44 @@ function validarPropiedadOAdmin_(idArchivoODriveId, idUsuarioOToken, esDriveId =
   for (let i = 1; i < datos.length; i++) {
     if (String(datos[i][colBusqueda]) === String(idArchivoODriveId)) {
       const resp = String(datos[i][colResp] || '').trim();
-      if (resp === nombreUsuario || resp === emailUsuario || resp === 'Sistema') {
-        return { autorizado: true };
-      }
-      return { autorizado: false, mensaje: 'Solo el creador (' + resp + ') o un Administrador puede hacer esto.' };
+      return { encontrado: true, esResponsable: !!resp && (resp === nombreUsuario || resp.toLowerCase() === emailUsuario), responsable: resp };
     }
   }
-  return { autorizado: false, mensaje: 'Archivo no encontrado.' };
+  return { encontrado: false, esResponsable: false };
+}
+
+/** Renombrar y demás gestión de un archivo: un administrador, un rol con permiso de eliminar documentos, o quien lo subió. */
+function validarPropiedadOAdmin_(idArchivoODriveId, idUsuarioOToken, esDriveId = false, idUsuarioFallback) {
+  // 1. Es admin?
+  const esAdmin = usuarioTienePermiso(idUsuarioOToken, 'Gestionar_Hoteles_Carpetas', idUsuarioFallback);
+  if (esAdmin) return { autorizado: true };
+
+  // Un rol con permiso explícito de eliminar documentos (roles personalizados de la hoja Roles) también puede
+  if (usuarioTienePermiso(idUsuarioOToken, 'Eliminar_Documentos', idUsuarioFallback)) return { autorizado: true };
+
+  const r = esResponsableDelArchivo_(idArchivoODriveId, idUsuarioOToken, esDriveId, idUsuarioFallback);
+  if (!r.encontrado) return { autorizado: false, mensaje: r.responsable === undefined && !r.esResponsable ? 'No autorizado' : 'Archivo no encontrado.' };
+  if (r.esResponsable) return { autorizado: true };
+  return { autorizado: false, mensaje: 'Solo el creador (' + r.responsable + ') o un Administrador puede hacer esto.' };
+}
+
+/**
+ * Cambiar (o consultar para cambiar) la PRIVACIDAD de un archivo: solo un Superadministrador (rol 3) o quien lo subió. Un administrador
+ * (rol 2) que no lo subió NO puede: la privacidad es decisión de quien sube el archivo o de la dirección del sistema.
+ */
+function validarPrivacidadDeArchivo_(idArchivo, idUsuarioOToken, idUsuarioFallback) {
+  const solicitante = typeof resolverUsuarioSolicitante_ === 'function'
+    ? resolverUsuarioSolicitante_(idUsuarioOToken, idUsuarioFallback)
+    : null;
+  if (!solicitante || !solicitante.idUsuario) return { autorizado: false, mensaje: 'No autorizado' };
+
+  const info = obtenerInfoRol_(obtenerRolDeUsuario_(solicitante.idUsuario));
+  const esSuperadmin = !!info && String(info.id) === '3';
+
+  const r = esResponsableDelArchivo_(idArchivo, idUsuarioOToken, false, idUsuarioFallback);
+  if (!r.encontrado) return { autorizado: false, mensaje: 'Archivo no encontrado.' }; // ni un Superadministrador escribe restricciones de un archivo que no existe
+  if (esSuperadmin || r.esResponsable) return { autorizado: true };
+  return { autorizado: false, mensaje: 'Solo un Superadministrador o quien subió el archivo (' + (r.responsable || 'sin responsable') + ') puede cambiar su privacidad.' };
 }
 
 function eliminarArchivo(driveFileId, idUsuarioOToken, idUsuarioFallback) {

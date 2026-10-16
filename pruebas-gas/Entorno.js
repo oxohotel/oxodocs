@@ -49,7 +49,8 @@ var ENCABEZADOS_PRUEBA_ = {
   Auditoria: ['ID_Auditoria', 'ID_Usuario', 'Email_Usuario', 'Tipo_Accion', 'Descripcion', 'Entidad_Afectada', 'Fecha_Hora', 'Estado'],
   Sesiones: ['ID_Sesion', 'ID_Usuario', 'Token', 'Fecha_Creacion', 'Fecha_Expiracion', 'Estado'],
   Actividad_Reciente: ['ID_Actividad', 'ID_Usuario', 'Tipo_Recurso', 'ID_Recurso', 'Tipo_Interaccion', 'Fecha_Hora'],
-  Favoritos: ['ID_Favorito', 'ID_Usuario', 'Tipo_Recurso', 'ID_Recurso', 'Fecha_Marcado']
+  Favoritos: ['ID_Favorito', 'ID_Usuario', 'Tipo_Recurso', 'ID_Recurso', 'Fecha_Marcado'],
+  Permisos_Archivos: ['ID_Permiso', 'ID_Archivo', 'ID_Usuario', 'Nombre_Usuario', 'Fecha_Restriccion', 'Razon']
 };
 
 var HASH_FICTICIO_ = 'hash-ficticio-no-sirve-para-iniciar-sesion';
@@ -101,6 +102,8 @@ function reiniciarEntornoDePruebas_() {
   Object.keys(ENCABEZADOS_PRUEBA_).forEach(function (nombre) {
     const hoja = hojaDePrueba_(nombre);
     vaciarHoja_(hoja);
+    // Si la pestaña ya existía sin encabezado (una corrida anterior que falló a medias), se deja con su encabezado: la primera fila de datos no puede confundirse con él
+    hoja.getRange(1, 1, 1, ENCABEZADOS_PRUEBA_[nombre].length).setValues([ENCABEZADOS_PRUEBA_[nombre]]);
     // Las columnas que el código agrega solas (Hoteles_Solicitados, Tamaño_Bytes...) se quitan del encabezado para volver al estado inicial
     const base = ENCABEZADOS_PRUEBA_[nombre].length;
     if (hoja.getMaxColumns() > base) hoja.getRange(1, base + 1, 1, hoja.getMaxColumns() - base).clearContent();

@@ -173,6 +173,52 @@ function registrarPruebasFlujos_() {
       }
     }, { soloReal: true });
 
+    prueba_('privacidad de un archivo ya publicado (real): quien lo subió y un administrador pueden cambiarla; otra persona, no', function () {
+      const carpetas = hojaDePrueba_('Carpetas'), archivos = hojaDePrueba_('Archivos'), permisos = hojaDePrueba_('Permisos_Archivos');
+      vaciarHoja_(carpetas); vaciarHoja_(archivos); vaciarHoja_(permisos);
+      permisos.getRange(1, 1, 1, 6).setValues([ENCABEZADOS_PRUEBA_.Permisos_Archivos]); // la pestaña pudo crearse sin encabezado en una corrida anterior
+      carpetas.getRange(2, 1, 1, 7).setValues([['C-P1', 'H1', '', 'IT Distrito', 'd1', new Date(), '']]);
+      archivos.getRange(2, 1, 2, 13).setValues([
+        ['ARC-P1', 'C-P1', 'drive-p1', 'a.pdf', 'pdf', 'PDF', 'Activo', 'Usuario Normal', 'application/pdf', 'u', new Date(), new Date(), new Date()],
+        ['ARC-P2', 'C-P1', 'drive-p2', 'b.pdf', 'pdf', 'PDF', 'Activo', 'Sistema', 'application/pdf', 'u', new Date(), new Date(), new Date()]]);
+      const filaNormal = filaDeUsuarioPrueba_('normal@pruebas.oxo').fila;
+      hojaDePrueba_('Usuarios').getRange(filaNormal, 5).setValue(1);
+      hojaDePrueba_('Usuarios').getRange(filaNormal, 6).setValue('Activo');
+      hojaDePrueba_('Usuarios').getRange(filaNormal, 8).setValue('H1');
+      const filaSin = filaDeUsuarioPrueba_('sinhoteles@pruebas.oxo').fila;
+      hojaDePrueba_('Usuarios').getRange(filaSin, 8).setValue('H1');
+      invalidarCacheUsuarios_(); invalidarCacheArchivos_(); nuevaEjecucion_();
+
+      const llamar = function (p) { nuevaEjecucion_(); return JSON.parse(doPost({ postData: { contents: JSON.stringify(p) } }).getContent()); };
+      const t5 = tokenDePrueba_(5), t6 = tokenDePrueba_(6), t2 = tokenDePrueba_(2);
+
+      afirmarIgual_(llamar({ action: 'obtenerPermisosDeArchivo', args: ['ARC-P1'], token: t5 }).data.restringidos.length, 0, 'sin restricciones al principio');
+      const guardar = llamar({ action: 'actualizarPermisosExistentes', args: ['ARC-P1', null, ['2', '6']], token: t5 });
+      afirmar_(guardar.success === true && guardar.data.success === true, 'quien lo subió (usuario normal) puede cambiar la privacidad de su archivo: ' + JSON.stringify(guardar).slice(0, 160));
+      afirmarIgual_(llamar({ action: 'obtenerPermisosDeArchivo', args: ['ARC-P1'], token: t5 }).data.restringidos.sort().join(), '2,6', 'queda guardado y se lee de vuelta');
+      afirmarIgual_(permisos.getDataRange().getValues().length - 1, 2, 'dos filas de restricción en la hoja');
+
+      const ajena = llamar({ action: 'obtenerPermisosDeArchivo', args: ['ARC-P1'], token: t6 });
+      afirmar_(ajena.data && ajena.data.success === false, 'otra persona que no lo subió ni es administradora no puede ni consultarlo: ' + JSON.stringify(ajena).slice(0, 140));
+      const intento = llamar({ action: 'actualizarPermisosExistentes', args: ['ARC-P1', null, []], token: t6 });
+      afirmar_(intento.data && intento.data.success === false, 'ni cambiarlo');
+      afirmarIgual_(llamar({ action: 'obtenerPermisosDeArchivo', args: ['ARC-P1'], token: t5 }).data.restringidos.length, 2, 'el intento ajeno no cambió nada');
+
+      const admin = llamar({ action: 'obtenerPermisosDeArchivo', args: ['ARC-P1'], token: t2 });
+      afirmar_(admin.data && admin.data.success === false, 'un administrador (rol 2) que no lo subió NO puede: la privacidad es de quien lo subió o de un Superadministrador');
+      const adminCambia = llamar({ action: 'actualizarPermisosExistentes', args: ['ARC-P1', null, []], token: t2 });
+      afirmar_(adminCambia.data && adminCambia.data.success === false, 'ni cambiarla');
+      const superadmin = llamar({ action: 'obtenerPermisosDeArchivo', args: ['ARC-P1'], token: tokenDePrueba_(1) });
+      afirmar_(superadmin.data.success === true && superadmin.data.restringidos.length === 2, 'un Superadministrador sí');
+      const sistema = llamar({ action: 'obtenerPermisosDeArchivo', args: ['ARC-P2'], token: t5 });
+      afirmar_(sistema.data && sistema.data.success === false, '"Sistema" no es comodín: un usuario normal no gestiona un archivo sin responsable real');
+      afirmar_(llamar({ action: 'obtenerPermisosDeArchivo', args: ['ARC-P2'], token: tokenDePrueba_(1) }).data.success === true, 'un Superadministrador sí gestiona un archivo sin responsable real');
+
+      const quitar = llamar({ action: 'actualizarPermisosExistentes', args: ['ARC-P1', null, []], token: t5 });
+      afirmar_(quitar.data.success === true, 'volver a "Todos" levanta las restricciones');
+      afirmarIgual_(permisos.getDataRange().getValues().length - 1, 0, 'no quedan filas de restricción');
+    }, { soloReal: true });
+
     prueba_('doPost real: sin sesión no se ejecuta nada, la identidad la pone el servidor y una cuenta desactivada pierde el acceso', function () {
       const llamar = function (p) { return JSON.parse(doPost({ postData: { contents: JSON.stringify(p) } }).getContent()); };
       const token = tokenDePrueba_(5); // usuario normal

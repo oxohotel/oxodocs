@@ -25,6 +25,7 @@ const OBJETIVOS_DE_ACCESO_ = {
   guardarArchivosMultiplesDesdeDrive: { tipo: 'carpeta', posicion: 0 },
   renombrarArchivo: { tipo: 'archivo', posicion: 0 },
   actualizarPermisosExistentes: { tipo: 'archivo', posicion: 0 },
+  obtenerPermisosDeArchivo: { tipo: 'archivo', posicion: 0 },
   eliminarArchivo: { tipo: 'archivoDrive', posicion: 0 }
 };
 

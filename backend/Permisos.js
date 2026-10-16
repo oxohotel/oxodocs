@@ -259,14 +259,30 @@ function obtenerPermisosCompletos(idArchivo) {
  * @param {string} idUsuarioOToken - Token o ID del usuario actual
  * @param {array} idsRestringidosFinal - Array final de IDs a bloquear
  */
-function actualizarPermisosExistentes(idArchivo, idUsuarioOToken, idsRestringidosFinal) {
-  if (typeof validarPropiedadOAdmin_ === 'function') {
-    const auth = validarPropiedadOAdmin_(idArchivo, idUsuarioOToken, false);
-    if (!auth.autorizado) {
-      return { success: false, message: auth.mensaje };
-    }
+/**
+ * Personas que HOY no pueden ver un archivo (las restringidas), para que quien lo gestiona pueda revisar y cambiar su privacidad
+ * después de publicado. Solo un Superadministrador o quien lo subió; y solo de archivos de propiedades a las que tiene acceso (despachador).
+ */
+function obtenerPermisosDeArchivo(idArchivo, idUsuarioOToken) {
+  const auth = validarPrivacidadDeArchivo_(idArchivo, idUsuarioOToken);
+  if (!auth.autorizado) return { success: false, message: auth.mensaje || 'No autorizado' };
+  try {
+    const tabla = tablaDePermisosDeArchivosConCache_(obtenerSpreadsheet_());
+    const restringidos = tabla.existe
+      ? tabla.filas.filter(function (f) { return String(f[1]) === String(idArchivo); }).map(function (f) { return String(f[2]); })
+      : [];
+    return { success: true, restringidos: restringidos };
+  } catch (error) {
+    Logger.log('Error en obtenerPermisosDeArchivo: ' + error);
+    return { success: false, message: 'No se pudo leer la privacidad del archivo' };
   }
+}
 
-  // Si pasa la validación (o si validarPropiedadOAdmin_ no está disponible), guardar
+function actualizarPermisosExistentes(idArchivo, idUsuarioOToken, idsRestringidosFinal) {
+  // La privacidad la cambia solo un Superadministrador o quien subió el archivo
+  const auth = validarPrivacidadDeArchivo_(idArchivo, idUsuarioOToken);
+  if (!auth.autorizado) {
+    return { success: false, message: auth.mensaje };
+  }
   return guardarPermisosArchivo(idArchivo, idsRestringidosFinal);
 }

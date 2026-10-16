@@ -85,7 +85,7 @@
 
             return async function() {
               var args = Array.prototype.slice.call(arguments);
-              var intentosMax = esLecturaReintentable_(prop) ? 2 : 1;
+              var intentosMax = esLecturaReintentable_(prop) ? 3 : 1; // Google devuelve a veces un 404/error de CORS pasajero: las lecturas se reintentan
               var esEscritura = cuentaComoEscritura_(prop);
               if (esEscritura) escriturasEnCurso_++;
               // Se libera ANTES de llamar los callbacks: así un callback que cierra su panel al terminar no es rechazado.
@@ -8452,8 +8452,9 @@ input[type="password"]::-webkit-contacts-auto-fill-button {
       '</button>';
     }
 
-    // Botón de Privacidad (candado)
-    if (autorizado) {
+    // Botón de Privacidad (candado): solo un Superadministrador (rol 3) o quien subió el archivo; un administrador (rol 2) que no lo subió, no
+    // (el servidor lo vuelve a comprobar)
+    if (sesionPuede('Gestionar_Roles') || esPropietario) {
       html += '<button type="button" class="btn-gestion-carpeta" data-accion="privacidad-archivo" data-id-archivo="' + archivo.id + '" title="Privacidad">' +
         '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>' +
       '</button>';
@@ -12144,6 +12145,9 @@ let estadoPermisos_ = {
  */
 function abrirSelectorPermisosArchivo() {
   showNotification('Cargando lista de usuarios y grupos...', 'info', 2000);
+  estadoPermisos_.modoEdicion = false; // es el de la SUBIDA: no puede quedar pegado al de un archivo ya publicado
+  estadoPermisos_.archivoEdicion = null;
+  estadoPermisos_.nombreArchivoEdicion = '';
 
   const idUsuarioActual = getCurrentUserSession()?.ID_Usuario;
 
@@ -12194,6 +12198,65 @@ function abrirSelectorPermisosArchivo() {
     }
   }).catch(err => {
     console.error('Error cargando datos de permisos:', err);
+    showNotification('Error de conexión', 'error', 3000);
+  });
+}
+
+/**
+ * Abre la privacidad de un archivo YA publicado (botón del candado en la tarjeta del archivo): carga a quién se le oculta hoy, lo
+ * muestra con las mismas opciones de la subida y guarda con "Aplicar". Quien puede: un administrador o quien subió el archivo.
+ */
+function abrirSelectorPermisosExistente(archivo) {
+  showNotification('Cargando la privacidad del archivo...', 'info', 1800);
+
+  const sesion = getCurrentUserSession();
+  const idUsuarioActual = String((sesion && (sesion.ID_Usuario || sesion.idUsuario)) || '');
+  const llamar = function (nombre, ...args) {
+    return new Promise((resolve, reject) => {
+      google.script.run.withSuccessHandler(resolve).withFailureHandler(reject)[nombre](...args);
+    });
+  };
+
+  Promise.all([
+    llamar('obtenerListaUsuariosParaPermisos'),
+    llamar('obtenerGruposUsuario', idUsuarioActual),
+    llamar('obtenerPermisosDeArchivo', archivo.id)
+  ]).then(([resUsuarios, resGrupos, resPermisos]) => {
+    if (!resPermisos || !resPermisos.success) {
+      showNotification((resPermisos && resPermisos.message) || 'No se pudo leer la privacidad del archivo', 'error', 3500);
+      return;
+    }
+    if (!resUsuarios || !resUsuarios.success || !resUsuarios.usuarios) {
+      showNotification('Error al cargar usuarios', 'error', 3000);
+      return;
+    }
+
+    estadoPermisos_.usuariosDisponibles = resUsuarios.usuarios;
+    estadoPermisos_.misGrupos = (resGrupos && resGrupos.success && resGrupos.grupos) ? resGrupos.grupos : [];
+    estadoPermisos_.grupoSeleccionado = null;
+
+    // Se reconstruye la opción a partir de a quién se le oculta hoy: nadie → "Todos"; todos los demás → "Solo yo"; si no, "Todos, excepto…"
+    const restringidos = (resPermisos.restringidos || []).map(String);
+    const otros = estadoPermisos_.usuariosDisponibles.map(u => String(u.id)).filter(id => id !== idUsuarioActual);
+    const restringidosSet = new Set(restringidos);
+    if (!restringidos.length) {
+      estadoPermisos_.opcionSeleccionada = 'todos';
+      estadoPermisos_.usuariosExcluidos = [];
+    } else if (otros.length && otros.every(id => restringidosSet.has(id))) {
+      estadoPermisos_.opcionSeleccionada = 'nadie';
+      estadoPermisos_.usuariosExcluidos = [];
+    } else {
+      estadoPermisos_.opcionSeleccionada = 'excepto';
+      estadoPermisos_.usuariosExcluidos = restringidos;
+    }
+
+    estadoPermisos_.modoEdicion = true;
+    estadoPermisos_.archivoEdicion = archivo.id;
+    estadoPermisos_.nombreArchivoEdicion = archivo.nombre || '';
+    estadoPermisos_.vistaActual = 'principal';
+    renderizarModalPermisos_();
+  }).catch(err => {
+    console.error('Error cargando la privacidad del archivo:', err);
     showNotification('Error de conexión', 'error', 3000);
   });
 }
@@ -12260,7 +12323,7 @@ function generarVistaPrincipal_() {
     </div>
     
     <div style="padding:24px;flex:1;overflow-y:auto;">
-      <p style="color:#5f6368;font-size:14px;margin:0 0 20px 0;">¿Quién puede ver este archivo?</p>
+      <p style="color:#5f6368;font-size:14px;margin:0 0 20px 0;">¿Quién puede ver este archivo?${estadoPermisos_.modoEdicion && estadoPermisos_.nombreArchivoEdicion ? '<br><strong style="color:#202124;">' + escaparHtml(estadoPermisos_.nombreArchivoEdicion) + '</strong>' : ''}</p>
 
       <!-- Opcion: Todos -->
       <label class="opcion-privacidad ${o === 'todos' ? 'activa' : ''}" style="display:flex;align-items:center;padding:16px;border:2px solid ${o === 'todos' ? '#C1952B' : '#e0e0e0'};border-radius:12px;margin-bottom:12px;cursor:pointer;transition:all 0.2s;">
@@ -12799,6 +12862,7 @@ function cerrarModalPermisos_() {
   if (typeof escrituraEnCursoBloquea_ === 'function' && escrituraEnCursoBloquea_()) return;
   estadoPermisos_.modoEdicion = false;
   estadoPermisos_.archivoEdicion = null;
+  estadoPermisos_.nombreArchivoEdicion = '';
   const overlay = document.getElementById('overlayPermisosArchivo');
   if (overlay) overlay.remove();
 }

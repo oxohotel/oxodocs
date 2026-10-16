@@ -136,7 +136,7 @@ function generateApiBridgeScript() {
 
             return async function() {
               var args = Array.prototype.slice.call(arguments);
-              var intentosMax = esLecturaReintentable_(prop) ? 2 : 1;
+              var intentosMax = esLecturaReintentable_(prop) ? 3 : 1; // Google devuelve a veces un 404/error de CORS pasajero: las lecturas se reintentan
               var esEscritura = cuentaComoEscritura_(prop);
               if (esEscritura) escriturasEnCurso_++;
               // Se libera ANTES de llamar los callbacks: así un callback que cierra su panel al terminar no es rechazado.

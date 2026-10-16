@@ -64,6 +64,14 @@ async function probarConRol(browser, server, rol) {
       eliminarSub: subs.filter(a => a.querySelector('[data-accion="eliminar"]')).length };
   });
   ok(dentro.archivos + dentro.subs > 0, 'la carpeta abierta muestra contenido (' + dentro.archivos + ' archivos, ' + dentro.subs + ' subcarpetas)');
+  const candados = await page.evaluate(() => {
+    const ses = getCurrentUserSession() || {};
+    const archivos = (estadoArchivosCarpeta.archivos || []);
+    const dueno = a => { const r = String(a.responsable || '').trim(); return !!r && (r === ses.Nombre_Completo || r === ses.Email); };
+    return { con: document.querySelectorAll('[data-accion="privacidad-archivo"]').length, esperados: rolSesion(ses) === 3 ? archivos.length : archivos.filter(dueno).length };
+    function rolSesion(s) { return Number(s.ID_Rol || s.Rol_ID || 0); }
+  });
+  ok(candados.con === candados.esperados, 'candado de privacidad: solo un Superadministrador (rol 3) o quien subió el archivo (' + candados.con + ' de ' + dentro.archivos + ' archivos; esperados ' + candados.esperados + ')');
   ok(dentro.eliminarArchivo === (esAdmin ? dentro.archivos : 0), 'eliminar archivo: ' + (esAdmin ? 'en todos' : 'en ninguno') + ' (' + dentro.eliminarArchivo + ' de ' + dentro.archivos + ')');
   ok(dentro.eliminarSub === (esAdmin ? dentro.subs : 0), 'eliminar subcarpeta: ' + (esAdmin ? 'en todas' : 'en ninguna') + ' (' + dentro.eliminarSub + ' de ' + dentro.subs + ')');
 
