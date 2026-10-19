@@ -1,0 +1,113 @@
+<script>
+  // ==================== Avisos (campana) ====================
+  // Comunicados que escriben los superadministradores. El contador y las últimas notificaciones viajan con la carga del inicio
+  // (obtenerDatosInicio); al abrir la campana, si lo que hay tiene más de 2 minutos, se vuelve a pedir. Al abrirla se marcan como vistos.
+  var estadoAvisos_ = { avisos: [], noLeidos: 0, cargadoEn: 0, cargando: false, marcando: false };
+
+  function aplicarAvisos_(datos) {
+    if (!datos || datos.success !== true || !Array.isArray(datos.avisos)) return;
+    estadoAvisos_.avisos = datos.avisos;
+    estadoAvisos_.noLeidos = Number(datos.noLeidos) || 0;
+    estadoAvisos_.cargadoEn = Date.now();
+    renderizarAvisos_();
+  }
+
+  function cargarAvisos_() {
+    if (estadoAvisos_.cargando) return;
+    const token = typeof getCurrentUserToken === "function" ? getCurrentUserToken() : null;
+    if (!token || !window.google || !google.script || !google.script.run) return;
+    estadoAvisos_.cargando = true;
+    google.script.run
+      .withSuccessHandler(function (r) { estadoAvisos_.cargando = false; aplicarAvisos_(r); })
+      .withFailureHandler(function () { estadoAvisos_.cargando = false; })
+      .obtenerAvisos(token);
+  }
+
+  /** Texto corto de "hace cuánto" (sin librerías). */
+  function tiempoRelativoAviso_(iso) {
+    const seg = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 1000));
+    if (seg < 60) return "Ahora mismo";
+    const min = Math.round(seg / 60);
+    if (min < 60) return "Hace " + min + (min === 1 ? " minuto" : " minutos");
+    const h = Math.round(min / 60);
+    if (h < 24) return "Hace " + h + (h === 1 ? " hora" : " horas");
+    const d = Math.round(h / 24);
+    if (d === 1) return "Ayer";
+    if (d < 7) return "Hace " + d + " días";
+    return new Date(iso).toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric" });
+  }
+
+  function iconoDeEnlaceAviso_(tipo) {
+    if (tipo === "url") return '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>';
+    if (tipo === "archivo") return '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>';
+    return '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>';
+  }
+
+  function renderizarAvisos_() {
+    const punto = document.querySelector("#btnNotificaciones .icon-btn-dot");
+    if (punto) punto.style.display = estadoAvisos_.noLeidos > 0 ? "" : "none";
+    const lista = document.getElementById("notifLista");
+    if (!lista) return;
+
+    if (!estadoAvisos_.avisos.length) {
+      lista.innerHTML = '<p class="dropdown-empty-hint">No tienes avisos por ahora.</p>';
+      return;
+    }
+    lista.innerHTML = estadoAvisos_.avisos.map(function (a, i) {
+      const enlaces = (a.enlaces || []).map(function (e, j) {
+        return '<button type="button" class="aviso-enlace" data-aviso="' + i + '" data-enlace="' + j + '">' + iconoDeEnlaceAviso_(e.tipo) + "<span>" + escaparHtml(e.texto) + "</span></button>";
+      }).join("");
+      return '<div class="notif-item aviso' + (a.nuevo ? " aviso-nuevo" : "") + '">' +
+        '<div class="aviso-titulo">' + (a.nuevo ? '<span class="aviso-marca" aria-label="Nuevo"></span>' : "") + escaparHtml(a.titulo) + "</div>" +
+        '<div class="aviso-mensaje">' + escaparHtml(a.mensaje) + "</div>" +
+        (enlaces ? '<div class="aviso-enlaces">' + enlaces + "</div>" : "") +
+        '<span class="notif-time">' + tiempoRelativoAviso_(a.fecha) + "</span></div>";
+    }).join("");
+
+    lista.querySelectorAll(".aviso-enlace").forEach(function (btn) {
+      btn.addEventListener("click", function (e) {
+        e.stopPropagation();
+        const aviso = estadoAvisos_.avisos[Number(btn.dataset.aviso)];
+        const enlace = aviso && aviso.enlaces[Number(btn.dataset.enlace)];
+        if (enlace) abrirEnlaceDeAviso_(enlace);
+      });
+    });
+  }
+
+  /** Enlaces externos (solo https) en otra pestaña; internos hacia la propiedad, carpeta o archivo. El servidor vuelve a comprobar el acceso. */
+  function abrirEnlaceDeAviso_(enlace) {
+    if (enlace.tipo === "url") {
+      if (/^https:\/\/[^\s<>"']+$/i.test(String(enlace.url || ""))) window.open(enlace.url, "_blank", "noopener,noreferrer");
+      return;
+    }
+    cerrarTodosLosDropdowns();
+    if (typeof mostrarVistaCarpetasHotel !== "function") return;
+    if (enlace.tipo === "hotel") mostrarVistaCarpetasHotel(enlace.idHotel, enlace.nombre || "");
+    else if (enlace.tipo === "carpeta") mostrarVistaCarpetasHotel(enlace.idHotel, enlace.nombreHotel || "", enlace.id);
+    else if (enlace.tipo === "archivo") mostrarVistaCarpetasHotel(enlace.idHotel, enlace.nombreHotel || "", enlace.idCarpeta, enlace.id);
+  }
+
+  /** Al abrir la campana: refresca si hace falta y, pasado un instante, marca todo como visto (el punto desaparece). */
+  function alAbrirCampana_() {
+    if (typeof mostrarBotonesAdminAvisos_ === "function") mostrarBotonesAdminAvisos_(); // "Nuevo" y "Gestionar": solo Superadministradores
+    if (Date.now() - estadoAvisos_.cargadoEn > 120000) cargarAvisos_();
+    renderizarAvisos_();
+    if (estadoAvisos_.noLeidos > 0 && !estadoAvisos_.marcando) {
+      estadoAvisos_.marcando = true;
+      setTimeout(function () {
+        const token = typeof getCurrentUserToken === "function" ? getCurrentUserToken() : null;
+        const punto = document.querySelector("#btnNotificaciones .icon-btn-dot");
+        if (punto) punto.style.display = "none";
+        estadoAvisos_.noLeidos = 0; // los ítems conservan su marca de "nuevo" mientras la lista esté a la vista
+        if (token) {
+          google.script.run
+            .withSuccessHandler(function () { estadoAvisos_.marcando = false; })
+            .withFailureHandler(function () { estadoAvisos_.marcando = false; estadoAvisos_.noLeidos = estadoAvisos_.avisos.filter(function (a) { return a.nuevo; }).length; renderizarAvisos_(); })
+            .marcarAvisosVistos(token);
+        } else {
+          estadoAvisos_.marcando = false;
+        }
+      }, 1200);
+    }
+  }
+</script>

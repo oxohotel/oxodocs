@@ -17,20 +17,18 @@
 
     <div class="navbar-dropdown-wrapper">
       <button type="button" class="icon-btn" id="btnNotificaciones" aria-label="Notificaciones">
-        <span class="icon-btn-dot"></span>
+        <span class="icon-btn-dot" style="display:none"></span>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 10-12 0c0 3-1 5-2 6h16c-1-1-2-3-2-6z"/><path d="M10 21a2 2 0 004 0"/></svg>
       </button>
       <div class="navbar-dropdown" id="notifDropdown">
-        <p class="dropdown-title">Notificaciones</p>
-        <div class="notif-item">
-          Políticas Corporativas 2026 pasó a "En revisión"
-          <span class="notif-time">Hace 2 horas</span>
+        <div class="dropdown-titulo-fila">
+          <p class="dropdown-title">Notificaciones</p>
+          <div class="avisos-admin-botones" id="avisosAdminBotones" style="display:none">
+            <button type="button" class="aviso-btn aviso-btn-primario" id="btnAvisoNuevo">Nuevo</button>
+            <button type="button" class="aviso-btn" id="btnAvisoGestionar">Gestionar</button>
+          </div>
         </div>
-        <div class="notif-item">
-          Informe Trimestral de Gestión Q2 fue aprobado
-          <span class="notif-time">Ayer</span>
-        </div>
-        <p class="dropdown-empty-hint">Próximamente verás aquí tus alertas reales.</p>
+        <div id="notifLista"><p class="dropdown-empty-hint">No tienes avisos por ahora.</p></div>
       </div>
     </div>
 

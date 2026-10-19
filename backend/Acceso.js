@@ -31,6 +31,16 @@ const OBJETIVOS_DE_ACCESO_ = {
 
 const MENSAJE_SIN_ACCESO_PROPIEDAD_ = 'No tienes acceso a esa propiedad';
 
+/** { todos: boolean, hoteles: Set de ids } de las propiedades a las que llega una persona, a partir de su fila de obtenerUsuariosLite_. */
+function alcanceDeFilaLite_(fila, hayHoteles) {
+  const infoRol = obtenerInfoRol_(fila.rol);
+  if (infoRol && String(infoRol.id) === '3') return { todos: true, hoteles: new Set() };
+  if (!hayHoteles) return { todos: true, hoteles: new Set() };
+  const valor = String(fila.hoteles || '').trim();
+  if (valor === '*' || valor.toUpperCase() === 'TODOS') return { todos: true, hoteles: new Set() };
+  return { todos: false, hoteles: new Set(valor.split(',').map(function (s) { return s.trim(); }).filter(Boolean)) };
+}
+
 /** { todos: boolean, hoteles: Set de ids } de las propiedades a las que llega una persona. */
 function alcanceDeHoteles_(idUsuario) {
   const id = String(idUsuario == null ? '' : idUsuario).trim();
@@ -44,10 +54,7 @@ function alcanceDeHoteles_(idUsuario) {
   if (!lite.hayHoteles) return { todos: true, hoteles: new Set() };
   const yo = lite.usuarios.filter(function (u) { return u.id === id; })[0];
   if (!yo) return ninguno;
-
-  const valor = String(yo.hoteles || '').trim();
-  if (valor === '*' || valor.toUpperCase() === 'TODOS') return { todos: true, hoteles: new Set() };
-  return { todos: false, hoteles: new Set(valor.split(',').map(function (s) { return s.trim(); }).filter(Boolean)) };
+  return alcanceDeFilaLite_(yo, true);
 }
 
 function alcancePermiteHotel_(alcance, idHotel) {

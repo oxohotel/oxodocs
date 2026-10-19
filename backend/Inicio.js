@@ -43,7 +43,9 @@ function obtenerDatosInicio(token, idUsuario, forzar) {
     actividad: intentar_(function () { return obtenerActividadReciente(idUsuario, 4); }, 'actividad'),
     favoritos: intentar_(function () { return obtenerFavoritosDetallados(idUsuario); }, 'favoritos'),
     // Solicitudes de acceso que esta persona puede resolver (null si no gestiona usuarios): insignia en "Usuarios"
-    pendientes: intentar_(function () { return contarPendientesAprobacion_(token, idUsuario); }, 'pendientes')
+    pendientes: intentar_(function () { return contarPendientesAprobacion_(token, idUsuario); }, 'pendientes'),
+    // Avisos de la campana: lo que le corresponde a esta persona y cuántos no ha visto
+    avisos: intentar_(function () { return obtenerAvisos(idUsuario); }, 'avisos')
   };
 
   if (forzar === true) resultado.refrescoForzado = refrescoForzado; // false = se omitió (límite por minuto o sesión no válida)

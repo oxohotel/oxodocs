@@ -29,8 +29,8 @@ const sandbox = {
   obtenerUsuarioPorToken: t => (t === 'tokU' ? { idUsuario: '3', rol: 1, idRol: 1 } : null)
 };
 vm.createContext(sandbox);
-['Drive.js', 'Inicio.js', 'Cache.js', 'CacheArchivos.js', 'Metricas.js', 'Acceso.js', 'Roles.js', 'AlcanceAdmin.js', 'Registro.js', 'Solicitudes.js', 'Hoteles.js', 'Actividad.js', 'Favoritos.js', 'Recursos.js'].forEach(f => vm.runInContext(fs.readFileSync(REPO + f, 'utf8'), sandbox, { filename: f }));
-vm.runInContext('this.F={obtenerDatosInicio,obtenerModulosConHoteles,obtenerIdsFavoritosUsuario,obtenerActividadReciente,obtenerFavoritosDetallados,contarPendientesAprobacion_}', sandbox);
+['Drive.js', 'Inicio.js', 'Cache.js', 'CacheArchivos.js', 'Metricas.js', 'Avisos.js', 'Acceso.js', 'Roles.js', 'AlcanceAdmin.js', 'Registro.js', 'Solicitudes.js', 'Hoteles.js', 'Actividad.js', 'Favoritos.js', 'Recursos.js'].forEach(f => vm.runInContext(fs.readFileSync(REPO + f, 'utf8'), sandbox, { filename: f }));
+vm.runInContext('this.F={obtenerDatosInicio,obtenerModulosConHoteles,obtenerIdsFavoritosUsuario,obtenerActividadReciente,obtenerFavoritosDetallados,contarPendientesAprobacion_,obtenerAvisos}', sandbox);
 const F = sandbox.F;
 let fallos = 0; const ok = (c, m) => { console.log((c ? 'OK   ' : 'FALLA') + ' ' + m); if (!c) fallos++; };
 const J = x => JSON.stringify(x);
@@ -38,7 +38,7 @@ const J = x => JSON.stringify(x);
 for (const [token, id, etiqueta] of [['tokU', '3', 'usuario con TODOS'], [null, '2', 'admin con H1'], [null, '1', 'superadmin']]) {
   const nuevaEjecucion = () => vm.runInContext('_spreadsheetEjecucion_=null;_cacheIndiceHojas_={}', sandbox);
   nuevaEjecucion(); aperturas = 0;
-  const suelto = { modulos: F.obtenerModulosConHoteles(token, id), idsFavoritos: F.obtenerIdsFavoritosUsuario(id), actividad: F.obtenerActividadReciente(id, 4), favoritos: F.obtenerFavoritosDetallados(id), pendientes: F.contarPendientesAprobacion_(token || id, id) };
+  const suelto = { modulos: F.obtenerModulosConHoteles(token, id), idsFavoritos: F.obtenerIdsFavoritosUsuario(id), actividad: F.obtenerActividadReciente(id, 4), favoritos: F.obtenerFavoritosDetallados(id), pendientes: F.contarPendientesAprobacion_(token || id, id), avisos: F.obtenerAvisos(id) };
   const aperturasSueltas = aperturas; nuevaEjecucion(); aperturas = 0;
   const unido = F.obtenerDatosInicio(token, id);
   ok(J(unido) === J(suelto), etiqueta + ': obtenerDatosInicio devuelve exactamente lo mismo que las 4 funciones sueltas');

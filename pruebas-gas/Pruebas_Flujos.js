@@ -219,6 +219,100 @@ function registrarPruebasFlujos_() {
       afirmarIgual_(permisos.getDataRange().getValues().length - 1, 0, 'no quedan filas de restricción');
     }, { soloReal: true });
 
+    prueba_('avisos de la campana (real): audiencias, programación, vistos y caché con hojas y caché reales', function () {
+      const avisos = hojaDePrueba_('Avisos'), vistos = hojaDePrueba_('Avisos_Vistos');
+      [avisos, vistos].forEach(vaciarHoja_);
+      [avisos, vistos].forEach(function (h, i) { const enc = ENCABEZADOS_PRUEBA_[i === 0 ? 'Avisos' : 'Avisos_Vistos']; h.getRange(1, 1, 1, enc.length).setValues([enc]); });
+      const filaNormal = filaDeUsuarioPrueba_('normal@pruebas.oxo').fila;
+      hojaDePrueba_('Usuarios').getRange(filaNormal, 5).setValue(1);
+      hojaDePrueba_('Usuarios').getRange(filaNormal, 6).setValue('Activo');
+      hojaDePrueba_('Usuarios').getRange(filaNormal, 8).setValue('H1');
+      invalidarCacheUsuarios_(); invalidarCacheArchivos_(); nuevaEjecucion_();
+
+      const ahora = Date.now(), HORA = 3600000;
+      const crear = function (extra) {
+        nuevaEjecucion_();
+        const v = validarDatosDeAviso_(Object.assign({ titulo: 'T', mensaje: 'M', audiencia: { tipo: 'todos' } }, extra), Date.now());
+        afirmar_(!v.error, 'datos de prueba válidos: ' + v.error);
+        return guardarAviso_(v.aviso, { id: '1', nombre: 'Superadmin Prueba' });
+      };
+      const de = function (id) { nuevaEjecucion_(); return obtenerAvisos(String(id)); };
+      const titulos = function (r) { return r.avisos.map(function (a) { return a.titulo; }).sort().join('|'); };
+
+      crear({ titulo: 'Para todos' });
+      crear({ titulo: 'Solo roles 2 y 3', audiencia: { tipo: 'roles', roles: [2, 3] } });
+      crear({ titulo: 'Solo H2', audiencia: { tipo: 'propiedades', propiedades: ['H2'] } });
+      crear({ titulo: 'Solo la 5', audiencia: { tipo: 'personas', personas: ['5'] } });
+      crear({ titulo: 'Futuro', programadoPara: new Date(ahora + 2 * HORA).toISOString() });
+      crear({ titulo: 'Caduca mañana', caducaEn: new Date(ahora + 24 * HORA).toISOString() });
+      crear({ titulo: 'Ya caducó', programadoPara: new Date(ahora - 3 * HORA).toISOString(), caducaEn: new Date(ahora - 2 * HORA).toISOString() });
+
+      afirmarIgual_(titulos(de(5)), 'Caduca mañana|Para todos|Solo la 5', 'persona 5 (Distrito): lo de todos, lo suyo y lo que caduca mañana; no lo futuro ni lo caducado');
+      afirmarIgual_(titulos(de(5)), 'Caduca mañana|Para todos|Solo la 5', 'y lo mismo en una segunda lectura, ya desde el caché real (las fechas ausentes no se vuelven 0)');
+      afirmarIgual_(titulos(de(6)), 'Caduca mañana|Para todos', 'persona sin propiedades');
+      afirmarIgual_(titulos(de(3)), 'Caduca mañana|Para todos|Solo H2|Solo roles 2 y 3', 'administrador de 84DC: roles 2/3 y su propiedad');
+      afirmarIgual_(titulos(de(1)), 'Caduca mañana|Para todos|Solo H2|Solo roles 2 y 3', 'superadministrador: todas las propiedades, no lo dirigido a la persona 5');
+
+      afirmarIgual_(de(5).noLeidos, 3, 'tres no leídos');
+      nuevaEjecucion_(); afirmarIgual_(marcarAvisosVistos('5').success, true, 'marcar como vistos');
+      afirmarIgual_(de(5).noLeidos, 0, 'ya no hay no leídos');
+      afirmarIgual_(de(6).noLeidos, 2, 'para otra persona siguen siendo no leídos');
+      CacheService.getScriptCache().remove('oxo:avv:5');
+      afirmarIgual_(de(5).noLeidos, 0, 'lo visto se recuerda desde la hoja aunque se pierda el caché');
+      nuevaEjecucion_(); marcarAvisosVistos('5'); nuevaEjecucion_(); marcarAvisosVistos('5');
+      afirmarIgual_(vistos.getDataRange().getValues().filter(function (f) { return String(f[0]) === '5'; }).length, 1, 'una sola fila por persona');
+
+      // Por la vía web real
+      const llamar = function (p) { nuevaEjecucion_(); return JSON.parse(doPost({ postData: { contents: JSON.stringify(p) } }).getContent()); };
+      const web = llamar({ action: 'obtenerAvisos', args: ['1'], token: tokenDePrueba_(5) });
+      afirmar_(web.success === true && web.data.avisos.length === 3, 'doPost con el token de la persona 5 trae sus 3 avisos aunque el navegador pida el id del superadministrador: ' + JSON.stringify(web).slice(0, 120));
+      afirmarIgual_(llamar({ action: 'obtenerAvisos', args: ['5'] }).codigo, 'SESION_INVALIDA', 'sin sesión se rechaza');
+    }, { soloReal: true });
+
+    prueba_('gestión de avisos (real): solo el superadministrador crea, edita y cancela; la lista cuenta destinatarios y vistos', function () {
+      const avisos = hojaDePrueba_('Avisos'), vistos = hojaDePrueba_('Avisos_Vistos');
+      [avisos, vistos].forEach(vaciarHoja_);
+      [avisos, vistos].forEach(function (h, i) { const enc = ENCABEZADOS_PRUEBA_[i === 0 ? 'Avisos' : 'Avisos_Vistos']; h.getRange(1, 1, 1, enc.length).setValues([enc]); });
+      const filaNormal = filaDeUsuarioPrueba_('normal@pruebas.oxo').fila;
+      hojaDePrueba_('Usuarios').getRange(filaNormal, 5).setValue(1);
+      hojaDePrueba_('Usuarios').getRange(filaNormal, 6).setValue('Activo');
+      hojaDePrueba_('Usuarios').getRange(filaNormal, 8).setValue('H1');
+      invalidarCacheUsuarios_(); invalidarCacheArchivos_(); nuevaEjecucion_();
+      const llamar = function (p) { nuevaEjecucion_(); return JSON.parse(doPost({ postData: { contents: JSON.stringify(p) } }).getContent()); };
+      const t1 = tokenDePrueba_(1), t2 = tokenDePrueba_(2), t5 = tokenDePrueba_(5);
+      const datos = { titulo: 'Comunicado real', mensaje: 'Texto', enlaces: [{ texto: 'Sitio', tipo: 'url', url: 'https://example.com' }], audiencia: { tipo: 'todos' } };
+
+      afirmar_(llamar({ action: 'crearAviso', args: [datos], token: t2 }).data.success === false, 'un administrador (rol 2) no puede crear avisos');
+      afirmar_(llamar({ action: 'crearAviso', args: [datos], token: t5 }).data.success === false, 'ni un usuario normal');
+      afirmarIgual_(avisos.getLastRow(), 1, 'los intentos no autorizados no escribieron nada');
+
+      const creado = llamar({ action: 'crearAviso', args: [datos], token: t1 });
+      afirmar_(creado.data.success === true && creado.data.message === 'Aviso enviado', 'el superadministrador crea y envía: ' + JSON.stringify(creado.data));
+      const prog = llamar({ action: 'crearAviso', args: [Object.assign({}, datos, { titulo: 'Programado real', programadoPara: new Date(Date.now() + 3600000).toISOString(), audiencia: { tipo: 'personas', personas: ['5'] } })], token: t1 });
+      afirmar_(prog.data.success === true && prog.data.message === 'Aviso programado', 'uno programado para dentro de una hora');
+      afirmarIgual_(llamar({ action: 'obtenerAvisos', args: [], token: t5 }).data.avisos.map(function (x) { return x.titulo; }).join(), 'Comunicado real', 'la persona 5 solo ve el ya enviado');
+
+      llamar({ action: 'marcarAvisosVistos', args: [], token: t5 });
+      const gestion = llamar({ action: 'obtenerAvisosGestion', args: [], token: t1 });
+      afirmar_(gestion.data.success === true && gestion.data.avisos.length === 2, 'la lista de gestión trae los 2 avisos');
+      const real = gestion.data.avisos.filter(function (x) { return x.titulo === 'Comunicado real'; })[0];
+      const progr = gestion.data.avisos.filter(function (x) { return x.titulo === 'Programado real'; })[0];
+      afirmarIgual_(real.estado, 'Enviado', 'estado enviado');
+      afirmarIgual_(progr.estado, 'Programado', 'estado programado');
+      afirmar_(real.destinatarios >= 6 && real.vistos === 1, 'a cuántas personas llegó (' + real.destinatarios + ') y cuántas lo vieron (' + real.vistos + ')');
+      afirmarIgual_(progr.destinatarios, 1, 'el dirigido a la persona 5 llega a 1');
+      afirmar_(llamar({ action: 'obtenerAvisosGestion', args: [], token: t2 }).data.success === false, 'un administrador no ve la lista de gestión');
+
+      const edit = llamar({ action: 'editarAviso', args: [progr.id, Object.assign({}, datos, { titulo: 'Programado editado', programadoPara: new Date(Date.now() + 7200000).toISOString() })], token: t1 });
+      afirmar_(edit.data.success === true, 'se edita el programado: ' + JSON.stringify(edit.data));
+      afirmar_(llamar({ action: 'editarAviso', args: [real.id, datos], token: t1 }).data.message.indexOf('ya fue enviado') !== -1, 'uno ya enviado no se edita');
+      afirmar_(llamar({ action: 'cancelarAviso', args: [real.id], token: t2 }).data.success === false, 'un administrador no puede cancelar');
+      afirmar_(llamar({ action: 'cancelarAviso', args: [real.id], token: t1 }).data.success === true, 'el superadministrador cancela');
+      afirmarIgual_(llamar({ action: 'obtenerAvisos', args: [], token: t5 }).data.avisos.length, 0, 'tras cancelarlo ya no se ve');
+      const auditoria = hojaDePrueba_('Auditoria').getDataRange().getValues().map(function (f) { return f[3]; });
+      afirmar_(auditoria.indexOf('AVISO_CREADO') !== -1 && auditoria.indexOf('AVISO_EDITADO') !== -1 && auditoria.indexOf('AVISO_CANCELADO') !== -1, 'crear, editar y cancelar quedan en la auditoría');
+    }, { soloReal: true });
+
     prueba_('doPost real: sin sesión no se ejecuta nada, la identidad la pone el servidor y una cuenta desactivada pierde el acceso', function () {
       const llamar = function (p) { return JSON.parse(doPost({ postData: { contents: JSON.stringify(p) } }).getContent()); };
       const token = tokenDePrueba_(5); // usuario normal

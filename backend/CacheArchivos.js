@@ -123,7 +123,7 @@ function refrescarCacheDeArchivosSiToca_() {
 var ACCIONES_QUE_NO_TOCAN_ARCHIVOS_ = [
   'validarCredenciales', 'registrarUsuario', 'verificarEmailExistente', 'enviarCodigoVerificacion', 'verificarCodigoRegistro',
   'solicitarCodigoRecuperacion', 'validarCodigoRecuperacion', 'restablecerPasswordConCodigo', 'cerrarSesionUsuario',
-  'buscarGlobal', 'registrarActividad', 'registrarAuditoria',
+  'buscarGlobal', 'registrarActividad', 'registrarAuditoria', 'marcarAvisosVistos',
   'actualizarNombreUsuario', 'cambiarContrasenaUsuario', 'guardarPreferenciasNotificaciones', 'crearGrupoUsuario', 'eliminarGrupoUsuario',
   'aprobarUsuario', 'asignarHotelesAUsuario', 'cambiarEstadoUsuario', 'cambiarRolUsuario', 'cerrarSolicitudUsuario', 'crearUsuarioPorAdmin',
   'restablecerContrasenaUsuarioPorAdmin', 'resolverSolicitudesUsuario', 'solicitarAccesoPropiedades', 'cancelarSolicitudesPropias'

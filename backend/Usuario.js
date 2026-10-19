@@ -248,7 +248,10 @@ function buscarFilaEnColumna_(hoja, columna, valor) {
     const rango = hoja.getRange(2, columna, ultima - 1, 1);
     if (typeof rango.createTextFinder === 'function') {
       const celda = rango.createTextFinder(buscado).matchEntireCell(true).matchCase(false).findNext();
-      return celda ? celda.getRow() : -1;
+      if (celda) return celda.getRow();
+      // La búsqueda de Sheets puede tardar unos segundos en ver una fila recién escrita (se vio una vez en las pruebas reales: un alta
+      // aprobada y de inmediato 'Email o contraseña incorrectos'). Antes de dar algo por inexistente se revisa la columna directamente;
+      // solo cuesta en las búsquedas que no encuentran nada (credenciales o tokens inválidos).
     }
   } catch (e) {
     Logger.log('Aviso buscarFilaEnColumna_ (se recorre la columna): ' + e);

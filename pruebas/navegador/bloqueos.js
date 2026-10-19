@@ -33,6 +33,7 @@ let fallos = 0; const ok = (c, m) => { console.log((c ? 'OK   ' : 'FALLA') + ' '
   await page.evaluate(() => switchForm('register')); await dormir(900);
   await page.type('#registerName', 'Persona Prueba'); await page.type('#registerEmail', 'prueba@oxohotel.com');
   await page.type('#registerPassword', 'Clave1234!'); await page.type('#registerPasswordConfirm', 'Clave1234!');
+  await page.evaluate(() => { const c = document.querySelector('#registerHoteles input[type=checkbox]'); if (c) c.click(); }); // ahora el mock trae la lista de propiedades y hay que elegir al menos una
   await page.evaluate(() => document.getElementById('registerForm').requestSubmit()); await dormir(2500); console.log(await page.evaluate(() => JSON.stringify({err:[...document.querySelectorAll('.error-message,.field-error,[id$=Error]')].map(e=>e.id+':'+e.textContent).filter(t=>t.split(':')[1]), notif:[...document.querySelectorAll('.notification')].map(n=>n.textContent), btn:document.getElementById('registerBtn').textContent}))); await page.waitForSelector('#panelLateralOverlay.active', {timeout:5000}); await dormir(300);
   ok(await abierto(), 'tras registrarse se abre el panel de verificacion');
 

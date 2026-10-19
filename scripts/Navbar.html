@@ -2,6 +2,11 @@
   function inicializarNavbar() {
     const btnNotif = document.getElementById("btnNotificaciones");
     const notifDropdown = document.getElementById("notifDropdown");
+    const btnAvisoNuevo = document.getElementById("btnAvisoNuevo");
+    const btnAvisoGestionar = document.getElementById("btnAvisoGestionar");
+    if (btnAvisoNuevo) btnAvisoNuevo.addEventListener("click", function (e) { e.stopPropagation(); cerrarTodosLosDropdowns(); abrirEditorDeAviso_(null); });
+    if (btnAvisoGestionar) btnAvisoGestionar.addEventListener("click", function (e) { e.stopPropagation(); abrirGestionDeAvisos_(); });
+    if (notifDropdown) notifDropdown.addEventListener("click", function (e) { e.stopPropagation(); }); // clics dentro del panel no lo cierran
     const btnPerfil = document.getElementById("btnPerfil");
     const perfilDropdown = document.getElementById("perfilDropdown");
     const btnTema = document.getElementById("btnTema");
@@ -21,7 +26,10 @@
         e.stopPropagation();
         const yaAbierto = notifDropdown.classList.contains("abierto");
         cerrarTodosLosDropdowns();
-        if (!yaAbierto) notifDropdown.classList.add("abierto");
+        if (!yaAbierto) {
+          notifDropdown.classList.add("abierto");
+          if (typeof alAbrirCampana_ === "function") alAbrirCampana_();
+        }
       });
     }
 

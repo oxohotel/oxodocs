@@ -43,6 +43,21 @@ const SESION = {
   token: 'token-demo-manual', cacheVersion: '1',
 };
 
+// Avisos de ejemplo (campana): dos nuevos y uno ya visto; "marcarVistos" los pasa todos a vistos
+const AVISOS_EJEMPLO = {
+  lista: [
+    { id: 'AVI-1', titulo: 'Mantenimiento programado', mensaje: 'El sistema estará en mantenimiento el sábado de 6:00 a 8:00.\nGuarda tu trabajo antes.', enlaces: [{ texto: 'Más información', tipo: 'url', url: 'https://example.com/mantenimiento' }], horas: 1, nuevo: true },
+    { id: 'AVI-2', titulo: 'Nuevas políticas disponibles', mensaje: 'Ya puedes consultar las políticas de seguridad actualizadas.', enlaces: [{ texto: 'Abrir Distrito', tipo: 'hotel', id: 'H1', idHotel: 'H1', nombre: 'Hotel Bari' }, { texto: 'Carpeta IT', tipo: 'carpeta', id: 'C-H1-3', idHotel: 'H1', nombreHotel: 'Hotel Bari', nombre: 'IT' }], horas: 5, nuevo: true },
+    { id: 'AVI-3', titulo: 'Bienvenida', mensaje: 'Gracias por usar el repositorio.', enlaces: [], horas: 72, nuevo: false }
+  ],
+  obtener() {
+    const avisos = this.lista.map(a => ({ id: a.id, titulo: a.titulo, mensaje: a.mensaje, enlaces: a.enlaces, fecha: new Date(Date.now() - a.horas * 3600 * 1000).toISOString(), nuevo: a.nuevo }));
+    return { success: true, avisos, noLeidos: avisos.filter(a => a.nuevo).length };
+  },
+  marcarVistos() { this.lista.forEach(a => { a.nuevo = false; }); },
+  reiniciar() { this.lista[0].nuevo = true; this.lista[1].nuevo = true; }
+};
+
 const GRUPOS = [
   { id: 'G1', nombre: 'Dirección IT', integrantes: ['2', '3', '4'] },
 ];
@@ -236,6 +251,9 @@ function responder(action, args) {
     }
     case 'obtenerRegistrosAuditoria': return { success: true, registros: LOGS };
     case 'registrarAuditoria': return { success: true };
+    case 'obtenerHotelesParaRegistro': return { success: true, hoteles: MODULOS.flatMap(m => m.hoteles.map(h => ({ idHotel: h.idHotel, nombre: h.nombre, modulo: m.nombre }))) };
+    case 'obtenerAvisos': return AVISOS_EJEMPLO.obtener();
+    case 'marcarAvisosVistos': AVISOS_EJEMPLO.marcarVistos(); return { success: true };
     // Escrituras: basta con simular éxito
     case 'crearSubcarpeta': case 'crearArea': case 'renombrarCarpeta': case 'eliminarCarpeta':
     case 'guardarArchivoEnDrive': case 'guardarArchivosMultiplesDesdeDrive': case 'eliminarArchivo':
@@ -248,4 +266,4 @@ function responder(action, args) {
   }
 }
 
-module.exports = { responder, SESION, sinMapear };
+module.exports = { responder, SESION, sinMapear, AVISOS_EJEMPLO };

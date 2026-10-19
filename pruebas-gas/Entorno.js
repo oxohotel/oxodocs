@@ -50,7 +50,9 @@ var ENCABEZADOS_PRUEBA_ = {
   Sesiones: ['ID_Sesion', 'ID_Usuario', 'Token', 'Fecha_Creacion', 'Fecha_Expiracion', 'Estado'],
   Actividad_Reciente: ['ID_Actividad', 'ID_Usuario', 'Tipo_Recurso', 'ID_Recurso', 'Tipo_Interaccion', 'Fecha_Hora'],
   Favoritos: ['ID_Favorito', 'ID_Usuario', 'Tipo_Recurso', 'ID_Recurso', 'Fecha_Marcado'],
-  Permisos_Archivos: ['ID_Permiso', 'ID_Archivo', 'ID_Usuario', 'Nombre_Usuario', 'Fecha_Restriccion', 'Razon']
+  Permisos_Archivos: ['ID_Permiso', 'ID_Archivo', 'ID_Usuario', 'Nombre_Usuario', 'Fecha_Restriccion', 'Razon'],
+  Avisos: ['ID_Aviso', 'Titulo', 'Mensaje', 'Enlaces', 'Audiencia', 'Estado', 'Programado_Para', 'Caduca_En', 'Creado_Por', 'Creado_Por_Nombre', 'Creado_En'],
+  Avisos_Vistos: ['ID_Usuario', 'Vistos_Hasta']
 };
 
 var HASH_FICTICIO_ = 'hash-ficticio-no-sirve-para-iniciar-sesion';
