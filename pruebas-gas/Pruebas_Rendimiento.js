@@ -140,6 +140,21 @@ function registrarPruebasRendimiento_() {
       afirmar_(caliente.ms < frio.ms, 'con caché (' + caliente.ms + ' ms) debe ser más rápido que sin caché (' + frio.ms + ' ms)');
       afirmarIgual_(areasCal.resultado.carpetas.length, 20, 'las 20 áreas de primer nivel del hotel');
 
+      // Índice del buscador (el navegador filtra por su cuenta) y calentamiento de carpetas
+      invalidarCacheArchivos_(); nuevaEjecucion_();
+      const indFrio = medir_(function () { return obtenerIndiceDeBusqueda('1'); });
+      nuevaEjecucion_();
+      const indCaliente = medir_(function () { return obtenerIndiceDeBusqueda('1'); });
+      afirmar_(indFrio.resultado.success === true && indFrio.resultado.carpetas.length === 500 && indFrio.resultado.carpetas[0].length === 3, 'el índice trae las 500 carpetas en formato compacto');
+      afirmarIgual_(JSON.stringify(indCaliente.resultado), JSON.stringify(indFrio.resultado), 'igual desde el caché');
+      invalidarCacheArchivos_(); nuevaEjecucion_();
+      const calentamiento = medir_(function () { return calentarCaches(); });
+      afirmar_(calentamiento.resultado.success === true, 'el calentamiento termina bien con carpetas y archivos');
+      nuevaEjecucion_();
+      const lecturasTrasCalentar = _lecturasDeHoja_;
+      obtenerContenidoCarpeta('C-1', '1');
+      nota_('índice del buscador (500 carpetas): ' + indFrio.ms + ' ms sin caché, ' + indCaliente.ms + ' ms con caché; calentarCaches: ' + calentamiento.ms + ' ms; abrir una carpeta tras calentar: ' + (_lecturasDeHoja_ - lecturasTrasCalentar) + ' lecturas de hoja (solo la lista de sus archivos)');
+
       // Invalidar de verdad: la siguiente apertura vuelve a leer las hojas (con el caché real de Google, no el simulado)
       invalidarCacheArchivos_();
       nuevaEjecucion_();

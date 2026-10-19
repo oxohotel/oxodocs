@@ -207,6 +207,19 @@ function calentarCaches() {
     leerHojaConCache_('Modulos', { forzar: true, ttl: CACHE_TTL_CALENTADO_ });
     leerHojaConCache_('Hoteles', { forzar: true, ttl: CACHE_TTL_CALENTADO_ });
     try { CacheService.getScriptCache().put('oxo:calentado', '1', 1500); } catch (e) {} // marca: el calentamiento está activo
+    // Carpetas, resumen por carpeta, permisos de archivos y avisos: lo que se lee en cada apertura de carpeta y en cada búsqueda
+    // (solo se rellenan si no están: invalidar al escribir sigue siendo lo que los renueva cuando algo cambia)
+    try {
+      if (typeof leerCarpetasConCache_ === 'function' && typeof resumenArchivosPorCarpetaConCache_ === 'function') {
+        const ss = obtenerSpreadsheet_();
+        leerCarpetasConCache_(ss);
+        resumenArchivosPorCarpetaConCache_(ss);
+        tablaDePermisosDeArchivosConCache_(ss);
+        if (typeof leerAvisosConCache_ === 'function') leerAvisosConCache_();
+      }
+    } catch (errExtra) {
+      Logger.log('Aviso calentarCaches (carpetas y avisos): ' + errExtra); // lo principal (usuarios, hoteles) ya quedó caliente
+    }
     if (typeof vigilarRespaldos_ === 'function') vigilarRespaldos_(); // backend/Respaldos.js: avisa si hace días que no hay copia de seguridad
     return { success: true, ms: Date.now() - inicio };
   } catch (error) {

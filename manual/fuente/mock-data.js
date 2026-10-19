@@ -223,6 +223,8 @@ function responder(action, args) {
       while (c) { ruta.unshift({ id: c.id, nombre: c.nombre }); c = c.idPadre ? carpetaPorId(c.idPadre) : null; }
       return { success: true, ruta };
     }
+    case 'obtenerIndiceDeBusqueda':
+      return { success: true, hoteles: Object.keys(HOTELES).map(h => [h, HOTELES[h]]), carpetas: CARPETAS.map(c => [c.id, c.idHotel, c.nombre]) };
     case 'buscarGlobal': {
       const t = String(args[0] || '').toLowerCase();
       return {

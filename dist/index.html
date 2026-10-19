@@ -10735,6 +10735,63 @@ textarea.aviso-campo { resize: vertical; }
 
   var temporizadorBusquedaGlobal = null;
 
+  // Índice local: todo lo que esta persona puede encontrar (propiedades y carpetas), pedido una vez y filtrado aquí al escribir.
+  // Se guarda también como copia de vista para que esté listo desde el primer instante de la siguiente visita.
+  var indiceBusqueda_ = { datos: null, cargadoEn: 0, cargando: false };
+  var INDICE_BUSQUEDA_VIGENCIA_MS = 2 * 60 * 1000;
+
+  function normalizarBusqueda_(texto) {
+    return String(texto || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  }
+
+  function prepararIndiceBusqueda_(crudo) {
+    const nombresHotel = {};
+    const hoteles = (crudo.hoteles || []).map(function (h) { nombresHotel[h[0]] = h[1]; return { idHotel: h[0], nombre: h[1], n: normalizarBusqueda_(h[1]) }; });
+    const carpetas = (crudo.carpetas || []).map(function (c) { return { idCarpeta: c[0], idHotel: c[1], nombre: c[2], nombreHotel: nombresHotel[c[1]] || "", n: normalizarBusqueda_(c[2]) }; });
+    return { hoteles: hoteles, carpetas: carpetas };
+  }
+
+  function cargarIndiceBusqueda_(forzar) {
+    if (indiceBusqueda_.cargando) return;
+    if (!forzar && indiceBusqueda_.datos && Date.now() - indiceBusqueda_.cargadoEn < INDICE_BUSQUEDA_VIGENCIA_MS) return;
+    const sesion = typeof getCurrentUserSession === "function" ? getCurrentUserSession() : null;
+    const idUsuario = sesion && (sesion.ID_Usuario || sesion.idUsuario);
+    if (!idUsuario || !window.google || !google.script || !google.script.run) return;
+
+    if (!indiceBusqueda_.datos && typeof leerCacheVista_ === "function") {
+      const copia = leerCacheVista_("indiceBusqueda");
+      if (copia && Array.isArray(copia.hoteles)) { indiceBusqueda_.datos = prepararIndiceBusqueda_(copia); indiceBusqueda_.cargadoEn = 1; }
+    }
+    indiceBusqueda_.cargando = true;
+    google.script.run
+      .withSuccessHandler(function (r) {
+        indiceBusqueda_.cargando = false;
+        if (!r || r.success !== true) return;
+        indiceBusqueda_.datos = prepararIndiceBusqueda_(r);
+        indiceBusqueda_.cargadoEn = Date.now();
+        if (typeof guardarCacheVista_ === "function") guardarCacheVista_("indiceBusqueda", { hoteles: r.hoteles, carpetas: r.carpetas });
+      })
+      .withFailureHandler(function () { indiceBusqueda_.cargando = false; })
+      .obtenerIndiceDeBusqueda(idUsuario);
+  }
+
+  /** Filtra el índice local. Primero lo que EMPIEZA por lo escrito, luego lo que tiene una palabra que empieza así, luego el resto. */
+  function buscarEnIndiceLocal_(termino) {
+    const t = normalizarBusqueda_(termino);
+    const puntuar = function (n) {
+      if (n.indexOf(t) === -1) return -1;
+      if (n.indexOf(t) === 0) return 0;
+      return (" " + n).indexOf(" " + t) !== -1 ? 1 : 2;
+    };
+    const filtrar = function (lista) {
+      return lista.map(function (x, i) { return { x: x, p: puntuar(x.n), i: i }; })
+        .filter(function (r) { return r.p !== -1; })
+        .sort(function (a, b) { return (a.p - b.p) || (a.i - b.i); })
+        .slice(0, 8).map(function (r) { return r.x; });
+    };
+    return { hoteles: filtrar(indiceBusqueda_.datos.hoteles), carpetas: filtrar(indiceBusqueda_.datos.carpetas) };
+  }
+
   function inicializarBusquedaGlobal() {
     const input = document.getElementById("navbarSearchInput");
     const wrapper = document.getElementById("navbarSearchWrapper");
@@ -10770,17 +10827,24 @@ textarea.aviso-campo { resize: vertical; }
         return;
       }
 
+      // Con el índice local la respuesta es inmediata (solo se espera a que termine de teclear un instante); sin él, se pregunta al servidor
       temporizadorBusquedaGlobal = setTimeout(function () {
         ejecutarBusquedaGlobal(termino);
-      }, 300);
+      }, indiceBusqueda_.datos ? 60 : 300);
     });
 
     input.addEventListener("focus", function () {
       if (input.value.trim().length >= 2) resultados.classList.add("abierto");
+      cargarIndiceBusqueda_(false); // al enfocar el buscador se renueva el índice por detrás si tiene más de 2 minutos
     });
   }
 
   function ejecutarBusquedaGlobal(termino) {
+    if (indiceBusqueda_.datos) {
+      renderizarResultadosBusqueda(buscarEnIndiceLocal_(termino), termino);
+      return;
+    }
+    cargarIndiceBusqueda_(false); // el índice aún no llegó: se pide para las próximas teclas y esta búsqueda se resuelve en el servidor
     google.script.run
       .withSuccessHandler(function (data) { renderizarResultadosBusqueda(data, termino); })
       .withFailureHandler(function (error) {
@@ -10959,6 +11023,7 @@ textarea.aviso-campo { resize: vertical; }
     return new Promise(function (resolve) {
       function respaldo_() {
         if (typeof cargarAvisos_ === "function") cargarAvisos_();
+        if (typeof cargarIndiceBusqueda_ === "function") setTimeout(function () { cargarIndiceBusqueda_(forzar); }, 600);
         cargarHotelesSidebar();
         setTimeout(function () { if (typeof refrescarCacheFavoritos === "function") refrescarCacheFavoritos(); }, 120);
         setTimeout(function () { if (typeof cargarWidgetRecientes === "function") cargarWidgetRecientes(); }, 240);
@@ -10993,6 +11058,7 @@ textarea.aviso-campo { resize: vertical; }
             try {
               if ("pendientes" in datos && typeof actualizarInsigniaPendientes_ === "function") actualizarInsigniaPendientes_(datos.pendientes);
               if (typeof aplicarAvisos_ === "function") { if (datos.avisos) aplicarAvisos_(datos.avisos); else cargarAvisos_(); }
+              if (typeof cargarIndiceBusqueda_ === "function") setTimeout(function () { cargarIndiceBusqueda_(forzar); }, 600); // el índice del buscador, por detrás
               if (Array.isArray(datos.modulos)) aplicarModulosSidebar_(datos.modulos); else cargarHotelesSidebar();
               if (datos.idsFavoritos) aplicarIdsFavoritos_(datos.idsFavoritos); else refrescarCacheFavoritos();
               if (datos.actividad) aplicarWidgetRecientes_(datos.actividad, Array.isArray(recientesGuardados)); else cargarWidgetRecientes();

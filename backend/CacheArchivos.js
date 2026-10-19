@@ -44,8 +44,14 @@ function conCacheArchivos_(nombre, calcular, esValido, generacionExtra) {
 
   _lecturasDeHoja_++;
   const valor = calcular();
-  if ((!esValido || esValido(valor)) && generacionArchivosFresca_() + extra() === gen) cacheGuardar_(clave, valor, CACHE_TTL_ARCHIVOS_);
+  if ((!esValido || esValido(valor)) && generacionArchivosFresca_() + extra() === gen) cacheGuardar_(clave, valor, ttlDeArchivos_());
   return valor;
+}
+
+/** Con el calentamiento activo (backend/Cache.js: calentarCaches renueva lo importante cada 10 minutos) el caché dura más. */
+function ttlDeArchivos_() {
+  try { if (CacheService.getScriptCache().get('oxo:calentado')) return CACHE_TTL_CALENTADO_; } catch (e) {}
+  return CACHE_TTL_ARCHIVOS_;
 }
 
 /** Valores de una hoja con las fechas convertidas a texto ISO (para poder guardarlos como JSON). */

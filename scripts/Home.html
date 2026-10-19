@@ -105,6 +105,7 @@
     return new Promise(function (resolve) {
       function respaldo_() {
         if (typeof cargarAvisos_ === "function") cargarAvisos_();
+        if (typeof cargarIndiceBusqueda_ === "function") setTimeout(function () { cargarIndiceBusqueda_(forzar); }, 600);
         cargarHotelesSidebar();
         setTimeout(function () { if (typeof refrescarCacheFavoritos === "function") refrescarCacheFavoritos(); }, 120);
         setTimeout(function () { if (typeof cargarWidgetRecientes === "function") cargarWidgetRecientes(); }, 240);
@@ -139,6 +140,7 @@
             try {
               if ("pendientes" in datos && typeof actualizarInsigniaPendientes_ === "function") actualizarInsigniaPendientes_(datos.pendientes);
               if (typeof aplicarAvisos_ === "function") { if (datos.avisos) aplicarAvisos_(datos.avisos); else cargarAvisos_(); }
+              if (typeof cargarIndiceBusqueda_ === "function") setTimeout(function () { cargarIndiceBusqueda_(forzar); }, 600); // el índice del buscador, por detrás
               if (Array.isArray(datos.modulos)) aplicarModulosSidebar_(datos.modulos); else cargarHotelesSidebar();
               if (datos.idsFavoritos) aplicarIdsFavoritos_(datos.idsFavoritos); else refrescarCacheFavoritos();
               if (datos.actividad) aplicarWidgetRecientes_(datos.actividad, Array.isArray(recientesGuardados)); else cargarWidgetRecientes();

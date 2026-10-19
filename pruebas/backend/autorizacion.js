@@ -79,7 +79,7 @@ vm.runInContext(`
   ['obtenerContenidoCarpeta','obtenerRutaCarpeta','crearSubcarpeta','renombrarCarpeta','eliminarCarpeta','guardarArchivoEnDrive','guardarArchivosMultiplesDesdeDrive','renombrarArchivo','actualizarPermisosExistentes','eliminarArchivo','crearArea','editarHotel','eliminarHotel'].forEach(function (n) {
     this[n] = function () { __llamadas.push(n); return { success: true, ejecutada: n }; };
   }, this);
-  this.F = { validarPrivacidadDeArchivo_, validarPropiedadOAdmin_, usuarioEsAdministrador_, crearSesionUsuario_, buscarGlobal, obtenerFavoritosDetallados, obtenerActividadReciente, obtenerListaUsuariosParaPermisos, obtenerArchivoPorIdOUrl, usuarioPuedeUsarArchivoDrive_, alcanceDeHoteles_ };
+  this.F = { obtenerIndiceDeBusqueda, validarPrivacidadDeArchivo_, validarPropiedadOAdmin_, usuarioEsAdministrador_, crearSesionUsuario_, buscarGlobal, obtenerFavoritosDetallados, obtenerActividadReciente, obtenerListaUsuariosParaPermisos, obtenerArchivoPorIdOUrl, usuarioPuedeUsarArchivoDrive_, alcanceDeHoteles_ };
 `, sandbox);
 const F = sandbox.F;
 const nuevaEjecucion = () => vm.runInContext('_memoCache_={};_spreadsheetEjecucion_=null;_cacheIndiceHojas_={}', sandbox);
@@ -212,6 +212,19 @@ ok(r3.data && r3.data.success === false, '11d. un usuario normal no puede ver la
 ok(SIN_SESION_ES(llamar({ action: 'obtenerPermisosDeArchivo', args: ['A1'] })), '11e. sin sesión se rechaza');
 function SIN_SESION_ES(r) { return r.success === false && r.codigo === 'SESION_INVALIDA'; }
 ok(vm.runInContext('ACCIONES_PERMITIDAS_', sandbox).includes('obtenerPermisosDeArchivo'), '11f. la acción está en la lista de permitidas');
+
+// ---------- 6. Índice del buscador (el navegador filtra por su cuenta)
+const indice = id => { nuevaEjecucion(); return F.obtenerIndiceDeBusqueda(String(id)); };
+const i5 = indice(5);
+ok(i5.success && i5.hoteles.length === 1 && i5.hoteles[0][0] === 'H1' && i5.carpetas.every(c => c[1] === 'H1') && i5.carpetas.length === 1, '13. el índice de una persona de Distrito trae solo su propiedad y sus carpetas, en formato compacto (listas, no objetos): ' + JSON.stringify(i5).slice(0, 120));
+const i1 = indice(1);
+ok(i1.hoteles.length === 2 && i1.carpetas.length === 3, '13b. el superadministrador recibe todo (2 propiedades, 3 carpetas)');
+ok(indice(6).hoteles.length === 0 && indice(6).carpetas.length === 0, '13c. una cuenta sin propiedades recibe un índice vacío');
+nuevaEjecucion(); const busq5 = F.buscarGlobal('i', '5'); const idx5 = indice(5);
+ok(busq5.carpetas.map(c => c.idCarpeta).join() === idx5.carpetas.filter(c => c[2].toLowerCase().indexOf('i') !== -1).map(c => c[0]).join(), '13d. buscar en el servidor y filtrar el índice dan las mismas carpetas');
+const viaWebIdx = llamar({ action: 'obtenerIndiceDeBusqueda', args: ['1'], token: T[5] });
+ok(viaWebIdx.success && viaWebIdx.data.hoteles.length === 1, '13e. por la vía web el id del navegador se ignora: la persona 5 sigue recibiendo solo lo suyo');
+ok(llamar({ action: 'obtenerIndiceDeBusqueda', args: ['5'] }).codigo === 'SESION_INVALIDA', '13f. sin sesión se rechaza');
 
 ok(Object.keys(vm.runInContext('OBJETIVOS_DE_ACCESO_', sandbox)).every(a => vm.runInContext('ACCIONES_PERMITIDAS_', sandbox).includes(a)), '8. todas las acciones declaradas en OBJETIVOS_DE_ACCESO_ existen en la lista de permitidas');
 console.log(fallos ? '\n' + fallos + ' FALLA(S)' : '\nTODAS LAS PRUEBAS PASARON'); process.exit(fallos ? 1 : 0);

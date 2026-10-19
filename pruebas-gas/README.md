@@ -47,6 +47,25 @@ Cada vez que cambies el backend: `node herramientas/sincronizar-pruebas.js --pus
 
 Las pruebas de **caracterización** no fallan: guardan en las *notas* cómo se comporta el entorno real (por ejemplo, si el candado es reentrante) para decidir con datos.
 
+## Volumen de datos de las pruebas (tenlo presente al comparar tiempos)
+
+Los números de rendimiento solo se pueden comparar entre corridas **con el mismo volumen**. Este es el que usan hoy las pruebas (está en `Pruebas_Rendimiento.js`, `Entorno.js` y `herramientas/prueba-concurrencia.js`):
+
+| Dato | Volumen de prueba | Dónde se siembra |
+|---|---|---|
+| **Personas** | **600** (más las 6 de partida) | `sembrarUsuariosMasivos_(600)` |
+| **Carpetas** | **500** (20 áreas + 480 subcarpetas) en una propiedad | prueba «abrir una carpeta con 500 carpetas y 5.000 archivos» |
+| **Archivos** | **5.000** (10 por carpeta) | la misma prueba |
+| Actividad reciente | 3.000 filas | prueba «pantalla de inicio y Mis accesos con volumen realista» |
+| Favoritos | 6.000 filas | la misma prueba |
+| Sesiones | 4.000 filas (inicio y cierre de sesión) y 5.000 (limpieza) | pruebas de sesiones |
+| Auditoría | 3.000 filas | prueba de auditoría |
+| Concurrencia | hasta 20 llamadas simultáneas: 25 registros, 30 auditorías, 60 actividades, 12 favoritos | `prueba-concurrencia.js` |
+
+**Referencia de resultados con ese volumen** (tiempos del servidor, sin los 2-3 s de red de Google; varían entre corridas): abrir una carpeta 3,5-6 s sin caché y 0,3-0,5 s con caché; pantalla de inicio 5-6 s antes y ~1,1 s con caché por persona; iniciar sesión 1,6 s; cerrar sesión 0,3 s; índice del buscador 0,7 s sin caché y 0,2 s con caché; `calentarCaches` (el disparador de cada 10 minutos) unos 4 s; limpiar 5.000 sesiones 2,6 s.
+
+**Ese volumen es MAYOR que el de producción hoy** (unas 37 propiedades, pocos archivos por carpeta). Sirve para detectar problemas antes de que lleguen. Si el sistema crece mucho más que estos números (por ejemplo 5 veces), conviene volver a medir con un volumen mayor y revisar: el tamaño de lo que cabe en el caché (CacheService guarda trozos de ~30.000 caracteres; con muchísimas filas un valor puede no caber y se lee de la hoja), la hoja `Archivos` (cada lectura completa crece con ella) y el tiempo de `calentarCaches`.
+
 ## Concurrencia entre ejecuciones
 
 Los candados solo se prueban de verdad con ejecuciones simultáneas. `node herramientas/prueba-concurrencia.js` lanza decenas de llamadas en paralelo contra la web del proyecto de pruebas y comprueba que no se pierden ni se duplican datos:
