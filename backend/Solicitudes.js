@@ -233,6 +233,34 @@ function cerrarSolicitudUsuario(idUsuarioObjetivo, idUsuarioSolicitanteOToken, i
   return r;
 }
 
+/**
+ * Elimina una cuenta que nunca llegó a usarse: el registro quedó sin verificar el correo ("Pendiente_Verificacion") o la solicitud se cerró.
+ * Quien puede: un superadministrador, un administrador con TODOS o el administrador de alguna de las propiedades que la persona pidió.
+ * Nunca una cuenta activa, inactiva o pendiente de aprobación (esas se cierran/desactivan), ni la propia, ni un superadministrador.
+ */
+function eliminarCuentaSinVerificar(idUsuarioObjetivo, idUsuarioSolicitanteOToken, idUsuarioFallback) {
+  const ctx = prepararResolucion_(idUsuarioObjetivo, idUsuarioSolicitanteOToken, idUsuarioFallback);
+  if (ctx.error) return { success: false, message: ctx.error };
+  const estados = ['Pendiente_Verificacion', ESTADO_SOLICITUD_CERRADA_];
+  if (estados.indexOf(ctx.objetivo.estado) === -1) return { success: false, message: 'Solo se pueden eliminar cuentas que no verificaron su correo o con la solicitud cerrada' };
+  const puede = ctx.alcance.esSuperadmin || ctx.alcance.global || solicitudesResolubles_(ctx.alcance, ctx.objetivo).length > 0;
+  if (!puede) return { success: false, message: 'Esta cuenta no corresponde a tus propiedades' };
+
+  const lock = LockService.getScriptLock();
+  try {
+    tomarCandado_(lock, 10000);
+    // Se vuelve a comprobar bajo el candado: la fila pudo moverse o la cuenta verificarse hace un instante
+    const id = String(ctx.hoja.getRange(ctx.fila, 1).getValue()).trim();
+    const estado = String(ctx.hoja.getRange(ctx.fila, ctx.col.estado + 1).getValue()).trim();
+    if (id !== ctx.objetivo.id || estados.indexOf(estado) === -1) return { success: false, message: 'La cuenta cambió: actualiza la lista e inténtalo de nuevo' };
+    ctx.hoja.deleteRow(ctx.fila);
+    SpreadsheetApp.flush();
+    invalidarCacheUsuarios_();
+  } finally { liberarCandado_(lock); }
+  registrarAuditoriaSimple_(ctx.solicitante.idUsuario, 'ELIMINAR_CUENTA_SIN_VERIFICAR', 'Eliminó la cuenta sin verificar de ' + ctx.objetivo.email, 'Usuario');
+  return { success: true, message: 'Cuenta eliminada' };
+}
+
 /** Cuántas solicitudes puede resolver el solicitante (para la insignia del menú); null si no gestiona usuarios. */
 function contarPendientesAprobacion_(idUsuarioOToken, idUsuarioFallback) {
   const solicitante = resolverUsuarioSolicitante_(idUsuarioOToken, idUsuarioFallback);

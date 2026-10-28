@@ -262,6 +262,12 @@
             (esPendiente ? 'Cerrar solicitud' : 'Denegar solicitudes pendientes') + '">' + ICONO_DENEGAR_ + '</button>'
         : '';
 
+      // Cuenta que nunca verificó su correo (o con la solicitud cerrada): se puede eliminar del todo
+      const botonEliminarHtml = (estado === 'Pendiente_Verificacion' || estado === 'Solicitud_Cerrada') && !esEsteUsuario
+        ? '<button type="button" class="btn-accion-icono denegar btn-eliminar-sin-verificar" data-id-usuario="' + u.id + '" title="Eliminar cuenta sin verificar" aria-label="Eliminar cuenta sin verificar">' +
+            '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/></svg></button>'
+        : '';
+
       // Propiedades que pidió y siguen pendientes (solo informativas): cada administrador resuelve las suyas
       const solicitudesHtml = solicitudes.length
         ? '<div class="solicitudes-bloque">' + '<span class="solicitudes-titulo">Solicita:</span>' + solicitudes.map(function (s) {
@@ -282,7 +288,7 @@
         '</div>' +
         '<div>' + hotelesCelda + solicitudesHtml + '</div>' +
         '<div class="usuario-acciones-celda">' +
-          botonAprobar + botonCerrarHtml + accionesHtml +
+          botonAprobar + botonCerrarHtml + accionesHtml + botonEliminarHtml +
         '</div>' +
       '</div>';
     }).join('');
@@ -343,6 +349,14 @@
       btn.addEventListener('click', function () {
         const usuario = usuarios.find(function (u) { return String(u.id) === btn.dataset.idUsuario; });
         manejarSolicitudUsuario_(usuario, btn.classList.contains('btn-solicitud-aprobar'));
+      });
+    });
+
+    grid.querySelectorAll('.btn-eliminar-sin-verificar').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        const usuario = usuarios.find(function (u) { return String(u.id) === btn.dataset.idUsuario; });
+        if (!usuario) return;
+        showConfirmation('¿Eliminar la cuenta de ' + (usuario.nombre || usuario.email) + ' (' + (usuario.email || '') + ')? Nunca verificó su correo; podrá volver a registrarse cuando quiera.', 'Eliminar cuenta', function () { eliminarCuentaSinVerificarUI_(usuario.id); });
       });
     });
 
@@ -872,6 +886,17 @@
       })
       .withFailureHandler(function (error) { console.error('Error cerrarSolicitudUsuario:', error); showNotification('Error al cerrar la solicitud', 'error', 3000); })
       .cerrarSolicitudUsuario(idUsuarioObjetivo, s.token, s.idUsuario);
+  }
+
+  function eliminarCuentaSinVerificarUI_(idUsuarioObjetivo) {
+    const s = datosSesionGestion_();
+    google.script.run
+      .withSuccessHandler(function (result) {
+        if (result && result.success) { showNotification('✅ ' + (result.message || 'Cuenta eliminada'), 'success', 4000); cargarVistaUsuarios(); }
+        else showNotification('Error: ' + ((result && result.message) || 'No se pudo eliminar'), 'error', 3500);
+      })
+      .withFailureHandler(function (error) { console.error('Error eliminarCuentaSinVerificar:', error); showNotification('Error al eliminar la cuenta', 'error', 3000); })
+      .eliminarCuentaSinVerificar(idUsuarioObjetivo, s.token, s.idUsuario);
   }
 
   /** Registros anteriores al flujo de propiedades (sin nada solicitado): se activan sin hoteles, como antes. */

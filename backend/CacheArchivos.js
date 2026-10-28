@@ -131,7 +131,7 @@ var ACCIONES_QUE_NO_TOCAN_ARCHIVOS_ = [
   'solicitarCodigoRecuperacion', 'validarCodigoRecuperacion', 'restablecerPasswordConCodigo', 'cerrarSesionUsuario',
   'buscarGlobal', 'registrarActividad', 'registrarAuditoria', 'marcarAvisosVistos',
   'actualizarNombreUsuario', 'cambiarContrasenaUsuario', 'guardarPreferenciasNotificaciones', 'crearGrupoUsuario', 'eliminarGrupoUsuario',
-  'aprobarUsuario', 'asignarHotelesAUsuario', 'cambiarEstadoUsuario', 'cambiarRolUsuario', 'cerrarSolicitudUsuario', 'crearUsuarioPorAdmin',
+  'aprobarUsuario', 'asignarHotelesAUsuario', 'cambiarEstadoUsuario', 'cambiarRolUsuario', 'cerrarSolicitudUsuario', 'eliminarCuentaSinVerificar', 'crearUsuarioPorAdmin',
   'restablecerContrasenaUsuarioPorAdmin', 'resolverSolicitudesUsuario', 'solicitarAccesoPropiedades', 'cancelarSolicitudesPropias'
 ];
 

@@ -9,6 +9,7 @@ class Hoja {
   pad(f) { const o = f.slice(); while (o.length < this.ancho()) o.push(''); return o; }
   getDataRange() { const s = this; return { getValues: () => s.filas.map(f => s.pad(f)) }; }
   getLastRow() { return this.filas.length; }
+  deleteRow(n) { this.filas.splice(n - 1, 1); }
   getLastColumn() { return this.ancho(); }
   appendRow(f) { this.filas.push(f.slice()); }
   getRange(r, c, nr = 1, nc = 1) {
@@ -61,7 +62,7 @@ vm.createContext(sandbox);
 ['Drive.js', 'Inicio.js', 'Cache.js', 'CacheArchivos.js', 'Metricas.js', 'Acceso.js', 'Archivos.js', 'Roles.js', 'AlcanceAdmin.js', 'Usuario.js', 'Hoteles.js', 'Correos.js', 'Registro.js', 'Solicitudes.js', 'MisAccesos.js', 'Mantenimiento.js', 'GestionHoteles.js', 'Auth.js']
   .forEach(f => vm.runInContext(fs.readFileSync(REPO + 'backend/' + f, 'utf8'), sandbox, { filename: f }));
 vm.runInContext(fs.readFileSync(REPO + 'Code.js', 'utf8'), sandbox, { filename: 'Code.js' });
-vm.runInContext('this.F={crearSesionUsuario_,obtenerMisAccesos,solicitarAccesoPropiedades,cancelarSolicitudesPropias,resolverSolicitudesUsuario,registrarUsuario,verificarCodigoRegistro,obtenerHotelesParaRegistro,obtenerUsuariosParaGestion,resolverSolicitudHotel,aprobarUsuario,cerrarSolicitudUsuario,contarPendientesAprobacion_,obtenerModulosConHoteles,prepararResolucion_,aplicarDecisionesSolicitud_,quitarHotelDeAccesosDeUsuarios_,normalizarRolesDeUsuarios,normalizarRolesDeUsuariosAplicar,cambiarEstadoUsuario,obtenerDatosInicio,validarCredenciales,ACCIONES_PERMITIDAS_}', sandbox);
+vm.runInContext('this.F={crearSesionUsuario_,eliminarCuentaSinVerificar,obtenerMisAccesos,solicitarAccesoPropiedades,cancelarSolicitudesPropias,resolverSolicitudesUsuario,registrarUsuario,verificarCodigoRegistro,obtenerHotelesParaRegistro,obtenerUsuariosParaGestion,resolverSolicitudHotel,aprobarUsuario,cerrarSolicitudUsuario,contarPendientesAprobacion_,obtenerModulosConHoteles,prepararResolucion_,aplicarDecisionesSolicitud_,quitarHotelDeAccesosDeUsuarios_,normalizarRolesDeUsuarios,normalizarRolesDeUsuariosAplicar,cambiarEstadoUsuario,obtenerDatosInicio,validarCredenciales,ACCIONES_PERMITIDAS_}', sandbox);
 const F = sandbox.F;
 const nuevaEjecucion = () => vm.runInContext('_memoCache_={};_spreadsheetEjecucion_=null;_cacheIndiceHojas_={}', sandbox);
 const llamarDoPost = p => { sandbox.__e = { postData: { contents: JSON.stringify(p) } }; return JSON.parse(vm.runInContext('doPost(__e)', sandbox).texto); };
@@ -372,6 +373,17 @@ hojas.Usuarios.filas[filaJo][colPerm] = 'H1,H2';                    // un admini
 nuevaEjecucion(); const despuesMis = F.obtenerMisAccesos(tokJo);
 ok(despuesMis.permitidos.map(h => h.idHotel).sort().join() === 'H1,H2', '16c. aun así "Mis accesos" ya muestra el acceso nuevo, porque lee la fila propia al instante: ' + despuesMis.permitidos.map(h => h.idHotel).join());
 hojas.Usuarios.filas[filaJo][colPerm] = permisosAntes; almacen.clear();
+
+// ---------- 12b. Eliminar cuentas que nunca verificaron su correo
+nuevaEjecucion(); F.registrarUsuario('Borrar Uno', 'borrar1@oxohotel.com', 'Clave1234!', ['HC']);
+nuevaEjecucion(); const idB1 = idDe('borrar1@oxohotel.com');
+nuevaEjecucion(); ok(F.eliminarCuentaSinVerificar(idB1, '2', '2').success === false && !!filaDe('borrar1@oxohotel.com'), '12b-1. el administrador de otra propiedad no puede eliminar una cuenta sin verificar de Corporativo');
+nuevaEjecucion(); const eb = F.eliminarCuentaSinVerificar(idB1, '1', '1');
+ok(eb.success === true && !filaDe('borrar1@oxohotel.com'), '12b-2. un superadministrador la elimina y la fila desaparece → ' + eb.message);
+ok(hojas.Auditoria && hojas.Auditoria.filas.some(r => r.indexOf('ELIMINAR_CUENTA_SIN_VERIFICAR') !== -1), '12b-3. queda registrada en la auditoría');
+nuevaEjecucion(); ok(F.registrarUsuario('Borrar Uno', 'borrar1@oxohotel.com', 'Clave1234!', ['HC']).success === true, '12b-4. la persona puede volver a registrarse con el mismo correo');
+nuevaEjecucion(); ok(F.eliminarCuentaSinVerificar(idDe('jo@oxohotel.com'), '1', '1').success === false && !!filaDe('jo@oxohotel.com'), '12b-5. una cuenta activa NO se elimina por aquí');
+nuevaEjecucion(); ok(F.eliminarCuentaSinVerificar(idDe('borrar1@oxohotel.com'), '1', '1').success === true, '12b-6. (limpieza)');
 
 // ---------- 13. Lista de acciones
 ok(['resolverSolicitudesUsuario', 'cerrarSolicitudUsuario', 'aprobarUsuario', 'obtenerHotelesParaRegistro'].every(n => F.ACCIONES_PERMITIDAS_.includes(n)) && !F.ACCIONES_PERMITIDAS_.includes('resolverSolicitudHotel'), '13. las acciones que usa la pantalla están permitidas y la de una sola propiedad (sin uso) ya no');
