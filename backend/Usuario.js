@@ -235,6 +235,54 @@ function agregarFilaSegura_(hoja, construirFila, opciones) {
 }
 
 /**
+ * Las listas de propiedades ("26,24") deben guardarse como TEXTO. Con la configuración regional de Colombia (coma decimal) Sheets convierte
+ * "26,24" en el NÚMERO 26,24: al leerla llega 26.24 y el sistema ve UNA propiedad llamada «Hotel 26.24» (y al dar dos permisos solo queda uno).
+ * Se formatea la columna como texto (una vez por hora por ejecución de caché; es barato). No corrige celdas ya convertidas: ver repararListasDeHoteles.
+ */
+function asegurarListasDeHotelesComoTexto_(hoja) {
+  try {
+    const cache = CacheService.getScriptCache();
+    if (cache.get('oxo:fmtListasHoteles')) return;
+    ['Hoteles_Permitidos', 'Hoteles_Solicitados'].forEach(function (nombre) {
+      const col = obtenerOAgregarColumna_(hoja, nombre);
+      hoja.getRange(1, col + 1, hoja.getMaxRows(), 1).setNumberFormat('@');
+    });
+    cache.put('oxo:fmtListasHoteles', '1', 3600);
+  } catch (error) {
+    Logger.log('asegurarListasDeHotelesComoTexto_: ' + error);
+  }
+}
+
+/**
+ * Función del EDITOR (una sola vez): devuelve a texto las listas que Sheets ya convirtió en número ("26,24" → 26.24) y deja las dos columnas
+ * como texto. Usa lo que SE VE en la celda. Ojo: una lista que acababa en 0 (p. ej. "7,10") perdió ese cero al convertirse ("7,1"); el
+ * registro lista cada celda corregida con el correo de la persona para que las revises.
+ */
+function repararListasDeHoteles() {
+  const hoja = obtenerSpreadsheet_().getSheetByName('Usuarios');
+  const filas = hoja.getLastRow();
+  const idxEmail = 2; // la tercera columna de Usuarios es el correo
+  const revisar = [];
+  ['Hoteles_Permitidos', 'Hoteles_Solicitados'].forEach(function (nombre) {
+    const col = obtenerOAgregarColumna_(hoja, nombre) + 1;
+    if (filas < 2) return;
+    const rango = hoja.getRange(2, col, filas - 1, 1);
+    const crudos = rango.getValues(), vistos = rango.getDisplayValues(), correos = hoja.getRange(2, idxEmail + 1, filas - 1, 1).getValues();
+    hoja.getRange(1, col, hoja.getMaxRows(), 1).setNumberFormat('@');
+    const nuevos = crudos.map(function (f, i) {
+      if (typeof f[0] !== 'number') return [f[0]];
+      revisar.push(nombre + ' · ' + correos[i][0] + ': ' + f[0] + ' → "' + vistos[i][0] + '"');
+      return [String(vistos[i][0])];
+    });
+    rango.setValues(nuevos);
+  });
+  SpreadsheetApp.flush();
+  try { CacheService.getScriptCache().put('oxo:fmtListasHoteles', '1', 3600); } catch (e) { /* sin caché */ }
+  try { if (typeof invalidarCacheUsuarios_ === 'function') invalidarCacheUsuarios_(); } catch (e) { /* ya se renovará */ }
+  Logger.log(revisar.length ? 'Celdas corregidas (revisa que cada lista sea la correcta):\n' + revisar.join('\n') : 'No había listas convertidas en número.');
+}
+
+/**
  * Número de fila (1-indexado) de la primera celda de la columna "columna" (1-indexada) que sea igual a "valor" (sin distinguir mayúsculas,
  * celda completa), o -1. Usa la búsqueda de Sheets (TextFinder), que no descarga la hoja entera: con miles de filas es mucho más rápido
  * que leerla completa y recorrerla. Si TextFinder no está disponible o falla, recorre la columna.

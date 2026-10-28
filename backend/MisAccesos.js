@@ -106,6 +106,7 @@ function solicitarAccesoPropiedades(idUsuarioOToken, hotelesIds) {
       return { success: false, message: 'Tienes demasiadas solicitudes pendientes (máximo ' + MAX_PENDIENTES_USUARIO_ + '). Espera a que se resuelvan algunas.' };
     }
 
+    asegurarListasDeHotelesComoTexto_(cuenta.hoja);
     cuenta.hoja.getRange(cuenta.fila, cuenta.colSolicitados + 1).setValue(actuales.concat(nuevas).join(','));
     invalidarCacheUsuarios_();
 
@@ -144,6 +145,7 @@ function cancelarSolicitudesPropias(idUsuarioOToken, hotelesIds) {
     const canceladas = actuales.filter(function (id) { return aCancelar.indexOf(id) !== -1; });
     if (!canceladas.length) return { success: false, message: 'No tienes solicitudes pendientes para cancelar' };
 
+    asegurarListasDeHotelesComoTexto_(cuenta.hoja);
     cuenta.hoja.getRange(cuenta.fila, cuenta.colSolicitados + 1).setValue(actuales.filter(function (id) { return canceladas.indexOf(id) === -1; }).join(','));
     invalidarCacheUsuarios_();
     registrarAuditoriaSimple_(ctx.yo.id, 'SOLICITUD_ACCESO', 'Canceló su solicitud de: ' + nombresDeHoteles_(canceladas).join(', '), 'Usuario');

@@ -238,6 +238,7 @@ function registrarUsuario(nombre, email, password, hotelesSolicitados) {
     const fechaRegistro = Utilities.formatDate(hoy, "GMT-5", "yyyy-MM-dd");
 
     // El rol se guarda como NÚMERO (1 = Usuario), igual que en el resto del sistema (antes se guardaba el texto "Usuario")
+    asegurarListasDeHotelesComoTexto_(hojaUsuarios);
     const idxSolicitados = obtenerOAgregarColumna_(hojaUsuarios, 'Hoteles_Solicitados');
     const totalColumnas = Math.max(hojaUsuarios.getLastColumn(), 7, idxSolicitados + 1);
     const filaNueva = new Array(totalColumnas).fill('');

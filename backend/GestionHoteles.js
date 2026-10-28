@@ -361,7 +361,7 @@ function quitarHotelDeAccesosDeUsuarios_(ss, idHotelStr) {
       if (!valor || valor === '*' || valor.toUpperCase() === 'TODOS') continue;
       const partes = valor.split(',').map(function (s) { return s.trim(); }).filter(Boolean);
       const nuevas = partes.filter(function (p) { return p !== idHotelStr; });
-      if (nuevas.length !== partes.length) hoja.getRange(i + 1, col + 1).setValue(nuevas.join(','));
+      if (nuevas.length !== partes.length) { asegurarListasDeHotelesComoTexto_(hoja); hoja.getRange(i + 1, col + 1).setValue(nuevas.join(',')); }
     }
   });
   invalidarCacheUsuarios_();

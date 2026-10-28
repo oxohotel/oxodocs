@@ -106,6 +106,7 @@ function aplicarDecisionesSolicitud_(ctx, decisiones) {
     const cerrada = estadoNuevo === 'Pendiente_Aprobacion' && !solicitados.length && !permitidos.length && !todos;
     if (cerrada) estadoNuevo = ESTADO_SOLICITUD_CERRADA_;
 
+    asegurarListasDeHotelesComoTexto_(hoja);
     if (aprobados.length) hoja.getRange(ctx.fila, ctx.col.permitidos + 1).setValue(todos ? permitidosTexto : permitidos.join(','));
     hoja.getRange(ctx.fila, ctx.col.solicitados + 1).setValue(solicitados.join(','));
     if (estadoNuevo !== estadoActual) hoja.getRange(ctx.fila, ctx.col.estado + 1).setValue(estadoNuevo);

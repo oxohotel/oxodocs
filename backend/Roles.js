@@ -667,6 +667,7 @@ function asignarHotelesAUsuario(idUsuarioObjetivo, arrayHotelesIds, idUsuarioSol
     if (filaObjetivo === -1) return { success: false, message: 'Usuario no encontrado' };
 
     const valorHoteles = asignables.valor;
+    asegurarListasDeHotelesComoTexto_(hoja);
     hoja.getRange(filaObjetivo, idxHoteles + 1).setValue(valorHoteles);
     invalidarCacheUsuarios_();
 
@@ -803,6 +804,7 @@ function crearUsuarioPorAdmin(datos, idUsuarioSolicitanteOToken, idUsuarioFallba
       nuevaFila[idxHoteles] = hotelesPermitidos;
     }
 
+    asegurarListasDeHotelesComoTexto_(hojaUsuarios);
     hojaUsuarios.appendRow(nuevaFila);
     invalidarCacheUsuarios_();
 

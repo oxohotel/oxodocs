@@ -82,7 +82,8 @@ const sandbox = {
   obtenerRolDeUsuario_: id => ({ '5': 3, '6': 1 }[String(id)]),
   obtenerInfoRol_: r => ({ id: r }),
   registrarAuditoriaSimple_: (u, a, d) => auditoria.push([u, a, d]),
-  indiceEncabezados_: hoja => { const m = {}; hoja.getDataRange().getValues()[0].forEach((h, i) => m[h] = i); return m; }
+  indiceEncabezados_: hoja => { const m = {}; hoja.getDataRange().getValues()[0].forEach((h, i) => m[h] = i); return m; },
+  asegurarListasDeHotelesComoTexto_: () => {} // el formato de texto de las listas se prueba en Apps Script real
 };
 vm.createContext(sandbox);
 // Drive.js real (conReintentos_, obtenerOCrearSubcarpeta_, DRIVE_CONFIG) y el archivo nuevo
