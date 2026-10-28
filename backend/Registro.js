@@ -70,7 +70,7 @@ function nombresDeHoteles_(ids) {
   return ids.map(function (id) { return nombreDeHotel_(id) || ('hotel ' + id); });
 }
 
-/** Quiénes deben enterarse de una solicitud: superadmins, administradores con TODOS y administradores de esas propiedades. */
+/** Quiénes deben enterarse de una solicitud: administradores (rol 2) con TODOS y administradores de esas propiedades. Nunca los superadmins. */
 function destinatariosDeAprobacion_(usuarios, idsHotelesSolicitados) {
   const pedidos = listaDeIds_(idsHotelesSolicitados);
   const vistos = {};
@@ -79,8 +79,8 @@ function destinatariosDeAprobacion_(usuarios, idsHotelesSolicitados) {
     if (u.estado !== 'Activo' || !u.email) return;
     const rolId = String(obtenerInfoRol_(u.rol).id);
     const propios = listaHotelesDeValor_(u.hoteles);
-    const aplica = rolId === '3' ||
-      (rolId === '2' && (esAccesoTotalHoteles_(u.hoteles) || pedidos.some(function (id) { return propios.indexOf(id) !== -1; })));
+    // Los superadministradores (rol 3) NO reciben estos correos: solo los administradores (rol 2) de las propiedades pedidas
+    const aplica = rolId === '2' && (esAccesoTotalHoteles_(u.hoteles) || pedidos.some(function (id) { return propios.indexOf(id) !== -1; }));
     const correo = u.email.toLowerCase();
     if (aplica && !vistos[correo]) { vistos[correo] = true; lista.push(correo); }
   });

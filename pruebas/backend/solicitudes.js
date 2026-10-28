@@ -109,7 +109,7 @@ const v = verificar('ana@oxohotel.com');
 ok(v.success && celda('ana@oxohotel.com', 'Estado') === 'Pendiente_Aprobacion', '3. al verificar el correo queda "Pendiente_Aprobacion"');
 const aviso = correos.find(c => /Nueva solicitud/.test(c.subject));
 const destinos = aviso ? [aviso.to].concat(String(aviso.bcc || '').split(',')).filter(Boolean).sort() : [];
-ok(destinos.join() === ['admin.84@oxohotel.com', 'admin.distrito@oxohotel.com', 'admin.todos@oxohotel.com', 'sa@oxohotel.com'].sort().join(), '3b. el aviso llega a superadmin, administrador con TODOS y a los administradores de Distrito y 84DC → ' + destinos.join(', '));
+ok(destinos.join() === ['admin.84@oxohotel.com', 'admin.distrito@oxohotel.com', 'admin.todos@oxohotel.com'].sort().join(), '3b. el aviso llega al administrador con TODOS y a los de Distrito y 84DC, NUNCA al superadmin → ' + destinos.join(', '));
 ok(!destinos.includes('admin.inactivo@oxohotel.com') && !destinos.includes('normal@oxohotel.com'), '3c. no llega a administradores inactivos ni a usuarios normales');
 ok(aviso && /Propiedades que solicita/i.test(aviso.htmlBody) && />Distrito</.test(aviso.htmlBody) && />84DC</.test(aviso.htmlBody), '3d. el aviso dice qué propiedades pidió (una etiqueta por propiedad)');
 ok(aviso && aviso.name === 'Repositorio OxoHotel' && /#3D5A4C/.test(aviso.htmlBody) && /Repositorio de Documentos OxoHotel/.test(aviso.htmlBody) && /border-radius: 16px/.test(aviso.htmlBody), '3d-2. el aviso usa el formato corporativo de los demás correos (tarjeta, título verde, remitente "Repositorio OxoHotel")');
@@ -262,7 +262,7 @@ const pide = F.solicitarAccesoPropiedades(tokJo, ['H2', 'H3', 'H1']);
 ok(pide.success && pide.solicitadas.map(h => h.idHotel).join() === 'H2,H3' && pide.ignoradas === 1 && celda('jo@oxohotel.com', 'Hoteles_Solicitados') === 'H2,H3' && celda('jo@oxohotel.com', 'Estado') === 'Activo', '14c. pide 84DC y Hotel Secreto (Distrito ya lo tiene y se ignora); la cuenta sigue activa → ' + pide.message);
 const avisoAd = correos.find(c => /adicional/i.test(c.subject));
 const destAd = avisoAd ? [avisoAd.to].concat(String(avisoAd.bcc || '').split(',')).filter(Boolean).sort() : [];
-ok(destAd.join() === ['admin.84@oxohotel.com', 'admin.todos@oxohotel.com', 'sa@oxohotel.com'].sort().join(), '14d. el aviso llega a los administradores de 84DC, al de TODOS y al superadmin; NO al de Distrito (no pidió Distrito) → ' + destAd.join(', '));
+ok(destAd.join() === ['admin.84@oxohotel.com', 'admin.todos@oxohotel.com'].sort().join(), '14d. el aviso llega a los administradores de 84DC y al de TODOS, NUNCA al superadmin; NO al de Distrito (no pidió Distrito) → ' + destAd.join(', '));
 ok(avisoAd && /ya tiene cuenta/.test(avisoAd.htmlBody) && />84DC</.test(avisoAd.htmlBody) && !/>Distrito</.test(avisoAd.htmlBody), '14e. el aviso dice que ya tiene cuenta y lista solo las propiedades nuevas');
 
 nuevaEjecucion(); ok(F.solicitarAccesoPropiedades(tokJo, ['H2']).success === false, '14f. repetir una solicitud ya pendiente se rechaza');
